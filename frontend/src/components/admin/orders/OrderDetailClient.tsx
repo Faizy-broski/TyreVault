@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import type {
   OrderDetail, OrderItem, OrderShipment,
-  PaymentStatus, FulfillmentStatus, ShipmentStatus,
+  PaymentStatus, OrderStatus, ShipmentStatus,
 } from '@/types/admin.types'
 import FulfillmentModal from './FulfillmentModal'
 import MarkShippedModal from './MarkShippedModal'
@@ -75,27 +75,26 @@ function StatusDropdown({
 }
 
 const PAYMENT_OPTIONS: StatusOption[] = [
-  { value: 'success',  label: 'Paid',      cls: 'border-green-200 bg-green-50 text-green-700' },
-  { value: 'pending',  label: 'Pending',   cls: 'border-amber-200 bg-amber-50 text-amber-700' },
-  { value: 'failed',   label: 'Failed',    cls: 'border-red-200 bg-red-50 text-red-700' },
-  { value: 'refunded', label: 'Refunded',  cls: 'border-zinc-200 bg-zinc-100 text-zinc-600' },
+  { value: 'unpaid',       label: 'Unpaid',        cls: 'border-amber-200 bg-amber-50 text-amber-700' },
+  { value: 'paid',         label: 'Paid',          cls: 'border-green-200 bg-green-50 text-green-700' },
+  { value: 'partially_paid', label: 'Partial',     cls: 'border-blue-200 bg-blue-50 text-blue-700' },
+  { value: 'refunded',     label: 'Refunded',      cls: 'border-zinc-200 bg-zinc-100 text-zinc-600' },
 ]
 
-const DELIVERY_OPTIONS: StatusOption[] = [
-  { value: 'unfulfilled',        label: 'Unfulfilled',    cls: 'border-red-200 bg-red-50 text-red-700' },
-  { value: 'awaiting_shipping',  label: 'Awaiting',       cls: 'border-amber-200 bg-amber-50 text-amber-700' },
-  { value: 'shipped',            label: 'Shipped',        cls: 'border-amber-200 bg-amber-50 text-amber-700' },
-  { value: 'delivered',          label: 'Delivered',      cls: 'border-green-200 bg-green-50 text-green-700' },
-  { value: 'partially_fulfilled',label: 'Partial',        cls: 'border-amber-200 bg-amber-50 text-amber-700' },
-  { value: 'fulfilled',          label: 'Fulfilled',      cls: 'border-blue-200 bg-blue-50 text-blue-700' },
-  { value: 'cancelled',          label: 'Cancelled',      cls: 'border-zinc-200 bg-zinc-100 text-zinc-600' },
+const ORDER_STATUS_OPTIONS: StatusOption[] = [
+  { value: 'pending',     label: 'Pending',    cls: 'border-zinc-200 bg-zinc-100 text-zinc-600' },
+  { value: 'paid',        label: 'Paid',       cls: 'border-blue-200 bg-blue-50 text-blue-700' },
+  { value: 'processing',  label: 'Processing', cls: 'border-amber-200 bg-amber-50 text-amber-700' },
+  { value: 'fulfilled',   label: 'Fulfilled',  cls: 'border-green-200 bg-green-50 text-green-700' },
+  { value: 'cancelled',   label: 'Cancelled',  cls: 'border-red-200 bg-red-50 text-red-700' },
+  { value: 'refunded',    label: 'Refunded',   cls: 'border-zinc-200 bg-zinc-100 text-zinc-600' },
 ]
 
-function deriveOrderStatus(payment: string, fulfillment: string) {
-  if (fulfillment === 'delivered')          return { value: 'complete',    label: 'Complete',     cls: 'border-green-200 bg-green-50 text-green-700' }
-  if (fulfillment === 'shipped')            return { value: 'in_progress', label: 'In Progress',  cls: 'border-amber-200 bg-amber-50 text-amber-700' }
-  if (payment    === 'pending')             return { value: 'awaiting',    label: 'Awaiting Payment', cls: 'border-amber-200 bg-amber-50 text-amber-700' }
-  if (fulfillment === 'cancelled')          return { value: 'cancelled',   label: 'Cancelled',    cls: 'border-red-200 bg-red-50 text-red-700' }
+function deriveOrderStatus(orderStatus: string) {
+  if (orderStatus === 'fulfilled')  return { value: 'complete',    label: 'Complete',     cls: 'border-green-200 bg-green-50 text-green-700' }
+  if (orderStatus === 'processing') return { value: 'in_progress', label: 'In Progress',  cls: 'border-amber-200 bg-amber-50 text-amber-700' }
+  if (orderStatus === 'unpaid' || orderStatus === 'pending') return { value: 'awaiting', label: 'Awaiting Payment', cls: 'border-amber-200 bg-amber-50 text-amber-700' }
+  if (orderStatus === 'cancelled')  return { value: 'cancelled',   label: 'Cancelled',    cls: 'border-red-200 bg-red-50 text-red-700' }
   return { value: 'in_progress', label: 'In Progress', cls: 'border-amber-200 bg-amber-50 text-amber-700' }
 }
 
@@ -111,15 +110,15 @@ const FITMENT_STEPS = [
 
 function fitmentStepsDone(status: string | undefined) {
   switch (status) {
-    case 'new_request': return 1
+    case 'pending':     return 1
+    case 'assigned':    return 1
     case 'accepted':    return 2
-    case 'delayed':     return 2
+    case 'in_progress': return 2
     case 'completed':   return 5
     case 'cancelled':   return 0
     default:            return 1
   }
 }
-
 function FitmentProgressBar({ status }: { status: string | undefined }) {
   const done      = fitmentStepsDone(status)
   const cancelled = status === 'cancelled'
@@ -158,8 +157,7 @@ function FitmentProgressBar({ status }: { status: string | undefined }) {
 // ── Unfulfilled items ──────────────────────────────────────────────────────
 
 function UnfulfilledItems({ items, onFulfill }: { items: OrderItem[]; onFulfill: () => void }) {
-  const unfulfilled = items.filter(i => (i.fulfilled_quantity ?? 0) < i.quantity)
-  if (unfulfilled.length === 0) return null
+  if (items.length === 0) return null
 
   return (
     <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
@@ -175,19 +173,17 @@ function UnfulfilledItems({ items, onFulfill }: { items: OrderItem[]; onFulfill:
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-amber-200">
-            {['SKU', 'Size', 'Qty', 'Fulfilled', 'Remaining'].map(h => (
+            {['SKU', 'Size', 'Qty'].map(h => (
               <th key={h} className="pb-2 text-left text-xs font-medium text-amber-700">{h}</th>
             ))}
           </tr>
         </thead>
         <tbody className="divide-y divide-amber-100">
-          {unfulfilled.map(item => (
+          {items.map(item => (
             <tr key={item.order_item_id}>
               <td className="py-2 font-mono text-xs text-zinc-600">{item.skus?.sku ?? '—'}</td>
               <td className="py-2 text-zinc-700 text-xs">{item.skus?.tyre_size_display ?? '—'}</td>
               <td className="py-2 text-zinc-600">{item.quantity}</td>
-              <td className="py-2 text-zinc-600">{item.fulfilled_quantity ?? 0}</td>
-              <td className="py-2 font-medium text-zinc-900">{item.quantity - (item.fulfilled_quantity ?? 0)}</td>
             </tr>
           ))}
         </tbody>
@@ -272,16 +268,16 @@ export default function OrderDetailClient({
   const [shipToMark, setShipToMark]   = useState<OrderShipment | null>(null)
   const [statusSaving, setStatusSaving] = useState(false)
 
-  async function patchStatus(patch: { paymentStatus?: string; fulfillmentStatus?: string }) {
+  async function patchStatus(patch: { paymentStatus?: string; orderStatus?: string }) {
     setStatusSaving(true)
     try {
       await fetch(`${API}/api/admin/orders/${order.order_id}/status`, {
         method:  'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-        body:    JSON.stringify(patch),
+        body:    JSON.stringify({ paymentStatus: patch.paymentStatus, fulfillmentStatus: patch.orderStatus }),
       })
-      if (patch.paymentStatus)     setOrder(p => ({ ...p, payment_status:     patch.paymentStatus     as PaymentStatus }))
-      if (patch.fulfillmentStatus) setOrder(p => ({ ...p, fulfillment_status: patch.fulfillmentStatus as FulfillmentStatus }))
+      if (patch.paymentStatus) setOrder(p => ({ ...p, payment_status: patch.paymentStatus as PaymentStatus }))
+      if (patch.orderStatus)   setOrder(p => ({ ...p, order_status:   patch.orderStatus   as OrderStatus }))
     } finally { setStatusSaving(false) }
   }
 
@@ -293,15 +289,15 @@ export default function OrderDetailClient({
           ? { ...s, status: 'delivered' as ShipmentStatus, delivered_at: new Date().toISOString() }
           : s
       ),
-      fulfillment_status: 'delivered' as FulfillmentStatus,
+      order_status: 'fulfilled' as OrderStatus,
     }))
   }
 
   const c       = order.customers
   const addr    = order.shipping_address_snapshot
   const billing = order.billing_address_snapshot
-  const isFitment = !!order.fitment_centre_id
-  const orderStatus = deriveOrderStatus(order.payment_status, order.fulfillment_status)
+  const isFitment   = !!order.fitment_id
+  const orderStatus = deriveOrderStatus(order.order_status)
 
   const fullName = c ? [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email : '—'
 
@@ -352,10 +348,10 @@ export default function OrderDetailClient({
             loading={statusSaving}
           />
           <StatusDropdown
-            label="Delivery Status"
-            value={order.fulfillment_status}
-            options={DELIVERY_OPTIONS}
-            onChange={val => patchStatus({ fulfillmentStatus: val })}
+            label="Order Status"
+            value={order.order_status}
+            options={ORDER_STATUS_OPTIONS}
+            onChange={val => patchStatus({ orderStatus: val })}
             loading={statusSaving}
           />
           <div className="flex flex-col gap-1">
@@ -397,7 +393,7 @@ export default function OrderDetailClient({
                     <tr><td colSpan={6} className="px-4 py-6 text-center text-sm text-zinc-400">No items.</td></tr>
                   ) : (
                     order.order_items.map(item => {
-                      const vat = item.total_price * 0.1
+                      const lineTotal = item.quantity * item.unit_price
                       return (
                         <tr key={item.order_item_id} className="hover:bg-zinc-50">
                           <td className="px-4 py-3 text-zinc-800 font-medium">
@@ -408,8 +404,8 @@ export default function OrderDetailClient({
                           </td>
                           <td className="px-4 py-3 text-zinc-600">{item.quantity}x</td>
                           <td className="px-4 py-3 text-zinc-700">{fmtCurrency(item.unit_price, order.currency)}</td>
-                          <td className="px-4 py-3 text-zinc-500">{fmtCurrency(vat, order.currency)}</td>
-                          <td className="px-4 py-3 text-right font-medium text-zinc-900">{fmtCurrency(item.total_price, order.currency)}</td>
+                          <td className="px-4 py-3 text-zinc-500">{fmtCurrency(lineTotal * 0.1, order.currency)}</td>
+                          <td className="px-4 py-3 text-right font-medium text-zinc-900">{fmtCurrency(lineTotal, order.currency)}</td>
                         </tr>
                       )
                     })
@@ -419,45 +415,35 @@ export default function OrderDetailClient({
             </div>
 
             {/* Financial breakdown */}
-            <div className="px-5 py-4 border-t border-zinc-100 space-y-2">
-              <div className="flex justify-between text-sm text-zinc-500">
-                <span>Item Subtotal</span>
-                <span>{fmtCurrency(order.subtotal_amount, order.currency)}</span>
-              </div>
-              <div className="flex justify-between text-sm text-zinc-500">
-                <span className="flex items-center gap-1">
-                  Shipping
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                  </svg>
-                </span>
-                <span>{fmtCurrency(order.shipping_amount, order.currency)}</span>
-              </div>
-              <div className="flex justify-between text-sm text-zinc-500">
-                <span>Tax</span>
-                <span>{fmtCurrency(order.tax_amount, order.currency)}</span>
-              </div>
-              {order.discount_amount > 0 && (
-                <div className="flex justify-between text-sm text-red-600">
-                  <span>Discount</span>
-                  <span>−{fmtCurrency(order.discount_amount, order.currency)}</span>
+              <div className="px-5 py-4 border-t border-zinc-100 space-y-2">
+                <div className="flex justify-between text-sm text-zinc-500">
+                  <span>Item Subtotal</span>
+                  <span>{fmtCurrency(order.order_items.reduce((s, i) => s + i.quantity * i.unit_price, 0), order.currency)}</span>
                 </div>
-              )}
-              <div className="flex justify-between text-sm font-semibold text-zinc-900 border-t border-zinc-100 pt-2">
-                <span>Order Total</span>
-                <span>{fmtCurrency(order.total_amount, order.currency)}</span>
+                <div className="flex justify-between text-sm text-zinc-500">
+                  <span className="flex items-center gap-1">
+                    Shipping
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                    </svg>
+                  </span>
+                  <span>{fmtCurrency(order.shipping_cost, order.currency)}</span>
+                </div>
+                <div className="flex justify-between text-sm text-zinc-500">
+                  <span>GST</span>
+                  <span>{fmtCurrency(order.gst_amount, order.currency)}</span>
+                </div>
+                {order.discount_amount > 0 && (
+                  <div className="flex justify-between text-sm text-red-600">
+                    <span>Discount</span>
+                    <span>−{fmtCurrency(order.discount_amount, order.currency)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm font-semibold text-zinc-900 border-t border-zinc-100 pt-2">
+                  <span>Order Total</span>
+                  <span>{fmtCurrency(order.total_amount, order.currency)}</span>
+                </div>
               </div>
-              <div className="flex justify-between text-sm text-zinc-500">
-                <span>Paid</span>
-                <span>{fmtCurrency(order.paid_amount, order.currency)} {order.currency}</span>
-              </div>
-              <div className="flex justify-between text-sm text-zinc-500">
-                <span>Outstanding</span>
-                <span className={order.outstanding_amount > 0 ? 'text-red-600 font-medium' : ''}>
-                  {fmtCurrency(order.outstanding_amount, order.currency)} {order.currency}
-                </span>
-              </div>
-            </div>
           </div>
 
           {/* Unfulfilled items */}
@@ -472,7 +458,7 @@ export default function OrderDetailClient({
               <h2 className="text-sm font-semibold text-zinc-900">Delivery Type</h2>
               {isFitment ? (
                 <span className="inline-flex items-center rounded-lg bg-blue-600 text-white px-3 py-1 text-xs font-medium">
-                  Fitment Center {order.fitment_job?.task_number ?? order.fitment_centre_id?.slice(0, 8).toUpperCase()}
+                  Fitment Center {order.fitment_job?.task_number ?? order.fitment_id?.slice(0, 8).toUpperCase()}
                 </span>
               ) : (
                 <span className="inline-flex items-center rounded-lg bg-zinc-100 text-zinc-700 px-3 py-1 text-xs font-medium">
@@ -492,7 +478,7 @@ export default function OrderDetailClient({
                     <div>
                       <p className="text-xs text-zinc-400 mb-1">Center</p>
                       <p className="text-sm font-medium text-zinc-800">
-                        {order.fitment_job.fitment_centres?.centre_name ?? '—'}
+                        {order.fitment_job.fitment_centres?.business_name ?? '—'}
                       </p>
                     </div>
                     <div>
@@ -504,7 +490,7 @@ export default function OrderDetailClient({
                       </p>
                     </div>
                   </div>
-                  <FitmentProgressBar status={order.fitment_job.status} />
+                  <FitmentProgressBar status={order.fitment_job.job_status} />
                 </>
               ) : (
                 <div className="grid grid-cols-3 gap-4">
@@ -544,7 +530,7 @@ export default function OrderDetailClient({
                 <h2 className="text-sm font-semibold text-zinc-900">Payments</h2>
                 <span className="inline-flex items-center gap-1.5 text-xs text-green-700 font-medium">
                   <span className="w-2 h-2 rounded-full bg-green-500" />
-                  {order.payment_status === 'success' ? 'Paid' : order.payment_status}
+                  {order.payment_status === 'paid' ? 'Paid' : order.payment_status}
                 </span>
               </div>
               <table className="w-full text-sm">
@@ -560,12 +546,12 @@ export default function OrderDetailClient({
                       </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${
-                          p.status === 'success' ? 'text-green-700' : p.status === 'failed' ? 'text-red-600' : 'text-amber-600'
+                          p.status === 'paid' ? 'text-green-700' : p.status === 'failed' ? 'text-red-600' : 'text-amber-600'
                         }`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${
-                            p.status === 'success' ? 'bg-green-500' : p.status === 'failed' ? 'bg-red-500' : 'bg-amber-500'
+                            p.status === 'paid' ? 'bg-green-500' : p.status === 'failed' ? 'bg-red-500' : 'bg-amber-500'
                           }`} />
-                          {p.status === 'success' ? 'Succeed' : p.status}
+                          {p.status === 'paid' ? 'Paid' : p.status}
                         </span>
                       </td>
                       <td className="px-4 py-3 font-medium text-zinc-900">
@@ -585,7 +571,7 @@ export default function OrderDetailClient({
               <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-100 bg-zinc-50">
                 <span className="text-xs text-zinc-500">Total paid by customer</span>
                 <span className="text-sm font-semibold text-zinc-900">
-                  {fmtCurrency(order.paid_amount, order.currency)} {order.currency}
+                  {fmtCurrency(order.order_payments.reduce((s, p) => s + p.amount, 0), order.currency)} {order.currency}
                 </span>
               </div>
             </div>
@@ -713,14 +699,14 @@ export default function OrderDetailClient({
       {showFulfill && (
         <FulfillmentModal
           orderId={order.order_id}
-          items={order.order_items.filter(i => (i.fulfilled_quantity ?? 0) < i.quantity)}
+          items={order.order_items}
           onClose={() => setShowFulfill(false)}
           onSuccess={newShipment => {
             setShowFulfill(false)
             setOrder(prev => ({
               ...prev,
-              order_shipments:    [...prev.order_shipments, newShipment],
-              fulfillment_status: 'awaiting_shipping',
+              order_shipments: [...prev.order_shipments, newShipment],
+              order_status: 'processing' as OrderStatus,
             }))
           }}
         />
@@ -740,7 +726,7 @@ export default function OrderDetailClient({
                   ? { ...s, status: 'shipped' as ShipmentStatus, tracking_number: trackingNumber ?? null, tracking_uri: trackingUri ?? null, shipped_at: new Date().toISOString() }
                   : s
               ),
-              fulfillment_status: 'shipped',
+              order_status: 'processing' as OrderStatus,
             }))
           }}
         />

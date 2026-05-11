@@ -87,7 +87,7 @@ export default function FitmentCentreDetailClient({
     try {
       const next = !isActive
       const res = await fetch(
-        `${API}/api/admin/fitment-centres/${centre.fitment_centre_id}/status`,
+        `${API}/api/admin/fitment-centres/${centre.fitment_id}/status`,
         { method: 'PATCH', headers, body: JSON.stringify({ is_active: next }) }
       )
       if (res.ok) setIsActive(next)
@@ -116,12 +116,12 @@ export default function FitmentCentreDetailClient({
       <nav className="flex items-center gap-1.5 text-xs text-zinc-400">
         <span>Fitment Center</span>
         <span>/</span>
-        <span className="text-zinc-700 font-medium">{centre.centre_name}</span>
+        <span className="text-zinc-700 font-medium">{centre.business_name}</span>
       </nav>
 
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-zinc-900">{centre.centre_name}</h1>
+        <h1 className="text-xl font-semibold text-zinc-900">{centre.business_name}</h1>
         <div className="flex items-center gap-2">
           <button
             onClick={toggleStatus}
@@ -346,7 +346,7 @@ export default function FitmentCentreDetailClient({
         <div>
           {activeTab === 'orders' && (
             <FitmentOrdersTab
-              centreId={centre.fitment_centre_id}
+              centreId={centre.fitment_id}
               kpis={kpis}
               initialJobs={initialJobs}
               initialTotal={initialJobsTotal}
@@ -356,14 +356,14 @@ export default function FitmentCentreDetailClient({
           )}
           {activeTab === 'pricing' && (
             <PricingOverrideTab
-              centreId={centre.fitment_centre_id}
+              centreId={centre.fitment_id}
               initialRows={initialPricing}
               accessToken={accessToken}
             />
           )}
           {activeTab === 'payment' && (
             <PaymentSettlementTab
-              centreId={centre.fitment_centre_id}
+              centreId={centre.fitment_id}
               initialSummary={paymentSummary}
               initialHistory={initialPayments}
               initialTotal={initialPaymentTotal}
@@ -373,7 +373,7 @@ export default function FitmentCentreDetailClient({
           )}
           {activeTab === 'compliance' && (
             <ComplianceDocTab
-              centreId={centre.fitment_centre_id}
+              centreId={centre.fitment_id}
               initialDocs={complianceDocs}
               accessToken={accessToken}
             />

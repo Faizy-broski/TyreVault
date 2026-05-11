@@ -109,8 +109,8 @@ export interface ProfileRow {
 
 // ── Orders ─────────────────────────────────────────────────────────────────
 
-export type PaymentStatus     = 'pending' | 'success' | 'failed' | 'refunded'
-export type FulfillmentStatus = 'unfulfilled' | 'partially_fulfilled' | 'fulfilled' | 'awaiting_shipping' | 'shipped' | 'delivered' | 'cancelled'
+export type PaymentStatus     = 'unpaid' | 'paid' | 'partially_paid' | 'refunded'
+export type OrderStatus       = 'pending' | 'paid' | 'processing' | 'fulfilled' | 'cancelled' | 'refunded'
 export type ShipmentStatus    = 'awaiting_shipping' | 'shipped' | 'delivered' | 'cancelled'
 
 export interface OrderListItem {
@@ -118,11 +118,11 @@ export interface OrderListItem {
   order_number:       string
   created_at:         string
   payment_status:     PaymentStatus
-  fulfillment_status: FulfillmentStatus
+  order_status:       OrderStatus
   total_amount:       number
   currency:           string
-  delivery_method:    string | null
-  fitment_centre_id:  string | null
+  order_type:         string | null
+  fitment_id:         string | null
   shipping_address_snapshot: Record<string, string> | null
   customers:  { customer_id: string; first_name: string | null; last_name: string | null; email: string } | null
   order_items: { order_item_id: string }[]
@@ -133,8 +133,6 @@ export interface OrderItem {
   product_id: string
   quantity: number
   unit_price: number
-  total_price: number
-  fulfilled_quantity: number
   skus: {
     sku: string
     tyre_size_display: string
@@ -187,12 +185,12 @@ export interface OrderActivity {
 export interface FitmentJobForOrder {
   job_id:         string
   task_number:    string
-  status:         string
+  job_status:     string
   scheduled_date: string | null
   scheduled_time: string | null
   fitment_centres: {
-    fitment_centre_id: string
-    centre_name:       string
+    fitment_id:    string
+    business_name: string
   } | null
 }
 
@@ -202,17 +200,14 @@ export interface OrderDetail {
   created_at:         string
   currency:           string
   notes:              string | null
-  subtotal_amount:    number
-  shipping_amount:    number
-  tax_amount:         number
+  shipping_cost:      number
+  gst_amount:         number
   discount_amount:    number
   total_amount:       number
-  paid_amount:        number
-  outstanding_amount: number
   payment_status:     PaymentStatus
-  fulfillment_status: FulfillmentStatus
-  delivery_method:    string | null
-  fitment_centre_id:  string | null
+  order_status:       OrderStatus
+  order_type:         string | null
+  fitment_id:         string | null
   fitment_job:        FitmentJobForOrder | null
   shipping_address_snapshot: Record<string, string> | null
   billing_address_snapshot:  Record<string, string> | null
@@ -240,7 +235,7 @@ export interface CustomerListItem {
   email: string
   first_name: string | null
   last_name: string | null
-  company: string | null
+  business_name: string | null
   phone: string | null
   created_at: string
   profile_id: string | null  // null = Guest, set = Registered
@@ -250,10 +245,10 @@ export interface Address {
   address_id: string
   customer_id: string
   address_name: string
-  address_line1: string
-  address_line2: string | null
-  city: string | null
-  postal_code: string | null
+  address_line_1: string
+  address_line_2: string | null
+  suburb: string | null
+  postcode: string | null
   country: string | null
   state: string | null
   company: string | null
@@ -279,8 +274,8 @@ export interface CustomerDetail extends CustomerListItem {
 export type CentreStatus = 'active' | 'hold'
 
 export interface AdminFitmentCentreSummary {
-  fitment_centre_id: string
-  centre_name:       string
+  fitment_id:      string
+  business_name:   string
   partner_id:        string
   is_active:         boolean
   contact_phone:     string | null
@@ -290,8 +285,8 @@ export interface AdminFitmentCentreSummary {
 }
 
 export interface AdminFitmentCentreDetail {
-  fitment_centre_id: string
-  centre_name:       string
+  fitment_id:      string
+  business_name:   string
   partner_id:        string
   is_active:         boolean
   created_at:        string
@@ -310,7 +305,7 @@ export interface AdminCentreKPIs {
   thisMonthEarnings:   number
 }
 
-export type AdminCentreJobStatus = 'new_request' | 'accepted' | 'completed' | 'cancelled' | 'delayed'
+export type AdminCentreJobStatus = 'pending' | 'assigned' | 'accepted' | 'rejected' | 'in_progress' | 'completed' | 'cancelled'
 
 export interface AdminCentreJob {
   job_id:            string
@@ -323,9 +318,9 @@ export interface AdminCentreJob {
   tyre_size:         string | null
   quantity:          number
   vehicle_model:     string | null
-  status:            AdminCentreJobStatus
+  job_status:        AdminCentreJobStatus
   earnings_amount:   number | null
-  fitment_centre_id: string
+  fitment_id:        string
   created_at:        string
 }
 
@@ -363,17 +358,79 @@ export interface PaymentHistoryRow {
 }
 
 export interface BankDetails {
-  id:                string | null
-  fitment_centre_id: string
-  account_holder:    string
-  bank_name:         string
-  bsb:               string | null
-  account_number:    string
+  id:             string | null
+  fitment_id:     string
+  account_holder: string
+  bank_name:      string
+  bsb:            string | null
+  account_number: string
 }
 
 // ── Compliance & Doc ───────────────────────────────────────────────────────
 
 export type ComplianceStatus = 'valid' | 'expired' | 'pending' | 'rejected'
+
+// ============================================================
+// Suppliers
+// ============================================================
+export type SupplierType        = 'wholesaler' | 'factory' | 'distributor' | 'importer'
+export type StockAccessType     = 'api' | 'csv' | 'manual'
+
+export interface Supplier {
+  supplier_id:       string
+  supplier_name:     string
+  supplier_type:     SupplierType | null
+  contact_name:      string | null
+  email:             string | null
+  phone:             string | null
+  state:             string | null
+  country:           string | null
+  payment_terms:     string | null
+  stock_access_type: StockAccessType | null
+  api_connected:     boolean
+  is_active:         boolean
+  created_at:        string
+  updated_at:        string
+  // hydrated by getSupplier
+  stats?: {
+    auto_mapped:    number
+    pending_review: number
+  }
+}
+
+export interface SupplierMapping {
+  id:                    string
+  supplier_sku:          string | null
+  supplier_product_name: string | null
+  supplier_brand_name:   string | null
+  supplier_pattern_name: string | null
+  supplier_size_raw:     string | null
+  normalized_size_code:  string | null
+  load_index:            string | null
+  speed_rating:          string | null
+  supplier_price:        number | null
+  supplier_stock:        number | null
+  match_confidence:      number | null
+  is_verified:           boolean
+  last_updated:          string | null
+  product_id:            string | null
+  // joined
+  skus: {
+    sku:               string
+    tyre_size_display: string
+    brands:   { brand_name:   string } | null
+    patterns: { pattern_name: string } | null
+  } | null
+}
+
+export type ImportJobState = 'waiting' | 'active' | 'completed' | 'failed' | 'not_found' | 'unknown'
+
+export interface ImportJobStatus {
+  state:       ImportJobState
+  progress:    number
+  result?:     { auto_mapped: number; review_queue: number; rejected: number } | null
+  failReason?: string | null
+}
 
 export interface ComplianceDoc {
   id:               string

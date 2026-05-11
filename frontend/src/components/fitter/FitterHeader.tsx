@@ -17,7 +17,7 @@ export default function FitterHeader({ centre, userEmail, notificationCount = 0 
     <header className="h-14 bg-white border-b border-zinc-200 flex items-center justify-between px-6 shrink-0">
       {/* Centre info */}
       <div>
-        <p className="text-sm font-semibold text-zinc-900">{centre.centre_name}</p>
+        <p className="text-sm font-semibold text-zinc-900">{centre.business_name}</p>
         <p className="text-xs text-zinc-500">Partner ID: {centre.partner_id}</p>
       </div>
 

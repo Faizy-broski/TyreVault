@@ -77,7 +77,7 @@ export default function EditCustomerModal({ customer, onClose }: Props) {
               { name: 'email',     label: 'Email',      type: 'email',  defaultValue: customer.email,      required: true },
               { name: 'firstName', label: 'First Name', type: 'text',   defaultValue: customer.first_name ?? '' },
               { name: 'lastName',  label: 'Last Name',  type: 'text',   defaultValue: customer.last_name  ?? '' },
-              { name: 'company',   label: 'Company',    type: 'text',   defaultValue: customer.company    ?? '' },
+              { name: 'company',   label: 'Company',    type: 'text',   defaultValue: customer.business_name ?? '' },
               { name: 'phone',     label: 'Phone',      type: 'tel',    defaultValue: customer.phone      ?? '' },
             ].map(field => (
               <div key={field.name}>

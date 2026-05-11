@@ -18,16 +18,16 @@ export async function generateMetadata({ params }: { params: Promise<{ customerI
 }
 
 export type CustomerOrder = {
-  order_id:           string
-  order_number:       string
-  created_at:         string
-  payment_status:     string
-  fulfillment_status: string
-  total_amount:       number
-  item_count:         number
-  delivery_method:    string | null
-  payment_method:     string | null
-  fitment_centre_id:  string | null
+  order_id:      string
+  order_number:  string
+  created_at:    string
+  payment_status: string
+  order_status:  string
+  total_amount:  number
+  item_count:    number
+  order_type:    string | null
+  payment_method: string | null
+  fitment_id:    string | null
 }
 
 export type OrderStats = {
@@ -44,7 +44,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   const [customerRes, ordersRes, groupsRes, addressesRes] = await Promise.all([
     supabase
       .from('customers')
-      .select('customer_id, email, first_name, last_name, company, phone, created_at, profile_id')
+      .select('customer_id, email, first_name, last_name, business_name, phone, created_at, profile_id')
       .eq('customer_id', customerId)
       .single(),
 
@@ -52,8 +52,8 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
       .from('orders')
       .select(`
         order_id, order_number, created_at,
-        payment_status, fulfillment_status, total_amount,
-        delivery_method, payment_method, fitment_centre_id,
+        payment_status, order_status, total_amount,
+        order_type, payment_method, fitment_id,
         order_items ( order_item_id )
       `)
       .eq('customer_id', customerId)
@@ -67,7 +67,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
 
     supabase
       .from('addresses')
-      .select('address_id, customer_id, address_name, address_line1, address_line2, city, postal_code, country, state, company, phone')
+      .select('address_id, customer_id, address_name, address_line_1, address_line_2, suburb, postcode, country, state, company, phone')
       .eq('customer_id', customerId)
       .order('created_at', { ascending: true }),
   ])
@@ -78,16 +78,16 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   const customer  = customerData.data!
   const rawOrders = ((ordersRes as unknown as { data: any[] | null }).data ?? [])
   const orders: CustomerOrder[] = rawOrders.map((o: any) => ({
-    order_id:           o.order_id,
-    order_number:       o.order_number,
-    created_at:         o.created_at,
-    payment_status:     o.payment_status,
-    fulfillment_status: o.fulfillment_status,
-    total_amount:       Number(o.total_amount ?? 0),
-    item_count:         Array.isArray(o.order_items) ? o.order_items.length : 0,
-    delivery_method:    o.delivery_method ?? null,
-    payment_method:     o.payment_method  ?? null,
-    fitment_centre_id:  o.fitment_centre_id ?? null,
+    order_id:      o.order_id,
+    order_number:  o.order_number,
+    created_at:    o.created_at,
+    payment_status: o.payment_status,
+    order_status:  o.order_status,
+    total_amount:  Number(o.total_amount ?? 0),
+    item_count:    Array.isArray(o.order_items) ? o.order_items.length : 0,
+    order_type:    o.order_type ?? null,
+    payment_method: o.payment_method  ?? null,
+    fitment_id:    o.fitment_id ?? null,
   }))
 
   const orderStats: OrderStats = {

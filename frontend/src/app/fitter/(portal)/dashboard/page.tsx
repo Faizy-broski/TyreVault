@@ -23,12 +23,12 @@ export default async function FitterDashboardPage() {
   try {
     const [kpiRes, jobsRes, centreRes] = await Promise.all([
       fetch(`${API}/api/fitter/portal/kpis`,              { headers, cache: 'no-store' }),
-      fetch(`${API}/api/fitter/portal/jobs?status=new_request`, { headers, cache: 'no-store' }),
+      fetch(`${API}/api/fitter/portal/jobs?status=pending`, { headers, cache: 'no-store' }),
       fetch(`${API}/api/fitter/portal/centre`,            { headers, cache: 'no-store' }),
     ])
     if (kpiRes.ok)    kpis     = await kpiRes.json()
     if (jobsRes.ok)   jobs     = await jobsRes.json()
-    if (centreRes.ok) { const c = await centreRes.json(); centreId = c.fitment_centre_id ?? '' }
+    if (centreRes.ok) { const c = await centreRes.json(); centreId = c.fitment_id ?? '' }
   } catch { /* backend may not be running in dev */ }
 
   return (

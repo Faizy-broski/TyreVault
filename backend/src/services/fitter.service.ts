@@ -170,8 +170,7 @@ export async function reviewApplication(
     .from('fitment_centres')
     .insert({
       user_id:         userId,
-      centre_name:     app.full_name,          // fitter's trading name
-      business_name:   app.full_name,
+      business_name:   app.full_name,          // fitter's trading name
       contact_name:    app.contact_person,
       contact_phone:   app.mobile_number ?? null,
       email:           app.email,

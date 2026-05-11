@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import type { OrderListItem, PaymentStatus, FulfillmentStatus } from '@/types/admin.types'
+import type { OrderListItem, PaymentStatus, OrderStatus } from '@/types/admin.types'
 
 export const metadata = { title: 'Orders' }
 
@@ -18,30 +18,28 @@ interface Props {
 // ── Badge helpers ──────────────────────────────────────────────────────────
 
 function PaymentDot({ status }: { status: PaymentStatus }) {
-  const dot: Record<PaymentStatus, string>   = { success: 'bg-green-500', pending: 'bg-amber-500', failed: 'bg-red-500', refunded: 'bg-zinc-400' }
-  const label: Record<PaymentStatus, string> = { success: 'Success', pending: 'Pending', failed: 'Failed', refunded: 'Refunded' }
+  const dot: Record<PaymentStatus, string>   = { paid: 'bg-green-500', unpaid: 'bg-amber-500', partially_paid: 'bg-blue-500', refunded: 'bg-zinc-400' }
+  const label: Record<PaymentStatus, string> = { paid: 'Paid', unpaid: 'Unpaid', partially_paid: 'Partial', refunded: 'Refunded' }
   return (
     <span className="inline-flex items-center gap-1.5 text-xs text-zinc-700">
-      <span className={`w-2 h-2 rounded-full ${dot[status] ?? dot.pending}`} />
+      <span className={`w-2 h-2 rounded-full ${dot[status] ?? dot.unpaid}`} />
       {label[status] ?? status}
     </span>
   )
 }
 
-function FulfillmentBadge({ status }: { status: FulfillmentStatus }) {
-  const map: Record<FulfillmentStatus, string> = {
-    unfulfilled:        'bg-red-50 text-red-700 border-red-200',
-    partially_fulfilled:'bg-amber-50 text-amber-700 border-amber-200',
-    fulfilled:          'bg-blue-50 text-blue-700 border-blue-200',
-    awaiting_shipping:  'bg-amber-50 text-amber-700 border-amber-200',
-    shipped:            'bg-amber-50 text-amber-700 border-amber-200',
-    delivered:          'bg-green-50 text-green-700 border-green-200',
-    cancelled:          'bg-zinc-100 text-zinc-600 border-zinc-200',
+function OrderStatusBadge({ status }: { status: OrderStatus }) {
+  const map: Record<OrderStatus, string> = {
+    pending:    'bg-zinc-100 text-zinc-600 border-zinc-200',
+    paid:       'bg-blue-50 text-blue-700 border-blue-200',
+    processing: 'bg-amber-50 text-amber-700 border-amber-200',
+    fulfilled:  'bg-green-50 text-green-700 border-green-200',
+    cancelled:  'bg-red-50 text-red-700 border-red-200',
+    refunded:   'bg-zinc-100 text-zinc-600 border-zinc-200',
   }
-  const label: Record<FulfillmentStatus, string> = {
-    unfulfilled: 'Unfulfilled', partially_fulfilled: 'Partial',
-    fulfilled: 'Fulfilled', awaiting_shipping: 'Awaiting',
-    shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled',
+  const label: Record<OrderStatus, string> = {
+    pending: 'Pending', paid: 'Paid', processing: 'Processing',
+    fulfilled: 'Fulfilled', cancelled: 'Cancelled', refunded: 'Refunded',
   }
   return (
     <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${map[status] ?? 'bg-zinc-100 text-zinc-600 border-zinc-200'}`}>
@@ -50,18 +48,18 @@ function FulfillmentBadge({ status }: { status: FulfillmentStatus }) {
   )
 }
 
-function DeliveryTypeCell({ deliveryMethod, fitmentCentreId }: {
-  deliveryMethod: string | null
-  fitmentCentreId: string | null
+function DeliveryTypeCell({ orderType, fitmentId }: {
+  orderType: string | null
+  fitmentId: string | null
 }) {
-  if (!deliveryMethod || deliveryMethod === 'home_delivery' || deliveryMethod === 'shipping') {
+  if (!orderType || orderType === 'home_delivery' || orderType === 'shipping') {
     return <span className="text-xs text-zinc-700">Home Delivery</span>
   }
   return (
     <span className="flex flex-col gap-0.5 text-xs">
       <span className="text-zinc-700">Fitment Centre</span>
-      {fitmentCentreId && (
-        <Link href={`/admin/fitters/${fitmentCentreId}`} className="text-blue-600 hover:underline">
+      {fitmentId && (
+        <Link href={`/admin/fitters/${fitmentId}`} className="text-blue-600 hover:underline">
           #FIT-001
         </Link>
       )}
@@ -288,15 +286,15 @@ export default async function OrdersPage({ searchParams }: Props) {
                       </td>
                       <td className="px-4 py-3">
                         <DeliveryTypeCell
-                          deliveryMethod={o.delivery_method}
-                          fitmentCentreId={o.fitment_centre_id}
+                          orderType={o.order_type}
+                          fitmentId={o.fitment_id}
                         />
                       </td>
                       <td className="px-4 py-3">
                         <PaymentDot status={o.payment_status} />
                       </td>
                       <td className="px-4 py-3">
-                        <FulfillmentBadge status={o.fulfillment_status} />
+                        <OrderStatusBadge status={o.order_status} />
                       </td>
                       <td className="px-4 py-3 text-zinc-600 text-center">
                         {o.order_items?.length ?? 0}

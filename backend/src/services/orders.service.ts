@@ -7,8 +7,8 @@ const PAGE_SIZE = 20
 export async function getOrderStats() {
   const [totalRes, revenueRes, pendingRes] = await Promise.all([
     db.from('orders').select('order_id', { count: 'exact', head: true }),
-    db.from('orders').select('total_amount').eq('payment_status', 'success'),
-    db.from('orders').select('order_id', { count: 'exact', head: true }).eq('payment_status', 'pending'),
+    db.from('orders').select('total_amount').eq('payment_status', 'paid'),
+    db.from('orders').select('order_id', { count: 'exact', head: true }).eq('payment_status', 'unpaid'),
   ])
 
   const totalOrders     = totalRes.count ?? 0
@@ -35,8 +35,8 @@ export async function listOrders(opts: {
     .from('orders')
     .select(`
       order_id, order_number, created_at, currency,
-      payment_status, fulfillment_status, total_amount,
-      delivery_method, fitment_centre_id,
+      payment_status, order_status, total_amount,
+      order_type, fitment_id,
       shipping_address_snapshot,
       customers ( customer_id, first_name, last_name, email ),
       order_items ( order_item_id )
@@ -45,7 +45,7 @@ export async function listOrders(opts: {
     .range(from, to)
 
   if (paymentStatus)     query = query.eq('payment_status', paymentStatus)
-  if (fulfillmentStatus) query = query.eq('fulfillment_status', fulfillmentStatus)
+  if (fulfillmentStatus) query = query.eq('order_status', fulfillmentStatus)
   if (search) {
     // Search by order number — ilike across join columns is complex; filter order_number
     query = query.ilike('order_number', `%${search}%`)
@@ -61,16 +61,16 @@ export async function getOrder(orderId: string) {
     .from('orders')
     .select(`
       order_id, order_number, created_at, currency, notes,
-      subtotal_amount, shipping_amount, tax_amount, discount_amount,
-      total_amount, paid_amount, outstanding_amount,
-      payment_status, fulfillment_status,
-      delivery_method, fitment_centre_id,
+      shipping_cost, gst_amount, discount_amount,
+      total_amount,
+      payment_status, order_status,
+      order_type, fitment_id,
       shipping_address_snapshot, billing_address_snapshot,
       customers (
         customer_id, email, first_name, last_name, phone, created_at, profile_id
       ),
       order_items (
-        order_item_id, product_id, quantity, unit_price, total_price, fulfilled_quantity,
+        order_item_id, product_id, quantity, unit_price,
         skus ( sku, tyre_size_display )
       ),
       order_payments (
@@ -98,12 +98,12 @@ export async function getOrder(orderId: string) {
 
   // Attach fitment job if this is a fitment-centre delivery
   let fitmentJob: any = null
-  if ((data as any).fitment_centre_id) {
+  if ((data as any).fitment_id) {
     const { data: job } = await db
       .from('fitment_jobs')
       .select(`
-        job_id, task_number, status, scheduled_date, scheduled_time,
-        fitment_centres ( fitment_centre_id, centre_name )
+        job_id, task_number, job_status, scheduled_date, scheduled_time,
+        fitment_centres ( fitment_id, business_name )
       `)
       .eq('order_id', orderId)
       .maybeSingle()
@@ -120,8 +120,8 @@ export async function updateOrderStatus(orderId: string, patch: {
   fulfillmentStatus?: string
 }) {
   const update: Record<string, string> = {}
-  if (patch.paymentStatus)     update.payment_status     = patch.paymentStatus
-  if (patch.fulfillmentStatus) update.fulfillment_status = patch.fulfillmentStatus
+  if (patch.paymentStatus)     update.payment_status = patch.paymentStatus
+  if (patch.fulfillmentStatus) update.order_status   = patch.fulfillmentStatus
 
   const { error } = await db.from('orders').update(update).eq('order_id', orderId)
   return { error }
@@ -176,16 +176,8 @@ export async function createFulfillment(
 
   if (itemsErr) return { error: itemsErr }
 
-  // 4. Update fulfilled_quantity on order_items
-  for (const item of payload.items) {
-    await db.rpc('increment_fulfilled_quantity', {
-      p_order_item_id: item.orderItemId,
-      p_quantity:      item.quantity,
-    })
-  }
-
-  // 5. Recalculate order fulfillment_status
-  await recalcFulfillmentStatus(orderId)
+  // 4. Recalculate order_status based on shipments
+  await recalcOrderStatus(orderId)
 
   // 6. Log activity
   await db.from('order_activity').insert({
@@ -218,7 +210,7 @@ export async function markShipped(
 
   if (error) return { error }
 
-  await recalcFulfillmentStatus(orderId)
+  await recalcOrderStatus(orderId)
 
   await db.from('order_activity').insert({
     order_id:    orderId,
@@ -245,7 +237,7 @@ export async function markDelivered(orderId: string, shipmentId: string) {
 
   if (error) return { error }
 
-  await recalcFulfillmentStatus(orderId)
+  await recalcOrderStatus(orderId)
 
   await db.from('order_activity').insert({
     order_id:    orderId,
@@ -258,35 +250,23 @@ export async function markDelivered(orderId: string, shipmentId: string) {
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-async function recalcFulfillmentStatus(orderId: string) {
-  const { data: items } = await db
-    .from('order_items')
-    .select('quantity, fulfilled_quantity')
-    .eq('order_id', orderId)
-
+async function recalcOrderStatus(orderId: string) {
   const { data: shipments } = await db
     .from('order_shipments')
     .select('status')
     .eq('order_id', orderId)
 
-  if (!items || items.length === 0) return
+  const ships         = (shipments ?? []) as any[]
+  const allDelivered  = ships.length > 0 && ships.every((s: any) => s.status === 'delivered')
+  const anyShipped    = ships.some((s: any) => s.status === 'shipped' || s.status === 'delivered')
+  const anyAwaiting   = ships.some((s: any) => s.status === 'awaiting_shipping')
 
-  const rows     = items as any[]
-  const allFull  = rows.every((i: any) => i.fulfilled_quantity >= i.quantity)
-  const anyFull  = rows.some((i: any)  => i.fulfilled_quantity > 0)
-  const ships    = (shipments ?? []) as any[]
-  const allShipped   = ships.length > 0 && ships.every((s: any)  => s.status === 'shipped' || s.status === 'delivered')
-  const allDelivered = ships.length > 0 && ships.every((s: any)  => s.status === 'delivered')
-  const anyAwaiting  = ships.some((s: any)  => s.status === 'awaiting_shipping')
+  let orderStatus = 'processing'
+  if (allDelivered)     orderStatus = 'fulfilled'
+  else if (anyShipped)  orderStatus = 'processing'
+  else if (anyAwaiting) orderStatus = 'processing'
 
-  let fulfillmentStatus = 'unfulfilled'
-  if (allDelivered)       fulfillmentStatus = 'delivered'
-  else if (allShipped)    fulfillmentStatus = 'shipped'
-  else if (anyAwaiting)   fulfillmentStatus = 'awaiting_shipping'
-  else if (allFull)       fulfillmentStatus = 'fulfilled'
-  else if (anyFull)       fulfillmentStatus = 'partially_fulfilled'
-
-  await db.from('orders').update({ fulfillment_status: fulfillmentStatus }).eq('order_id', orderId)
+  await db.from('orders').update({ order_status: orderStatus }).eq('order_id', orderId)
 }
 
 // ── Warehouse list (for fulfillment dropdown) ────────────────────────────────

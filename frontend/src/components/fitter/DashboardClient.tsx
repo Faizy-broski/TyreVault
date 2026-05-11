@@ -32,14 +32,20 @@ function KpiCard({ title, value, subtitle, icon }: {
 
 function StatusBadge({ status }: { status: JobStatus }) {
   const map: Record<JobStatus, string> = {
-    new_request: 'bg-blue-100 text-blue-700',
-    accepted:    'text-amber-600',
-    completed:   'text-green-600',
-    cancelled:   'text-green-600',
+    pending:     'bg-amber-100 text-amber-700',
+    assigned:    'bg-blue-100 text-blue-700',
+    accepted:    'bg-blue-100 text-blue-700',
+    rejected:    'bg-red-100 text-red-700',
+    in_progress: 'bg-orange-100 text-orange-700',
+    completed:   'bg-green-100 text-green-700',
+    cancelled:   'bg-zinc-100 text-zinc-700',
   }
   const label: Record<JobStatus, string> = {
-    new_request: 'New',
+    pending:     'New',
+    assigned:    'Assigned',
     accepted:    'Accepted',
+    rejected:    'Rejected',
+    in_progress: 'In Progress',
     completed:   'Completed',
     cancelled:   'Cancelled',
   }
@@ -129,7 +135,7 @@ function JobCard({ job, onStatusChange }: {
       )}
 
       {/* Actions */}
-      {job.status === 'new_request' && (
+      {job.job_status === 'pending' && (
         <div className="grid grid-cols-2 gap-2 pt-1">
           <button
             onClick={confirm}
@@ -166,7 +172,7 @@ function JobCard({ job, onStatusChange }: {
 // ── Tab bar ───────────────────────────────────────────────────────────────────
 
 const TABS: { key: JobStatus; label: string }[] = [
-  { key: 'new_request', label: 'New Requests' },
+  { key: 'pending',   label: 'New Requests' },
   { key: 'accepted',    label: 'Accepted'     },
   { key: 'completed',   label: 'Completed'    },
   { key: 'cancelled',   label: 'Cancelled'    },
@@ -197,7 +203,7 @@ export default function DashboardClient({
         event:  'INSERT',
         schema: 'public',
         table:  'fitment_jobs',
-        filter: `fitment_centre_id=eq.${centreId}`,
+        filter: `fitment_id=eq.${centreId}`,
       }, payload => {
         const newJob = payload.new as FitmentJob
         setJobs(prev => [newJob, ...prev])
@@ -239,7 +245,7 @@ export default function DashboardClient({
     }
   }
 
-  const filtered = jobs.filter(j => j.status === activeTab)
+  const filtered = jobs.filter(j => j.job_status === activeTab)
 
   return (
     <div className="p-6 space-y-6">

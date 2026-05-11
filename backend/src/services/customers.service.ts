@@ -33,7 +33,7 @@ export async function listCustomers(opts: {
 
   let query = supabaseAdmin
     .from('customers')
-    .select('customer_id, email, first_name, last_name, company, phone, created_at, profile_id', { count: 'exact' })
+    .select('customer_id, email, first_name, last_name, business_name, phone, created_at, profile_id', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(from, to)
 
@@ -50,7 +50,7 @@ export async function getCustomer(customerId: string) {
   const [customerRes, ordersRes, groupsRes, addressesRes] = await Promise.all([
     supabase
       .from('customers')
-      .select('customer_id, email, first_name, last_name, company, phone, created_at, profile_id')
+      .select('customer_id, email, first_name, last_name, business_name, phone, created_at, profile_id')
       .eq('customer_id', customerId)
       .single(),
 
@@ -58,8 +58,8 @@ export async function getCustomer(customerId: string) {
       .from('orders')
       .select(`
         order_id, order_number, created_at,
-        payment_status, fulfillment_status, total_amount,
-        delivery_method, payment_method, fitment_centre_id,
+        payment_status, order_status, total_amount,
+        order_type, payment_method, fitment_id,
         order_items ( product_id )
       `)
       .eq('customer_id', customerId)
@@ -73,7 +73,7 @@ export async function getCustomer(customerId: string) {
 
     supabase
       .from('addresses')
-      .select('address_id, address_name, address_line1, address_line2, city, postal_code, country, state, company, phone')
+      .select('address_id, address_name, address_line_1, address_line_2, suburb, postcode, country, state, company, phone')
       .eq('customer_id', customerId)
       .order('created_at', { ascending: true }),
   ])
@@ -108,11 +108,11 @@ export async function createCustomer(payload: {
   phone?: string
 }) {
   return supabaseAdmin.from('customers').insert({
-    email:      payload.email,
-    first_name: payload.firstName ?? null,
-    last_name:  payload.lastName  ?? null,
-    company:    payload.company   ?? null,
-    phone:      payload.phone     ?? null,
+    email:         payload.email,
+    first_name:    payload.firstName ?? null,
+    last_name:     payload.lastName  ?? null,
+    business_name: payload.company   ?? null,
+    phone:         payload.phone     ?? null,
     profile_id: null,
   }).select('customer_id').single()
 }
@@ -125,11 +125,11 @@ export async function updateCustomer(customerId: string, patch: {
   phone?: string
 }) {
   return supabaseAdmin.from('customers').update({
-    ...(patch.email     !== undefined && { email:      patch.email }),
-    ...(patch.firstName !== undefined && { first_name: patch.firstName }),
-    ...(patch.lastName  !== undefined && { last_name:  patch.lastName }),
-    ...(patch.company   !== undefined && { company:    patch.company }),
-    ...(patch.phone     !== undefined && { phone:      patch.phone }),
+    ...(patch.email     !== undefined && { email:         patch.email }),
+    ...(patch.firstName !== undefined && { first_name:    patch.firstName }),
+    ...(patch.lastName  !== undefined && { last_name:     patch.lastName }),
+    ...(patch.company   !== undefined && { business_name: patch.company }),
+    ...(patch.phone     !== undefined && { phone:         patch.phone }),
   }).eq('customer_id', customerId)
 }
 
@@ -153,10 +153,10 @@ export async function createAddress(customerId: string, payload: {
   return supabaseAdmin.from('addresses').insert({
     customer_id:   customerId,
     address_name:  payload.addressName,
-    address_line1: payload.addressLine1,
-    address_line2: payload.addressLine2 ?? null,
-    city:          payload.city         ?? null,
-    postal_code:   payload.postalCode   ?? null,
+    address_line_1: payload.addressLine1,
+    address_line_2: payload.addressLine2 ?? null,
+    suburb:         payload.city         ?? null,
+    postcode:       payload.postalCode   ?? null,
     country:       payload.country      ?? null,
     state:         payload.state        ?? null,
     company:       payload.company      ?? null,

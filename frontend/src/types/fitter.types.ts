@@ -1,11 +1,11 @@
-export type JobStatus = 'new_request' | 'accepted' | 'completed' | 'cancelled'
+export type JobStatus = 'pending' | 'assigned' | 'accepted' | 'rejected' | 'in_progress' | 'completed' | 'cancelled'
 export type TyreType  = 'car' | '4x4' | 'run_flat'
 export type RimRange  = '13_15' | '16_18' | '19_21' | '22_plus'
 export type EarningStatus = 'pending' | 'paid'
 
 export interface FitmentCentre {
-  fitment_centre_id: string
-  centre_name:       string
+  fitment_id:    string
+  business_name: string
   partner_id:        string
   contact_phone:     string | null
   business_number:   string | null
@@ -24,16 +24,16 @@ export interface FitmentJob {
   tyre_size:         string | null
   quantity:          number
   vehicle_model:     string | null
-  status:            JobStatus
-  notes:             string | null
-  earnings_amount:   number | null
-  fitment_centre_id: string
-  created_at:        string
+  job_status:    JobStatus
+  notes:         string | null
+  earnings_amount: number | null
+  fitment_id:    string
+  created_at:    string
 }
 
 export interface FitterPricingRow {
-  id:                string
-  fitment_centre_id: string
+  id:           string
+  fitment_id:   string
   tyre_type:         TyreType
   rim_range:         RimRange
   per_tyre:          number | null
@@ -43,8 +43,8 @@ export interface FitterPricingRow {
 }
 
 export interface FitterEarning {
-  id:                string
-  fitment_centre_id: string
+  id:          string
+  fitment_id:  string
   job_id:            string | null
   customer_name:     string | null
   amount:            number

@@ -24,7 +24,7 @@ export default function FulfillmentModal({ orderId, items, onClose, onSuccess }:
   const [shippingMethod,  setShippingMethod]  = useState('')
   const [sendNotification, setSendNotification] = useState(true)
   const [quantities, setQuantities]           = useState<Record<string, number>>(
-    Object.fromEntries(items.map(i => [i.order_item_id, i.quantity - (i.fulfilled_quantity ?? 0)]))
+    Object.fromEntries(items.map(i => [i.order_item_id, i.quantity]))
   )
   const [submitting, setSubmitting] = useState(false)
   const [error, setError]           = useState('')
@@ -103,7 +103,7 @@ export default function FulfillmentModal({ orderId, items, onClose, onSuccess }:
     } finally { setSubmitting(false) }
   }
 
-  const maxQty = (item: OrderItem) => item.quantity - (item.fulfilled_quantity ?? 0)
+  const maxQty = (item: OrderItem) => item.quantity
 
   return (
     <div

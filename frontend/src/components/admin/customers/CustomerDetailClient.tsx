@@ -40,30 +40,27 @@ function AccountBadge({ isGuest }: { isGuest: boolean }) {
 
 function PaymentDot({ status }: { status: string }) {
   const colMap: Record<string, string> = {
-    success:  'bg-green-500',
-    paid:     'bg-green-500',
-    pending:  'bg-amber-500',
-    failed:   'bg-red-500',
-    refunded: 'bg-zinc-400',
+    paid:          'bg-green-500',
+    unpaid:        'bg-amber-500',
+    partially_paid:'bg-blue-500',
+    refunded:      'bg-zinc-400',
   }
   return (
     <span className="inline-flex items-center gap-1.5 text-xs text-zinc-600 capitalize">
-      <span className={`w-2 h-2 rounded-full ${colMap[status] ?? colMap.pending}`} />
-      {status}
+      <span className={`w-2 h-2 rounded-full ${colMap[status] ?? colMap.unpaid}`} />
+      {status.replace(/_/g, ' ')}
     </span>
   )
 }
 
-function FulfillmentBadge({ status }: { status: string }) {
+function OrderStatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
-    delivered:             'bg-green-50 text-green-700 border-green-200',
-    fulfilled:             'bg-green-50 text-green-700 border-green-200',
-    shipped:               'bg-blue-50 text-blue-700 border-blue-200',
-    awaiting_shipping:     'bg-amber-50 text-amber-700 border-amber-200',
-    partially_fulfilled:   'bg-amber-50 text-amber-700 border-amber-200',
-    unfulfilled:           'bg-zinc-100 text-zinc-600 border-zinc-200',
-    pending:               'bg-zinc-100 text-zinc-600 border-zinc-200',
-    cancelled:             'bg-red-50 text-red-700 border-red-200',
+    fulfilled:  'bg-green-50 text-green-700 border-green-200',
+    processing: 'bg-amber-50 text-amber-700 border-amber-200',
+    paid:       'bg-blue-50 text-blue-700 border-blue-200',
+    pending:    'bg-zinc-100 text-zinc-600 border-zinc-200',
+    cancelled:  'bg-red-50 text-red-700 border-red-200',
+    refunded:   'bg-zinc-100 text-zinc-600 border-zinc-200',
   }
   const label = status.replace(/_/g, ' ')
   return (
@@ -73,11 +70,11 @@ function FulfillmentBadge({ status }: { status: string }) {
   )
 }
 
-function DeliveryTypeCell({ deliveryMethod, fitmentCentreId }: {
-  deliveryMethod: string | null
-  fitmentCentreId: string | null
+function DeliveryTypeCell({ orderType, fitmentId }: {
+  orderType: string | null
+  fitmentId: string | null
 }) {
-  if (!deliveryMethod || deliveryMethod === 'home_delivery' || deliveryMethod === 'shipping') {
+  if (!orderType || orderType === 'home_delivery' || orderType === 'shipping') {
     return (
       <span className="inline-flex items-center gap-1.5 text-xs text-zinc-700">
         <svg className="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
@@ -96,9 +93,9 @@ function DeliveryTypeCell({ deliveryMethod, fitmentCentreId }: {
         </svg>
         Fitment Centre
       </span>
-      {fitmentCentreId && (
-        <Link href={`/admin/fitters/${fitmentCentreId}`} className="text-blue-600 hover:underline pl-5">
-          #{fitmentCentreId.slice(0, 8).toUpperCase()}
+      {fitmentId && (
+        <Link href={`/admin/fitters/${fitmentId}`} className="text-blue-600 hover:underline pl-5">
+          #{fitmentId.slice(0, 8).toUpperCase()}
         </Link>
       )}
     </span>
@@ -130,17 +127,17 @@ export default function CustomerDetailClient({
 
   const filteredOrders = orders.filter(o => {
     if (paymentFilter && o.payment_status !== paymentFilter) return false
-    if (fulfilFilter  && o.fulfillment_status !== fulfilFilter) return false
+    if (fulfilFilter  && o.order_status !== fulfilFilter) return false
     return true
   })
 
   const addressDisplay = primaryAddress
     ? [
-        primaryAddress.address_line1,
-        primaryAddress.address_line2,
-        primaryAddress.city,
+        primaryAddress.address_line_1,
+        primaryAddress.address_line_2,
+        primaryAddress.suburb,
         primaryAddress.state,
-        primaryAddress.postal_code,
+        primaryAddress.postcode,
         primaryAddress.country,
       ].filter(Boolean).join(', ')
     : '—'
@@ -221,7 +218,7 @@ export default function CustomerDetailClient({
               <h2 className="text-sm font-semibold text-zinc-900">Orders</h2>
               <div className="flex items-center gap-2">
                 {/* Payment filter */}
-                {(['pending', 'success', 'failed', 'refunded'] as const).map(s => (
+                {(['unpaid', 'paid', 'partially_paid', 'refunded'] as const).map(s => (
                   <button
                     key={s}
                     onClick={() => setPaymentFilter(paymentFilter === s ? null : s)}
@@ -236,7 +233,7 @@ export default function CustomerDetailClient({
                 ))}
                 <div className="w-px h-4 bg-zinc-200 mx-1" />
                 {/* Fulfillment filter */}
-                {(['unfulfilled', 'shipped', 'delivered'] as const).map(s => (
+                {(['pending', 'processing', 'fulfilled'] as const).map(s => (
                   <button
                     key={s}
                     onClick={() => setFulfilFilter(fulfilFilter === s ? null : s)}
@@ -283,8 +280,8 @@ export default function CustomerDetailClient({
                         </td>
                         <td className="px-4 py-3">
                           <DeliveryTypeCell
-                            deliveryMethod={o.delivery_method}
-                            fitmentCentreId={o.fitment_centre_id}
+                            orderType={o.order_type}
+                            fitmentId={o.fitment_id}
                           />
                         </td>
                         <td className="px-4 py-3 text-xs text-zinc-500 whitespace-nowrap">
@@ -294,7 +291,7 @@ export default function CustomerDetailClient({
                           <PaymentDot status={o.payment_status} />
                         </td>
                         <td className="px-4 py-3">
-                          <FulfillmentBadge status={o.fulfillment_status} />
+                          <OrderStatusBadge status={o.order_status} />
                         </td>
                         <td className="px-4 py-3 text-zinc-600 text-center">{o.item_count}</td>
                         <td className="px-4 py-3 text-xs text-zinc-600 capitalize">
@@ -385,7 +382,7 @@ export default function CustomerDetailClient({
                   <div key={addr.address_id} className="rounded-lg border border-zinc-200 p-3">
                     <p className="text-xs font-medium text-zinc-700">{addr.address_name}</p>
                     <p className="text-xs text-zinc-500 mt-0.5">
-                      {[addr.address_line1, addr.city, addr.state].filter(Boolean).join(', ')}
+                      {[addr.address_line_1, addr.suburb, addr.state].filter(Boolean).join(', ')}
                     </p>
                   </div>
                 ))}

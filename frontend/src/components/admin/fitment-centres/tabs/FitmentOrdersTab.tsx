@@ -16,27 +16,31 @@ interface Props {
 }
 
 const STATUS_TABS: { key: AdminCentreJobStatus | ''; label: string }[] = [
-  { key: '',             label: 'All'        },
-  { key: 'new_request',  label: 'Pending'    },
-  { key: 'accepted',     label: 'Inprogress' },
-  { key: 'completed',    label: 'Completed'  },
-  { key: 'delayed',      label: 'Delayed'    },
+  { key: '',           label: 'All'        },
+  { key: 'pending',    label: 'Pending'    },
+  { key: 'accepted',   label: 'Inprogress' },
+  { key: 'completed',  label: 'Completed'  },
+  { key: 'in_progress', label: 'Delayed'   },
 ]
 
 function StatusPill({ status }: { status: string }) {
   const map: Record<string, string> = {
-    new_request: 'bg-amber-50 text-amber-700',
+    pending:     'bg-amber-50 text-amber-700',
+    assigned:    'bg-amber-50 text-amber-700',
     accepted:    'bg-blue-50 text-blue-700',
     completed:   'bg-green-50 text-green-700',
     cancelled:   'bg-red-50 text-red-700',
-    delayed:     'bg-orange-50 text-orange-700',
+    rejected:    'bg-red-50 text-red-700',
+    in_progress: 'bg-orange-50 text-orange-700',
   }
   const label: Record<string, string> = {
-    new_request: 'Pending',
+    pending:     'Pending',
+    assigned:    'Assigned',
     accepted:    'In Progress',
     completed:   'Completed',
     cancelled:   'Cancelled',
-    delayed:     'Delayed',
+    rejected:    'Rejected',
+    in_progress: 'Delayed',
   }
   return (
     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${map[status] ?? 'bg-zinc-100 text-zinc-600'}`}>
@@ -143,7 +147,7 @@ export default function FitmentOrdersTab({
   }
 
   const jobCountByStatus = (s: AdminCentreJobStatus) =>
-    jobs.filter(j => j.status === s).length
+    jobs.filter(j => j.job_status === s).length
 
   return (
     <div className="divide-y divide-zinc-100">
@@ -272,12 +276,12 @@ export default function FitmentOrdersTab({
                     <td className="px-4 py-3 text-right text-xs text-zinc-700">{fmtAUD(fitment)}</td>
                     <td className="px-4 py-3 text-right text-xs font-semibold text-zinc-800">{fmtAUD(total)}</td>
                     <td className="px-4 py-3 text-right text-xs text-zinc-700">{fmtAUD(commission)}</td>
-                    <td className="px-4 py-3"><StatusPill status={job.status} /></td>
+                    <td className="px-4 py-3"><StatusPill status={job.job_status} /></td>
                     <td className="px-4 py-3">
                       <span className={`text-xs font-semibold ${
-                        job.status === 'completed' ? 'text-green-600' : 'text-amber-600'
+                        job.job_status === 'completed' ? 'text-green-600' : 'text-amber-600'
                       }`}>
-                        {job.status === 'completed' ? 'Paid' : 'Pending'}
+                        {job.job_status === 'completed' ? 'Paid' : 'Pending'}
                       </span>
                     </td>
                   </tr>

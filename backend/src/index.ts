@@ -28,15 +28,16 @@ import adminProductsRoutes      from './routes/admin.products.routes'
 import adminCustomersRoutes     from './routes/admin.customers.routes'
 import adminOrdersRoutes        from './routes/admin.orders.routes'
 import adminFitmentCentresRoutes from './routes/admin.fitment-centres.routes'
+import adminSuppliersRoutes     from './routes/admin.suppliers.routes'
 import fitterRoutes             from './routes/fitter.routes'
 import fitterPortalRoutes       from './routes/fitter-portal.routes'
 app.use('/api/admin/products',         adminProductsRoutes)
 app.use('/api/admin/customers',        adminCustomersRoutes)
 app.use('/api/admin/orders',           adminOrdersRoutes)
 app.use('/api/admin/fitment-centres',  adminFitmentCentresRoutes)
+app.use('/api/admin/suppliers',        adminSuppliersRoutes)
 app.use('/api/fitter',                 fitterRoutes)
 app.use('/api/fitter/portal',          fitterPortalRoutes)
-// app.use('/api/admin/suppliers', adminSuppliersRoutes)
 // app.use('/api/orders', orderRoutes)
 // app.use('/api/shipping', shippingRoutes)
 // app.use('/api/stripe', stripeRoutes)

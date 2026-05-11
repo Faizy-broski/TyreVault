@@ -9,7 +9,7 @@ async function resolvecentreId(req: Request, res: Response): Promise<string | nu
 
   const { data, error } = await S.getCentreByUser(userId)
   if (error || !data) { res.status(404).json({ message: 'Fitment centre not found' }); return null }
-  return (data as any).fitment_centre_id
+  return (data as any).fitment_id
 }
 
 export async function getCentre(req: Request, res: Response, next: NextFunction) {

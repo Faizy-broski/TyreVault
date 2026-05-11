@@ -131,9 +131,9 @@ export default function FitmentCentresClient({ initialCentres, initialTotal, acc
               <tr><td colSpan={7} className="px-5 py-8 text-center text-sm text-zinc-400">No fitment centres found.</td></tr>
             ) : (
               centres.map(c => (
-                <tr key={c.fitment_centre_id} className="hover:bg-zinc-50">
+                <tr key={c.fitment_id} className="hover:bg-zinc-50">
                   <td className="px-5 py-3">
-                    <p className="font-medium text-zinc-900">{c.centre_name}</p>
+                    <p className="font-medium text-zinc-900">{c.business_name}</p>
                     <p className="text-xs text-zinc-400">{c.profiles?.email ?? '—'}</p>
                   </td>
                   <td className="px-5 py-3 text-xs font-mono text-zinc-600">{c.partner_id}</td>
@@ -143,7 +143,7 @@ export default function FitmentCentresClient({ initialCentres, initialTotal, acc
                   <td className="px-5 py-3 text-xs text-zinc-500">{fmtDate(c.created_at)}</td>
                   <td className="px-5 py-3">
                     <Link
-                      href={`/admin/fitters/${c.fitment_centre_id}`}
+                      href={`/admin/fitters/${c.fitment_id}`}
                       className="text-xs font-medium text-yellow-600 hover:text-yellow-700"
                     >
                       View →

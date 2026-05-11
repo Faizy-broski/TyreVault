@@ -39,8 +39,8 @@ export default async function FitterLayout({ children }: { children: React.React
 
   // Fallback centre for dev/preview
   const fallbackCentre: FitmentCentre = {
-    fitment_centre_id: 'dev',
-    centre_name:       'QuickFit Tyres Melbourne',
+    fitment_id:    'dev',
+    business_name: 'QuickFit Tyres Melbourne',
     partner_id:        'PRT-2024-001',
     contact_phone:     null,
     business_number:   null,
