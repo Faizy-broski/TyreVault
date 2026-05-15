@@ -102,3 +102,51 @@ export async function getFormMeta(req: Request, res: Response, next: NextFunctio
     res.json({ brands, collections, categories })
   } catch (err) { next(err) }
 }
+
+// ── Collections ──────────────────────────────────────────────────────────────
+
+export async function getCollections(req: Request, res: Response, next: NextFunction) {
+  try { res.json(await ProductsService.listCollections()) } catch (err) { next(err) }
+}
+
+export async function postCollection(req: Request, res: Response, next: NextFunction) {
+  try { res.status(201).json(await ProductsService.createCollection(req.body)) } catch (err) { next(err) }
+}
+
+export async function patchCollection(req: Request, res: Response, next: NextFunction) {
+  try {
+    await ProductsService.updateCollection((req.params as P).id, req.body)
+    res.json({ success: true })
+  } catch (err) { next(err) }
+}
+
+export async function removeCollection(req: Request, res: Response, next: NextFunction) {
+  try {
+    await ProductsService.deleteCollection((req.params as P).id)
+    res.json({ success: true })
+  } catch (err) { next(err) }
+}
+
+// ── Categories ───────────────────────────────────────────────────────────────
+
+export async function getCategories(req: Request, res: Response, next: NextFunction) {
+  try { res.json(await ProductsService.listCategories()) } catch (err) { next(err) }
+}
+
+export async function postCategory(req: Request, res: Response, next: NextFunction) {
+  try { res.status(201).json(await ProductsService.createCategory(req.body)) } catch (err) { next(err) }
+}
+
+export async function patchCategory(req: Request, res: Response, next: NextFunction) {
+  try {
+    await ProductsService.updateCategory((req.params as P).id, req.body)
+    res.json({ success: true })
+  } catch (err) { next(err) }
+}
+
+export async function removeCategory(req: Request, res: Response, next: NextFunction) {
+  try {
+    await ProductsService.deleteCategory((req.params as P).id)
+    res.json({ success: true })
+  } catch (err) { next(err) }
+}

@@ -282,27 +282,28 @@ export interface CustomerDetail extends CustomerListItem {
 export type CentreStatus = 'active' | 'hold'
 
 export interface AdminFitmentCentreSummary {
-  fitment_id:      string
-  business_name:   string
+  fitment_centre_id: string
+  user_id:           string
+  business_name:     string
   partner_id:        string
   is_active:         boolean
   contact_phone:     string | null
   business_number:   string | null
   created_at:        string
-  profiles:          { email: string } | null
+  email:             string
 }
 
 export interface AdminFitmentCentreDetail {
-  fitment_id:      string
-  business_name:   string
+  fitment_centre_id: string
+  user_id:           string
+  business_name:     string
   partner_id:        string
   is_active:         boolean
-  created_at:        string
-  // contact
   contact_phone:     string | null
   business_number:   string | null
-  // joined from profiles
-  profiles:          { email: string; created_at: string } | null
+  created_at:        string
+  role:              string | null
+  email:             string | null
 }
 
 export interface AdminCentreKPIs {
@@ -366,12 +367,12 @@ export interface PaymentHistoryRow {
 }
 
 export interface BankDetails {
-  id:             string | null
-  fitment_id:     string
-  account_holder: string
-  bank_name:      string
-  bsb:            string | null
-  account_number: string
+  id:               string | null
+  fitment_centre_id: string
+  account_holder:   string
+  bank_name:        string
+  bsb:              string | null
+  account_number:   string
 }
 
 // ── Compliance & Doc ───────────────────────────────────────────────────────

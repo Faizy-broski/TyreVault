@@ -521,12 +521,44 @@ export async function listBrands() {
 
 export async function listCollections() {
   const { data } = await supabase
-    .from('collections').select('collection_id, collection_name').eq('is_active', true).order('collection_name')
+    .from('collections').select('collection_id, collection_name, collection_slug, description, is_active, created_at').order('collection_name')
   return data ?? []
+}
+
+export async function createCollection(payload: { collection_name: string; collection_slug: string; description?: string }) {
+  const { data, error } = await supabase.from('collections').insert(payload).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function updateCollection(id: string, payload: { collection_name?: string; collection_slug?: string; description?: string; is_active?: boolean }) {
+  const { error } = await supabase.from('collections').update(payload).eq('collection_id', id)
+  if (error) throw error
+}
+
+export async function deleteCollection(id: string) {
+  const { error } = await supabase.from('collections').delete().eq('collection_id', id)
+  if (error) throw error
 }
 
 export async function listCategories() {
   const { data } = await supabase
-    .from('categories').select('category_id, category_name, category_type, parent_category_id').eq('is_active', true)
+    .from('categories').select('category_id, category_name, category_slug, category_type, description, is_active, sort_order, created_at').order('sort_order').order('category_name')
   return data ?? []
+}
+
+export async function createCategory(payload: { category_name: string; category_slug: string; category_type: string; description?: string; sort_order?: number }) {
+  const { data, error } = await supabase.from('categories').insert(payload).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function updateCategory(id: string, payload: { category_name?: string; category_slug?: string; category_type?: string; description?: string; is_active?: boolean; sort_order?: number }) {
+  const { error } = await supabase.from('categories').update(payload).eq('category_id', id)
+  if (error) throw error
+}
+
+export async function deleteCategory(id: string) {
+  const { error } = await supabase.from('categories').delete().eq('category_id', id)
+  if (error) throw error
 }
