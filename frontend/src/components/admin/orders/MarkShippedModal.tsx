@@ -1,33 +1,30 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
+import { X } from 'lucide-react'
+import { Dialog, DialogContent, DialogTitle, DialogClose } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import type { OrderShipment } from '@/types/admin.types'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 interface Props {
-  orderId:  string
-  shipment: OrderShipment
-  onClose:  () => void
+  orderId:   string
+  shipment:  OrderShipment
+  token:     string
+  onClose:   () => void
   onSuccess: (shipmentId: string, trackingNumber?: string, trackingUri?: string) => void
 }
 
-export default function MarkShippedModal({ orderId, shipment, onClose, onSuccess }: Props) {
-  const overlayRef      = useRef<HTMLDivElement>(null)
+export default function MarkShippedModal({ orderId, shipment, token, onClose, onSuccess }: Props) {
   const [trackingNumber,   setTrackingNumber]   = useState('')
   const [trackingUri,      setTrackingUri]      = useState('')
   const [sendNotification, setSendNotification] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError]           = useState('')
-
-  function handleOverlay(e: React.MouseEvent) {
-    if (e.target === overlayRef.current) onClose()
-  }
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -38,7 +35,7 @@ export default function MarkShippedModal({ orderId, shipment, onClose, onSuccess
         `${API}/api/admin/orders/${orderId}/shipments/${shipment.shipment_id}/shipped`,
         {
           method:  'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({
             trackingNumber:   trackingNumber  || undefined,
             trackingUri:      trackingUri     || undefined,
@@ -52,89 +49,91 @@ export default function MarkShippedModal({ orderId, shipment, onClose, onSuccess
   }
 
   return (
-    <div
-      ref={overlayRef}
-      onClick={handleOverlay}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-    >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-        {/* Header */}
+    <Dialog open onOpenChange={o => !o && onClose()}>
+      <DialogContent className="p-0 gap-0 rounded-2xl shadow-xl ring-0 bg-white sm:max-w-md" showCloseButton={false}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
-          <h2 className="text-base font-semibold text-zinc-900">Mark as Shipped</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <DialogTitle className="text-base font-semibold text-zinc-900">Mark as Shipped</DialogTitle>
+          <DialogClose asChild>
+            <Button type="button" variant="ghost" size="icon-sm" className="text-zinc-400 hover:text-zinc-700">
+              <X className="w-5 h-5" />
+            </Button>
+          </DialogClose>
         </div>
 
-        {/* Body */}
-        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
-          <p className="text-sm text-zinc-500">
-            Shipment #{shipment.shipment_number}
-            {shipment.warehouses && <> · {shipment.warehouses.warehouse_name}</>}
-          </p>
+        <form onSubmit={handleSubmit} className="flex flex-col">
+          <div className="px-6 py-5 space-y-5">
+            <p className="text-sm text-zinc-500">
+              Shipment #{shipment.shipment_number}
+              {shipment.warehouses && <> · {shipment.warehouses.warehouse_name}</>}
+            </p>
 
-          {/* Tracking fields side by side */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-zinc-700 mb-1.5">Tracking Number</label>
-              <input
-                type="text"
-                value={trackingNumber}
-                onChange={e => setTrackingNumber(e.target.value)}
-                placeholder="e.g. 1Z999AA1..."
-                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-500/20 focus:border-zinc-500"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="trackingNumber" className="block text-xs font-medium text-zinc-700 mb-1.5">
+                  Tracking Number
+                </Label>
+                <Input
+                  id="trackingNumber"
+                  type="text"
+                  value={trackingNumber}
+                  onChange={e => setTrackingNumber(e.target.value)}
+                  placeholder="e.g. 1Z999AA1..."
+                  className="rounded-lg border-zinc-300 focus:ring-primary/30 focus:border-primary"
+                />
+              </div>
+              <div>
+                <Label htmlFor="trackingUri" className="block text-xs font-medium text-zinc-700 mb-1.5">
+                  Tracking URL
+                </Label>
+                <Input
+                  id="trackingUri"
+                  type="url"
+                  value={trackingUri}
+                  onChange={e => setTrackingUri(e.target.value)}
+                  placeholder="https://track.carrier.com/..."
+                  className="rounded-lg border-zinc-300 focus:ring-primary/30 focus:border-primary"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-zinc-700 mb-1.5">Tracking URL</label>
-              <input
-                type="url"
-                value={trackingUri}
-                onChange={e => setTrackingUri(e.target.value)}
-                placeholder="https://track.carrier.com/..."
-                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-500/20 focus:border-zinc-500"
-              />
+
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-zinc-800">Send notification</p>
+                <p className="text-xs text-zinc-500">Notify customer with tracking info</p>
+              </div>
+              <button
+                type="button"
+                aria-label={sendNotification ? 'Disable notification' : 'Enable notification'}
+                onClick={() => setSendNotification(v => !v)}
+                className={`relative w-10 h-6 rounded-full transition-colors ${sendNotification ? 'bg-primary' : 'bg-zinc-300'}`}
+              >
+                <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${sendNotification ? 'translate-x-5' : 'translate-x-1'}`} />
+              </button>
             </div>
+
+            {error && (
+              <Alert variant="destructive" className="bg-red-50 border-red-200">
+                <AlertDescription className="text-red-600">{error}</AlertDescription>
+              </Alert>
+            )}
           </div>
 
-          {/* Notification toggle */}
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-zinc-800">Send notification</p>
-              <p className="text-xs text-zinc-500">Notify customer with tracking info</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setSendNotification(v => !v)}
-              className={`relative w-10 h-6 rounded-full transition-colors ${sendNotification ? 'bg-zinc-900' : 'bg-zinc-300'}`}
+          <div className="flex justify-end gap-3 px-6 py-4 border-t border-zinc-200">
+            <DialogClose asChild>
+              <Button type="button" variant="outline" className="rounded-lg border-zinc-300 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50">
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button
+              type="submit"
+              disabled={submitting}
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700"
             >
-              <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${sendNotification ? 'translate-x-5' : 'translate-x-1'}`} />
-            </button>
+              {submitting ? 'Marking...' : 'Mark as shipped'}
+            </Button>
           </div>
-
-          {error && <p className="text-sm text-red-600">{error}</p>}
         </form>
-
-        {/* Footer */}
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-zinc-200">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={submitting}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors disabled:opacity-50"
-          >
-            {submitting ? 'Marking...' : 'Mark as shipped'}
-          </button>
-        </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

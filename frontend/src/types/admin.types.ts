@@ -82,6 +82,8 @@ export interface Pattern {
   on_sale: boolean
   discountable: boolean
   tags: string[] | null
+  gallery_images: string[] | null
+  application_type: 'PCR' | '4x4' | 'TBR' | null
   updated_at: string
   created_at: string
   brands: { brand_name: string } | null
@@ -122,7 +124,9 @@ export interface OrderListItem {
   total_amount:       number
   currency:           string
   order_type:         string | null
+  payment_method?:    string | null
   fitment_id:         string | null
+  item_count?:        number
   shipping_address_snapshot: Record<string, string> | null
   customers:  { customer_id: string; first_name: string | null; last_name: string | null; email: string } | null
   order_items: { order_item_id: string }[]
@@ -239,6 +243,10 @@ export interface CustomerListItem {
   phone: string | null
   created_at: string
   profile_id: string | null  // null = Guest, set = Registered
+  order_count?: number
+  total_spent?: number
+  last_order_number?: string | null
+  last_order_date?: string | null
 }
 
 export interface Address {

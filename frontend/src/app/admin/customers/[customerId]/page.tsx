@@ -1,126 +1,175 @@
-import { notFound } from 'next/navigation'
-import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
-import CustomerDetailClient from '@/components/admin/customers/CustomerDetailClient'
-import type { CustomerListItem, Address, CustomerGroup } from '@/types/admin.types'
+'use client'
 
-export async function generateMetadata({ params }: { params: Promise<{ customerId: string }> }) {
-  const { customerId } = await params
-  const supabase = await createClient()
-  const { data } = await supabase
-    .from('customers')
-    .select('first_name, last_name, email')
-    .eq('customer_id', customerId)
-    .single()
-  const d = data as unknown as { first_name: string | null; last_name: string | null; email: string } | null
-  const name = d ? [d.first_name, d.last_name].filter(Boolean).join(' ') || d.email : 'Customer'
-  return { title: name }
-}
+import { useEffect, useState } from 'react'
+import { useParams } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
+import CustomerDetailClient from '@/components/admin/customers/CustomerDetailClient'
+import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
+import type {
+  Address,
+  CustomerDetail,
+  CustomerGroup,
+  CustomerListItem,
+} from '@/types/admin.types'
+
+const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 export type CustomerOrder = {
-  order_id:      string
-  order_number:  string
-  created_at:    string
+  order_id: string
+  order_number: string
+  created_at: string
   payment_status: string
-  order_status:  string
-  total_amount:  number
-  item_count:    number
-  order_type:    string | null
-  payment_method: string | null
-  fitment_id:    string | null
+  order_status: string
+  total_amount: number
+  item_count: number
+  order_type: string | null
+  payment_method?: string | null
+  fitment_id?: string | null
 }
 
 export type OrderStats = {
-  totalValue:     number
-  count:          number
-  avgOrderValue:  number
-  lastOrderDate:  string | null
+  totalValue: number
+  count: number
+  avgOrderValue: number
+  lastOrderDate: string | null
 }
 
-export default async function CustomerDetailPage({ params }: { params: Promise<{ customerId: string }> }) {
-  const { customerId } = await params
-  const supabase = await createClient()
+type PageState = {
+  customer: CustomerListItem
+  orders: CustomerOrder[]
+  orderStats: OrderStats
+  groups: CustomerGroup[]
+  addresses: Address[]
+  primaryAddress: Address | null
+}
 
-  const [customerRes, ordersRes, groupsRes, addressesRes] = await Promise.all([
-    supabase
-      .from('customers')
-      .select('customer_id, email, first_name, last_name, business_name, phone, created_at, profile_id')
-      .eq('customer_id', customerId)
-      .single(),
+export default function CustomerDetailPage() {
+  const { customerId } = useParams<{ customerId: string }>()
 
-    supabase
-      .from('orders')
-      .select(`
-        order_id, order_number, created_at,
-        payment_status, order_status, total_amount,
-        order_type, payment_method, fitment_id,
-        order_items ( order_item_id )
-      `)
-      .eq('customer_id', customerId)
-      .order('created_at', { ascending: false })
-      .limit(20),
+  const [state, setState]     = useState<PageState | null>(null)
+  const [token, setToken]     = useState('')
+  const [loading, setLoading] = useState(true)
+  const [error, setError]     = useState<string | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
 
-    supabase
-      .from('customer_group_members')
-      .select('customer_groups ( group_id, group_name, customer_count, created_at, updated_at )')
-      .eq('customer_id', customerId),
+  useEffect(() => {
+    const c = state?.customer
+    const name = c ? ([c.first_name, c.last_name].filter(Boolean).join(' ') || c.email) : null
+    document.title = name ? `${name} | Tyre Vault` : 'Customer | Tyre Vault'
+  }, [state])
 
-    supabase
-      .from('addresses')
-      .select('address_id, customer_id, address_name, address_line_1, address_line_2, suburb, postcode, country, state, company, phone')
-      .eq('customer_id', customerId)
-      .order('created_at', { ascending: true }),
-  ])
+  useEffect(() => {
+    if (!customerId) return
+    let cancelled = false
+    async function load() {
+      try {
+        const { data: { session } } = await createClient().auth.getSession()
+        const tok = session?.access_token ?? ''
+        if (!cancelled) setToken(tok)
 
-  const customerData = (customerRes as unknown as { data: CustomerListItem | null; error: unknown })
-  if (customerRes.error || !customerData.data) notFound()
+        const res = await fetch(`${API}/api/admin/customers/${customerId}`, {
+          headers: { Authorization: `Bearer ${tok}` },
+        })
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}))
+          throw new Error(body.error ?? `API returned ${res.status}`)
+        }
+        const json = await res.json()
+        const detail: CustomerDetail = json.customer
 
-  const customer  = customerData.data!
-  const rawOrders = ((ordersRes as unknown as { data: any[] | null }).data ?? [])
-  const orders: CustomerOrder[] = rawOrders.map((o: any) => ({
-    order_id:      o.order_id,
-    order_number:  o.order_number,
-    created_at:    o.created_at,
-    payment_status: o.payment_status,
-    order_status:  o.order_status,
-    total_amount:  Number(o.total_amount ?? 0),
-    item_count:    Array.isArray(o.order_items) ? o.order_items.length : 0,
-    order_type:    o.order_type ?? null,
-    payment_method: o.payment_method  ?? null,
-    fitment_id:    o.fitment_id ?? null,
-  }))
+        const customer: CustomerListItem = {
+          customer_id: detail.customer_id,
+          email: detail.email,
+          first_name: detail.first_name,
+          last_name: detail.last_name,
+          business_name: detail.business_name,
+          phone: detail.phone,
+          created_at: detail.created_at,
+          profile_id: detail.profile_id,
+        }
 
-  const orderStats: OrderStats = {
-    totalValue:    orders.reduce((s, o) => s + o.total_amount, 0),
-    count:         orders.length,
-    avgOrderValue: orders.length > 0
-      ? orders.reduce((s, o) => s + o.total_amount, 0) / orders.length
-      : 0,
-    lastOrderDate: orders.length > 0 ? orders[0].created_at : null,
+        const orders: CustomerOrder[] = detail.orders.map(order => ({
+          order_id: order.order_id,
+          order_number: order.order_number,
+          created_at: order.created_at,
+          payment_status: order.payment_status,
+          order_status: order.order_status,
+          total_amount: Number(order.total_amount ?? 0),
+          item_count: order.item_count ?? 0,
+          order_type: order.order_type ?? null,
+        }))
+
+        const totalValue = orders.reduce((sum, o) => sum + o.total_amount, 0)
+        const orderStats: OrderStats = {
+          totalValue,
+          count: orders.length,
+          avgOrderValue: orders.length > 0 ? totalValue / orders.length : 0,
+          lastOrderDate: orders[0]?.created_at ?? null,
+        }
+
+        const addresses = detail.addresses as Address[]
+
+        if (!cancelled) setState({
+          customer,
+          orders,
+          orderStats,
+          groups: detail.groups as CustomerGroup[],
+          addresses,
+          primaryAddress: addresses[0] ?? null,
+        })
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load customer')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [customerId, refreshKey])
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="h-8 w-48 bg-zinc-100 rounded animate-pulse mb-6" />
+        <div className="space-y-4">
+          {[1,2,3].map(i => <div key={i} className="h-32 bg-zinc-100 rounded-xl animate-pulse" />)}
+        </div>
+      </div>
+    )
   }
 
-  const groups    = ((groupsRes as unknown as { data: any[] | null }).data ?? []).map((m: any) => m.customer_groups).filter(Boolean) as CustomerGroup[]
-  const addresses = ((addressesRes as unknown as { data: any[] | null }).data ?? []) as unknown as Address[]
+  if (error || !state) {
+    return (
+      <div className="p-6">
+        <AdminBreadcrumb crumbs={[{ label: 'Customers', href: '/admin/customers' }, { label: 'Customer' }]} />
+        <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+          {error ?? 'Customer not found.'}
+        </div>
+      </div>
+    )
+  }
 
-  const primaryAddress = addresses[0] ?? null
+  const customerName =
+    [state.customer.first_name, state.customer.last_name].filter(Boolean).join(' ') ||
+    state.customer.email
 
   return (
     <div className="p-6">
-      <div className="flex items-center gap-1.5 text-sm text-zinc-500 mb-6">
-        <Link href="/admin/customers" className="hover:text-zinc-900">Customers</Link>
-        <span>›</span>
-        <span className="text-zinc-900 font-medium">
-          {[customer.first_name, customer.last_name].filter(Boolean).join(' ') || customer.email}
-        </span>
+      <div className="mb-6">
+        <AdminBreadcrumb crumbs={[
+          { label: 'Customers', href: '/admin/customers' },
+          { label: customerName },
+        ]} />
       </div>
-
       <CustomerDetailClient
-        customer={customer}
-        orders={orders}
-        orderStats={orderStats}
-        groups={groups}
-        addresses={addresses}
-        primaryAddress={primaryAddress}
+        accessToken={token}
+        customer={state.customer}
+        orders={state.orders}
+        orderStats={state.orderStats}
+        groups={state.groups}
+        addresses={state.addresses}
+        primaryAddress={state.primaryAddress}
+        onRefresh={() => setRefreshKey(k => k + 1)}
       />
     </div>
   )

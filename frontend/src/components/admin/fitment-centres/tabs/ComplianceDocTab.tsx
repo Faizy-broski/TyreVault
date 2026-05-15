@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { AlertCircle, X } from 'lucide-react'
+import { Dialog, DialogContent, DialogTitle, DialogClose } from '@/components/ui/dialog'
 import type { ComplianceDoc, ComplianceStatus } from '@/types/admin.types'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
@@ -44,7 +46,7 @@ function fmtDate(d: string | null) {
 function isExpiringSoon(expiry: string | null) {
   if (!expiry) return false
   const diff = new Date(expiry).getTime() - Date.now()
-  return diff > 0 && diff < 30 * 24 * 60 * 60 * 1000 // within 30 days
+  return diff > 0 && diff < 30 * 24 * 60 * 60 * 1000
 }
 
 function isExpired(expiry: string | null) {
@@ -52,14 +54,14 @@ function isExpired(expiry: string | null) {
   return new Date(expiry).getTime() < Date.now()
 }
 
-// Inline edit modal for a single compliance doc row
 function EditModal({
-  doc, centreId, accessToken,
+  doc, centreId, accessToken, open,
   onClose, onSaved,
 }: {
   doc:         ComplianceDoc
   centreId:    string
   accessToken: string
+  open:        boolean
   onClose:     () => void
   onSaved:     (updated: Partial<ComplianceDoc>) => void
 }) {
@@ -88,53 +90,55 @@ function EditModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-zinc-900">
+    <Dialog open={open} onOpenChange={o => { if (!o) onClose() }}>
+      <DialogContent className="p-0 gap-0 rounded-2xl shadow-xl ring-0 bg-white sm:max-w-md" showCloseButton={false}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
+          <DialogTitle className="text-base font-semibold text-zinc-900">
             Update {POLICY_LABELS[doc.policy_type] ?? doc.policy_type}
-          </h2>
-          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-600">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          </DialogTitle>
+          <DialogClose className="text-zinc-400 hover:text-zinc-600 p-1 rounded transition-colors">
+            <X className="w-5 h-5" />
+          </DialogClose>
         </div>
 
-        <div className="space-y-3">
+        <div className="px-6 py-5 space-y-3">
           <div>
-            <label className="block text-xs font-medium text-zinc-600 mb-1">Provider</label>
+            <label htmlFor="provider" className="block text-xs font-medium text-zinc-600 mb-1">Provider</label>
             <input
+              id="provider"
               value={form.provider}
               onChange={e => setForm(p => ({ ...p, provider: e.target.value }))}
-              className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400/30 focus:border-yellow-400"
+              className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
               placeholder="e.g. QBE Insurance"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-zinc-600 mb-1">Policy / Reference Number</label>
+            <label htmlFor="policy_number" className="block text-xs font-medium text-zinc-600 mb-1">Policy / Reference Number</label>
             <input
+              id="policy_number"
               value={form.policy_number}
               onChange={e => setForm(p => ({ ...p, policy_number: e.target.value }))}
-              className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400/30 focus:border-yellow-400"
+              className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
               placeholder="e.g. PLI-2025-88431"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-zinc-600 mb-1">Expiry Date</label>
+            <label htmlFor="expiry_date" className="block text-xs font-medium text-zinc-600 mb-1">Expiry Date</label>
             <input
+              id="expiry_date"
               type="date"
               value={form.expiry_date}
               onChange={e => setForm(p => ({ ...p, expiry_date: e.target.value }))}
-              className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400/30 focus:border-yellow-400"
+              className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-zinc-600 mb-1">Status</label>
+            <label htmlFor="doc_status" className="block text-xs font-medium text-zinc-600 mb-1">Status</label>
             <select
+              id="doc_status"
               value={form.status}
               onChange={e => setForm(p => ({ ...p, status: e.target.value as ComplianceStatus }))}
-              className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400/30 focus:border-yellow-400 bg-white"
+              className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white"
             >
               <option value="valid">Valid</option>
               <option value="expired">Expired</option>
@@ -144,23 +148,23 @@ function EditModal({
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-100">
+        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-zinc-100">
+          <DialogClose asChild>
+            <button type="button" className="px-4 py-2 text-sm font-medium border border-zinc-300 rounded-lg text-zinc-700 hover:bg-zinc-50 transition-colors">
+              Cancel
+            </button>
+          </DialogClose>
           <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium border border-zinc-300 rounded-lg text-zinc-700 hover:bg-zinc-50"
-          >
-            Cancel
-          </button>
-          <button
+            type="button"
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-2 text-sm font-semibold bg-yellow-400 text-zinc-900 rounded-lg hover:bg-yellow-500 disabled:opacity-60"
+            className="px-4 py-2 text-sm font-semibold bg-primary text-zinc-900 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-60"
           >
             {saving ? 'Saving...' : 'Save'}
           </button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -172,17 +176,14 @@ export default function ComplianceDocTab({ centreId, initialDocs, accessToken }:
     setDocs(prev => prev.map(d => d.id === docId ? { ...d, ...updates } : d))
   }
 
-  const expiredCount     = docs.filter(d => isExpired(d.expiry_date)).length
+  const expiredCount      = docs.filter(d => isExpired(d.expiry_date)).length
   const expiringSoonCount = docs.filter(d => isExpiringSoon(d.expiry_date)).length
 
   return (
     <div className="p-5 space-y-4">
-      {/* Warning banners */}
       {expiredCount > 0 && (
         <div className="flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 px-4 py-3">
-          <svg className="w-4 h-4 text-red-500 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-          </svg>
+          <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
           <p className="text-xs text-red-700 font-medium">
             {expiredCount} document{expiredCount > 1 ? 's' : ''} expired — action required.
           </p>
@@ -190,16 +191,13 @@ export default function ComplianceDocTab({ centreId, initialDocs, accessToken }:
       )}
       {expiringSoonCount > 0 && (
         <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3">
-          <svg className="w-4 h-4 text-amber-500 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-          </svg>
+          <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
           <p className="text-xs text-amber-700 font-medium">
             {expiringSoonCount} document{expiringSoonCount > 1 ? 's' : ''} expiring within 30 days.
           </p>
         </div>
       )}
 
-      {/* Table */}
       <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
         <table className="w-full text-sm">
           <thead>
@@ -242,8 +240,9 @@ export default function ComplianceDocTab({ centreId, initialDocs, accessToken }:
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2">
                         <button
+                          type="button"
                           onClick={() => setEditing(doc)}
-                          className="px-3 py-1 text-xs font-semibold rounded-lg bg-zinc-900 text-white hover:bg-zinc-700"
+                          className="px-3 py-1 text-xs font-semibold rounded-lg bg-primary text-zinc-900 hover:bg-primary/90 transition-colors"
                         >
                           Update
                         </button>
@@ -252,12 +251,13 @@ export default function ComplianceDocTab({ centreId, initialDocs, accessToken }:
                             href={doc.doc_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="px-3 py-1 text-xs font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700"
+                            className="px-3 py-1 text-xs font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors"
                           >
                             Download
                           </a>
                         ) : (
                           <button
+                            type="button"
                             disabled
                             className="px-3 py-1 text-xs font-semibold rounded-lg bg-green-600 text-white opacity-40 cursor-not-allowed"
                           >
@@ -274,12 +274,12 @@ export default function ComplianceDocTab({ centreId, initialDocs, accessToken }:
         </table>
       </div>
 
-      {/* Edit Modal */}
       {editingDoc && (
         <EditModal
           doc={editingDoc}
           centreId={centreId}
           accessToken={accessToken}
+          open={!!editingDoc}
           onClose={() => setEditing(null)}
           onSaved={updates => handleSaved(editingDoc.id, updates)}
         />

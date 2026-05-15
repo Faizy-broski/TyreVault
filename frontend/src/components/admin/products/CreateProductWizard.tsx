@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 import { useForm, FormProvider } from 'react-hook-form'
+import type { FieldErrors } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import { createProductSchema, type CreateProductFormValues } from './schema'
 import BasicInfoTab from './tabs/BasicInfoTab'
 import CategoriesTab from './tabs/CategoriesTab'
@@ -72,19 +74,55 @@ export default function CreateProductWizard({ brands, collections, categories, w
     setCompletedTabs(prev => new Set([...prev, tab]))
   }
 
+  function handleInvalid(errs: FieldErrors<CreateProductFormValues>) {
+    const msgs: string[] = []
+    if (errs.brandId)      msgs.push('Brand is required')
+    if (errs.patternName)  msgs.push('Product name is required')
+    if (errs.patternSlug)  msgs.push('Slug is required')
+    if (errs.variants)     msgs.push(typeof errs.variants.message === 'string' ? errs.variants.message : 'Check variant fields (SKU, tyre size, rim size required)')
+    if (errs.pricing)      msgs.push('Fill in Price (inc. GST) for each variant')
+    setError(msgs.length ? msgs.join(' · ') : 'Please fill in all required fields before publishing')
+    // Switch to the first tab that has errors so the user can see them
+    if (errs.brandId || errs.patternName || errs.patternSlug) setActiveTab('basic')
+    else if (errs.variants) setActiveTab('variants')
+    else if (errs.pricing)  setActiveTab('pricing')
+  }
+
   async function handlePublish(values: CreateProductFormValues) {
     setSubmitting(true)
     setError(null)
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/admin/products`, {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token ?? ''
+      const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+      const payload = {
+        ...values,
+        collectionId:        values.collectionId        || undefined,
+        performanceCategory: values.performanceCategory || undefined,
+        seasonType:          values.seasonType          || undefined,
+        galleryImages:       (values.galleryImages ?? []).filter(u => !u.startsWith('blob:')),
+        variants: values.variants.map(v => ({
+          ...v,
+          loadIndex:       v.loadIndex       || undefined,
+          speedRating:     v.speedRating     || undefined,
+          fuelRating:      v.fuelRating      || undefined,
+          wetGrip:         v.wetGrip         || undefined,
+          noiseDb:         v.noiseDb         || undefined,
+          noiseClass:      v.noiseClass      || undefined,
+          plyRating:       v.plyRating       || undefined,
+          loadRange:       v.loadRange       || undefined,
+          countryOfOrigin: v.countryOfOrigin || undefined,
+        })),
+      }
+      const res = await fetch(`${API}/api/admin/products`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(values),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        throw new Error(body.message ?? 'Failed to create product')
+        throw new Error(body.error ?? body.message ?? 'Failed to create product')
       }
       const { patternId } = await res.json()
       router.push(`/admin/products/${patternId}`)
@@ -123,7 +161,7 @@ export default function CreateProductWizard({ brands, collections, categories, w
               className={cn(
                 'flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors',
                 activeTab === tab.key
-                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                  ? 'bg-primary text-zinc-900 border border-primary'
                   : completedTabs.has(tab.key)
                   ? 'text-zinc-700 hover:bg-zinc-100'
                   : 'text-zinc-400 cursor-default'
@@ -133,7 +171,7 @@ export default function CreateProductWizard({ brands, collections, categories, w
               <span className={cn(
                 'w-5 h-5 rounded-full flex items-center justify-center text-xs',
                 activeTab === tab.key
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-primary border border-primary/20 text-zinc-900'
                   : completedTabs.has(tab.key)
                   ? 'bg-zinc-800 text-white'
                   : 'border border-zinc-300 text-zinc-400'
@@ -158,7 +196,7 @@ export default function CreateProductWizard({ brands, collections, categories, w
 
         {/* Tab content */}
         <div className="flex-1 overflow-y-auto px-6 py-6">
-          {activeTab === 'basic'      && <BasicInfoTab autoSlug={autoSlug} />}
+          {activeTab === 'basic'      && <BasicInfoTab autoSlug={autoSlug} brands={brands} />}
           {activeTab === 'categories' && <CategoriesTab brands={brands} collections={collections} categories={categories} />}
           {activeTab === 'variants'   && <VariantsTab />}
           {activeTab === 'pricing'    && <PricingTab warehouses={warehouses} />}
@@ -182,7 +220,7 @@ export default function CreateProductWizard({ brands, collections, categories, w
                 const next = TABS[tabIndex + 1]
                 if (next) setActiveTab(next.key)
               }}
-              className="px-4 py-2 rounded-md bg-zinc-900 text-sm font-medium text-white hover:bg-zinc-700 transition-colors"
+              className="px-4 py-2 rounded-lg bg-primary text-sm font-medium text-zinc-900 hover:bg-primary/90 transition-colors"
             >
               Save & Continue
             </button>
@@ -190,8 +228,8 @@ export default function CreateProductWizard({ brands, collections, categories, w
             <button
               type="button"
               disabled={submitting}
-              onClick={methods.handleSubmit(handlePublish)}
-              className="px-5 py-2 rounded-md bg-zinc-900 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              onClick={methods.handleSubmit(handlePublish, handleInvalid)}
+              className="px-5 py-2 rounded-lg bg-primary text-sm font-medium text-zinc-900 hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {submitting ? 'Publishing…' : 'Publish'}
             </button>

@@ -2,6 +2,17 @@
 
 import { useState } from 'react'
 import type { PaymentSummary, PaymentHistoryRow, BankDetails, PayoutStatus } from '@/types/admin.types'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui/table'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -35,9 +46,9 @@ function StatusBadge({ status }: { status: PayoutStatus }) {
     failed:      'Failed',
   }
   return (
-    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${map[status]}`}>
+    <Badge className={`h-auto rounded-full px-2 py-0.5 text-xs font-semibold border-0 ${map[status]}`}>
       {label[status]}
-    </span>
+    </Badge>
   )
 }
 
@@ -95,11 +106,11 @@ function BankDetailsSection({
       <div>
         <p className="text-xs text-zinc-400 mb-1">{label}</p>
         {editing ? (
-          <input
+          <Input
             value={String(form[key] ?? '')}
             onChange={e => setForm(prev => ({ ...prev, [key]: e.target.value }))}
             placeholder={placeholder}
-            className="w-full rounded-md border border-zinc-200 px-3 py-1.5 text-sm text-zinc-800 focus:outline-none focus:ring-2 focus:ring-yellow-400/30 focus:border-yellow-400"
+            className="w-full rounded-md border-zinc-200 text-sm text-zinc-800 focus:ring-primary/30 focus:border-primary"
           />
         ) : (
           <p className="text-sm font-semibold text-zinc-900">{String(form[key] ?? '—')}</p>
@@ -124,27 +135,28 @@ function BankDetailsSection({
       <div className="mt-5">
         {editing ? (
           <div className="flex items-center gap-2">
-            <button
+            <Button
+              variant="outline"
               onClick={() => setEditing(false)}
-              className="px-4 py-1.5 text-sm font-medium border border-zinc-300 rounded-lg text-zinc-700 hover:bg-zinc-50"
+              className="px-4 py-1.5 h-auto text-sm font-medium border-zinc-300 rounded-lg text-zinc-700 hover:bg-zinc-50"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={handleSave}
               disabled={saving}
-              className="px-4 py-1.5 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60"
+              className="px-4 py-1.5 h-auto text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60"
             >
               {saving ? 'Saving...' : 'Save Changes'}
-            </button>
+            </Button>
           </div>
         ) : (
-          <button
+          <Button
             onClick={() => setEditing(true)}
-            className="px-4 py-1.5 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="px-4 py-1.5 h-auto text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             Edit Banking Details
-          </button>
+          </Button>
         )}
       </div>
     </div>
@@ -245,99 +257,103 @@ export default function PaymentSettlementTab({
           <h3 className="text-sm font-semibold text-zinc-900">Payment History</h3>
           <div className="flex items-center gap-2">
             {(['in_progress', 'completed'] as const).map(s => (
-              <button
+              <Button
                 key={s}
+                type="button"
+                variant="outline"
                 onClick={() => applyStatus(s)}
-                className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs transition-colors ${
+                className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs h-auto transition-colors ${
                   statusFilter === s
-                    ? 'border-zinc-900 bg-zinc-900 text-white'
+                    ? 'border-primary bg-primary text-zinc-900 hover:bg-primary/90'
                     : 'border-zinc-300 text-zinc-600 hover:border-zinc-500'
                 }`}
               >
                 {s === 'in_progress' ? 'In Progress' : 'Completed'}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-zinc-100 bg-zinc-50">
-                <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500 whitespace-nowrap">Period</th>
-                <th className="px-5 py-3 text-right text-xs font-medium text-zinc-500">Orders</th>
-                <th className="px-5 py-3 text-right text-xs font-medium text-zinc-500">Gross</th>
-                <th className="px-5 py-3 text-right text-xs font-medium text-zinc-500">Adjustments</th>
-                <th className="px-5 py-3 text-right text-xs font-medium text-zinc-500">Net Payout</th>
-                <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Status</th>
-                <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500 whitespace-nowrap">Payment Date</th>
-                <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Reference</th>
-                <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Invoice</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100">
-              {loading ? (
-                <tr><td colSpan={9} className="px-5 py-8 text-center text-sm text-zinc-400">Loading...</td></tr>
-              ) : history.length === 0 ? (
-                <tr><td colSpan={9} className="px-5 py-8 text-center text-sm text-zinc-400">No payment history.</td></tr>
-              ) : (
-                history.map(row => (
-                  <tr key={row.id} className="hover:bg-zinc-50">
-                    <td className="px-5 py-3 text-xs text-zinc-600 whitespace-nowrap">
-                      {fmtDate(row.period_start)} → {fmtDate(row.period_end)}
-                    </td>
-                    <td className="px-5 py-3 text-xs text-right text-zinc-700">{row.order_count}</td>
-                    <td className="px-5 py-3 text-xs text-right text-zinc-700">{fmtAUD(row.gross_amount)}</td>
-                    <td className="px-5 py-3 text-xs text-right">
-                      <span className={row.adjustments < 0 ? 'text-red-600' : 'text-zinc-700'}>
-                        {row.adjustments !== 0 ? fmtAUD(row.adjustments) : '—'}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3 text-xs text-right font-semibold">
-                      <span className={row.status === 'completed' ? 'text-green-600' : 'text-zinc-800'}>
-                        {fmtAUD(row.net_payout)}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3"><StatusBadge status={row.status} /></td>
-                    <td className="px-5 py-3 text-xs text-zinc-500">{fmtDate(row.payment_date)}</td>
-                    <td className="px-5 py-3 text-xs text-zinc-500 font-mono">{row.reference ?? '—'}</td>
-                    <td className="px-5 py-3">
-                      {row.invoice_url ? (
-                        <a
-                          href={row.invoice_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                          </svg>
-                          Download
-                        </a>
-                      ) : (
-                        <span className="text-xs text-zinc-300">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <Table className="w-full text-sm">
+          <TableHeader>
+            <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50">
+              <TableHead className="px-5 py-3 text-left text-xs font-medium text-zinc-500 whitespace-nowrap">Period</TableHead>
+              <TableHead className="px-5 py-3 text-right text-xs font-medium text-zinc-500">Orders</TableHead>
+              <TableHead className="px-5 py-3 text-right text-xs font-medium text-zinc-500">Gross</TableHead>
+              <TableHead className="px-5 py-3 text-right text-xs font-medium text-zinc-500">Adjustments</TableHead>
+              <TableHead className="px-5 py-3 text-right text-xs font-medium text-zinc-500">Net Payout</TableHead>
+              <TableHead className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Status</TableHead>
+              <TableHead className="px-5 py-3 text-left text-xs font-medium text-zinc-500 whitespace-nowrap">Payment Date</TableHead>
+              <TableHead className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Reference</TableHead>
+              <TableHead className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Invoice</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody className="divide-y divide-zinc-100">
+            {loading ? (
+              <TableRow><TableCell colSpan={9} className="px-5 py-8 text-center text-sm text-zinc-400">Loading...</TableCell></TableRow>
+            ) : history.length === 0 ? (
+              <TableRow><TableCell colSpan={9} className="px-5 py-8 text-center text-sm text-zinc-400">No payment history.</TableCell></TableRow>
+            ) : (
+              history.map(row => (
+                <TableRow key={row.id} className="hover:bg-zinc-50">
+                  <TableCell className="px-5 py-3 text-xs text-zinc-600 whitespace-nowrap">
+                    {fmtDate(row.period_start)} → {fmtDate(row.period_end)}
+                  </TableCell>
+                  <TableCell className="px-5 py-3 text-xs text-right text-zinc-700">{row.order_count}</TableCell>
+                  <TableCell className="px-5 py-3 text-xs text-right text-zinc-700">{fmtAUD(row.gross_amount)}</TableCell>
+                  <TableCell className="px-5 py-3 text-xs text-right">
+                    <span className={row.adjustments < 0 ? 'text-red-600' : 'text-zinc-700'}>
+                      {row.adjustments !== 0 ? fmtAUD(row.adjustments) : '—'}
+                    </span>
+                  </TableCell>
+                  <TableCell className="px-5 py-3 text-xs text-right font-semibold">
+                    <span className={row.status === 'completed' ? 'text-green-600' : 'text-zinc-800'}>
+                      {fmtAUD(row.net_payout)}
+                    </span>
+                  </TableCell>
+                  <TableCell className="px-5 py-3"><StatusBadge status={row.status} /></TableCell>
+                  <TableCell className="px-5 py-3 text-xs text-zinc-500">{fmtDate(row.payment_date)}</TableCell>
+                  <TableCell className="px-5 py-3 text-xs text-zinc-500 font-mono">{row.reference ?? '—'}</TableCell>
+                  <TableCell className="px-5 py-3">
+                    {row.invoice_url ? (
+                      <a
+                        href={row.invoice_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                        </svg>
+                        Download
+                      </a>
+                    ) : (
+                      <span className="text-xs text-zinc-300">—</span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
 
         <div className="flex items-center justify-between px-5 py-3 border-t border-zinc-100 text-xs text-zinc-500">
           <span>{history.length} of {total} records</span>
           <div className="flex gap-1">
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => page > 1 && goPage(page - 1)}
               disabled={page <= 1}
-              className="px-2 py-1 rounded border border-zinc-300 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
-            >Prev</button>
-            <button
+              className="px-2 py-1 h-auto rounded border-zinc-300 text-xs"
+            >Prev</Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => page < totalPages && goPage(page + 1)}
               disabled={page >= totalPages}
-              className="px-2 py-1 rounded border border-zinc-300 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
-            >Next</button>
+              className="px-2 py-1 h-auto rounded border-zinc-300 text-xs"
+            >Next</Button>
           </div>
         </div>
       </div>

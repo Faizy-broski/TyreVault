@@ -48,7 +48,7 @@ export default function CategoriesTab({ brands, collections, categories }: Props
   }
 
   return (
-    <div className="max-w-2xl space-y-8">
+    <div className="space-y-8">
       <section>
         <h2 className="text-base font-semibold text-zinc-900 mb-4">General</h2>
 
@@ -61,7 +61,7 @@ export default function CategoriesTab({ brands, collections, categories }: Props
               aria-checked={discountable}
               onClick={() => setValue('discountable', !discountable)}
               className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors mt-0.5 ${
-                discountable ? 'bg-blue-600' : 'bg-zinc-300'
+                discountable ? 'bg-primary' : 'bg-zinc-300'
               }`}
             >
               <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
@@ -86,7 +86,7 @@ export default function CategoriesTab({ brands, collections, categories }: Props
             <label className="block text-sm font-medium text-zinc-700 mb-1">Product Type</label>
             <select
               {...register('applicationType')}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-500/20 focus:border-zinc-500 bg-white"
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white"
             >
               <option value="">Tire, wheels ...</option>
               {APPLICATION_TYPES.map(t => (
@@ -100,7 +100,7 @@ export default function CategoriesTab({ brands, collections, categories }: Props
             <label className="block text-sm font-medium text-zinc-700 mb-1">Tyre Type</label>
             <select
               {...register('performanceCategory')}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-500/20 focus:border-zinc-500 bg-white"
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white"
             >
               <option value="">Touring, Performance, Highway</option>
               {PERFORMANCE_CATEGORIES.map(c => (
@@ -115,7 +115,7 @@ export default function CategoriesTab({ brands, collections, categories }: Props
             <label className="block text-sm font-medium text-zinc-700 mb-1">Season</label>
             <select
               {...register('seasonType')}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-500/20 focus:border-zinc-500 bg-white"
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white"
             >
               <option value="">Summer, winter, all season etc</option>
               {SEASON_TYPES.map(s => (
@@ -129,7 +129,7 @@ export default function CategoriesTab({ brands, collections, categories }: Props
             <label className="block text-sm font-medium text-zinc-700 mb-1">Collection</label>
             <select
               {...register('collectionId')}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-500/20 focus:border-zinc-500 bg-white"
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white"
             >
               <option value="">Premium tires, low budget tires ...</option>
               {collections.map(c => (
@@ -155,7 +155,7 @@ export default function CategoriesTab({ brands, collections, categories }: Props
                     type="checkbox"
                     checked={selectedCats.includes(cat.category_id)}
                     onChange={() => toggleCategory(cat.category_id)}
-                    className="rounded border-zinc-300 text-zinc-900 focus:ring-zinc-500"
+                    className="rounded border-zinc-300 text-zinc-900 focus:ring-primary/30"
                   />
                   <span className="text-sm text-zinc-700">{cat.category_name}</span>
                   <span className="ml-auto text-xs text-zinc-400 capitalize">{cat.category_type}</span>
@@ -176,7 +176,7 @@ export default function CategoriesTab({ brands, collections, categories }: Props
                 onClick={() => toggleTag(tag)}
                 className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
                   selectedTags.includes(tag)
-                    ? 'bg-zinc-900 text-white border-zinc-900'
+                    ? 'bg-primary text-zinc-900 border-primary'
                     : 'border-zinc-300 text-zinc-600 hover:border-zinc-500 hover:text-zinc-900'
                 }`}
               >

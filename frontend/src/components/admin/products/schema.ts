@@ -1,12 +1,27 @@
 import { z } from 'zod'
 
+// react-hook-form's valueAsNumber returns NaN for empty inputs.
+// These helpers coerce NaN to undefined / a default so Zod doesn't reject optional fields.
+const optNum = z.preprocess(
+  (v) => (typeof v === 'number' && Number.isNaN(v) ? undefined : v),
+  z.number().optional()
+)
+const numWithDefault = (def: number) =>
+  z.preprocess(
+    (v) => (typeof v === 'number' && Number.isNaN(v) ? def : v),
+    z.number().min(0).default(def)
+  )
+
 // ── Variant row ────────────────────────────────────────────────────────────
 export const variantSchema = z.object({
   sku:            z.string().min(1, 'SKU is required'),
   tyreSizeDisplay: z.string().min(1, 'Tyre size is required'),
-  width:          z.number().optional(),
-  profile:        z.number().optional(),
-  rimSize:        z.number({ error: 'Rim size is required' }),
+  width:          optNum,
+  profile:        optNum,
+  rimSize:        z.preprocess(
+    (v) => (typeof v === 'number' && Number.isNaN(v) ? undefined : v),
+    z.number({ message: 'Rim size is required' })
+  ),
   constructionType: z.string().optional(),
   speedRating:    z.string().optional(),
   loadIndex:      z.string().optional(),
@@ -24,11 +39,14 @@ export const variantSchema = z.object({
 
 // ── Pricing row (parallel to variant, same index) ─────────────────────────
 export const pricingSchema = z.object({
-  priceIncGst:   z.number({ error: 'Price is required' }).min(0),
-  compareAtPrice: z.number().optional(),
-  costPrice:     z.number().optional(),
-  inventory:     z.number().min(0).default(0),
-  lowStockAlert: z.number().min(0).default(10),
+  priceIncGst:   z.preprocess(
+    (v) => (typeof v === 'number' && Number.isNaN(v) ? undefined : v),
+    z.number({ message: 'Price is required' }).min(0)
+  ),
+  compareAtPrice: optNum,
+  costPrice:     optNum,
+  inventory:     numWithDefault(0),
+  lowStockAlert: numWithDefault(10),
   warehouseId:   z.string().optional(),
 })
 
@@ -56,9 +74,9 @@ export const createProductSchema = z.object({
   discountable:      z.boolean().default(true),
   applicationType:   z.enum(['PCR', '4x4', 'TBR']).default('PCR'),
   categoryIds:       z.array(z.string()).default([]),
-  performanceCategory: z.string().optional(),
-  seasonType:        z.string().optional(),
-  collectionId:      z.string().optional(),
+  performanceCategory: z.string().transform(v => v || undefined).optional(),
+  seasonType:        z.string().transform(v => v || undefined).optional(),
+  collectionId:      z.string().transform(v => v || undefined).optional(),
   tags:              z.array(z.string()).default([]),
 
   // Tab 3: Variants

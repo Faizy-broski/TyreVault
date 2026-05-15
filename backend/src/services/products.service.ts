@@ -427,6 +427,86 @@ export async function updateVariantStock(
 }
 
 // ============================================================
+// DELETE PRODUCT (pattern + all child rows)
+// ============================================================
+export async function deleteProduct(patternId: string) {
+  // Get all SKU ids first
+  const { data: skus } = await supabase
+    .from('skus').select('product_id').eq('pattern_id', patternId)
+  const skuIds = (skus ?? []).map(s => s.product_id)
+
+  if (skuIds.length > 0) {
+    await supabase.from('product_prices').delete().in('product_id', skuIds)
+    await supabase.from('product_stock').delete().in('product_id', skuIds)
+    await supabase.from('skus').delete().in('product_id', skuIds)
+  }
+
+  await supabase.from('pattern_categories').delete().eq('pattern_id', patternId)
+
+  const { error } = await supabase.from('patterns').delete().eq('pattern_id', patternId)
+  if (error) throw error
+
+  // Invalidate cache
+  await redis?.del('admin:brands')
+}
+
+// ============================================================
+// DELETE VARIANT (sku + prices + stock)
+// ============================================================
+export async function deleteVariant(productId: string) {
+  await supabase.from('product_prices').delete().eq('product_id', productId)
+  await supabase.from('product_stock').delete().eq('product_id', productId)
+
+  const { error } = await supabase.from('skus').delete().eq('product_id', productId)
+  if (error) throw error
+
+  await redis?.del(`stock:${productId}`)
+}
+
+// ============================================================
+// UPDATE VARIANT PRICES — upsert by (product_id, customer_group_id)
+// prices is a map of { 'Retail': 199.99, ... }  (group_name → price_inc_gst)
+// ============================================================
+export async function updateVariantPrices(
+  productId: string,
+  prices: Record<string, number>
+) {
+  // Fetch existing price rows so we can match by price_id
+  const { data: existing } = await supabase
+    .from('product_prices')
+    .select('price_id, customer_group_id, price_type')
+    .eq('product_id', productId)
+
+  const gstRate = 0.1
+
+  for (const [groupName, priceIncGst] of Object.entries(prices)) {
+    // Find matching existing row (null customer_group_id = Retail)
+    const row = (existing ?? []).find(p =>
+      groupName === 'Retail' ? p.customer_group_id === null : false
+    ) ?? (existing ?? [])[0]
+
+    const priceExGst = parseFloat((priceIncGst / (1 + gstRate)).toFixed(2))
+
+    if (row?.price_id) {
+      await supabase
+        .from('product_prices')
+        .update({ price_inc_gst: priceIncGst, price_ex_gst: priceExGst })
+        .eq('price_id', row.price_id)
+    } else {
+      await supabase.from('product_prices').insert({
+        product_id: productId,
+        price_type: 'retail',
+        price_inc_gst: priceIncGst,
+        price_ex_gst: priceExGst,
+        is_active: true,
+      })
+    }
+  }
+
+  await catalogueSyncQueue?.add('upsert_sku', { type: 'upsert_sku', product_id: productId })
+}
+
+// ============================================================
 // BRAND helpers (for dropdowns)
 // ============================================================
 export async function listBrands() {

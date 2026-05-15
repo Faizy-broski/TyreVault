@@ -2,18 +2,35 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
+import { MoreVertical, Search, SlidersHorizontal } from 'lucide-react'
 import CreateGroupModal from './CreateGroupModal'
+import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import type { CustomerGroup } from '@/types/admin.types'
 
 function fmtDateTime(d: string) {
   return new Date(d).toLocaleString('en-AU', {
-    month: 'short', day: 'numeric', year: 'numeric',
-    hour: 'numeric', minute: '2-digit', hour12: true,
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
   })
 }
 
 type Props = {
+  accessToken: string
   groups: CustomerGroup[]
   total: number
   totalPages: number
@@ -21,132 +38,233 @@ type Props = {
   search: string
 }
 
-export default function CustomerGroupsClient({ groups, total, totalPages, page, search }: Props) {
-  const router        = useRouter()
-  const [showCreate, setShowCreate] = useState(false)
+export default function CustomerGroupsClient({
+  accessToken,
+  groups,
+  total,
+  totalPages,
+  page,
+  search,
+}: Props) {
+  const router      = useRouter()
+  const searchParams = useSearchParams()
+  const pathname    = usePathname()
+  const showCreate  = searchParams.get('modal') === 'create'
   const [localSearch, setLocalSearch] = useState(search)
+
+  function openCreate() {
+    const p = new URLSearchParams(searchParams.toString())
+    p.set('modal', 'create')
+    router.push(`${pathname}?${p}`)
+  }
+
+  function closeModal() {
+    const p = new URLSearchParams(searchParams.toString())
+    p.delete('modal')
+    const qs = p.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname)
+  }
+  const startResult = total === 0 ? 0 : (page - 1) * 20 + 1
+  const endResult = total === 0 ? 0 : (page - 1) * 20 + groups.length
 
   function submitSearch(e: React.FormEvent) {
     e.preventDefault()
-    const url = `/admin/customers/groups?search=${encodeURIComponent(localSearch)}&page=1`
-    router.push(url)
+    router.push(
+      `/admin/customers/groups?search=${encodeURIComponent(localSearch)}&page=1`,
+    )
   }
 
   return (
     <div className="p-6">
-      {showCreate && <CreateGroupModal onClose={() => setShowCreate(false)} />}
-
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-semibold text-zinc-900">Customer Group</h1>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-1.5 rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-700 transition-colors"
-        >
-          Create
-        </button>
+      <div className="mb-5">
+        <AdminBreadcrumb
+          crumbs={[
+            { label: 'Customers', href: '/admin/customers' },
+            { label: 'Groups' },
+          ]}
+        />
       </div>
 
-      {/* Filters + Search */}
-      <div className="flex items-center gap-2 mb-4">
-        <div className="flex items-center gap-2 flex-1">
-          <button className="flex items-center gap-1 rounded-full border border-zinc-300 px-3 py-1 text-sm text-zinc-600 hover:border-zinc-500 transition-colors">
+      {showCreate && (
+        <CreateGroupModal
+          accessToken={accessToken}
+          onClose={closeModal}
+        />
+      )}
+
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-zinc-900">Customer Group</h1>
+        <Button
+          type="button"
+          onClick={openCreate}
+          className="h-auto rounded-lg bg-primary px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-primary/90"
+        >
+          Create
+        </Button>
+      </div>
+
+      <div className="mb-4 flex items-center gap-2">
+        <div className="flex flex-1 items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-auto rounded-full border-zinc-300 px-3 py-1 text-sm text-zinc-600 hover:border-zinc-500"
+          >
             + Account
-          </button>
-          <button className="flex items-center gap-1 rounded-full border border-zinc-300 px-3 py-1 text-sm text-zinc-600 hover:border-zinc-500 transition-colors">
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-auto rounded-full border-zinc-300 px-3 py-1 text-sm text-zinc-600 hover:border-zinc-500"
+          >
             + Created
-          </button>
+          </Button>
         </div>
         <form onSubmit={submitSearch} className="flex items-center gap-2">
           <div className="relative">
-            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-            </svg>
-            <input
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+            <Input
               value={localSearch}
-              onChange={e => setLocalSearch(e.target.value)}
+              onChange={(e) => setLocalSearch(e.target.value)}
               placeholder="Search groups..."
-              className="pl-8 pr-4 py-1.5 text-sm border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-500/20 focus:border-zinc-500 w-48"
+              className="w-48 rounded-lg border-zinc-300 pl-8 pr-4 text-sm focus:border-primary focus:ring-primary/30"
             />
           </div>
-          <button type="submit" className="p-1.5 rounded-md border border-zinc-300 hover:bg-zinc-50 text-zinc-500">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
-            </svg>
-          </button>
+          <Button
+            type="submit"
+            variant="outline"
+            size="icon-sm"
+            className="border-zinc-300 text-zinc-500"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+          </Button>
         </form>
       </div>
 
-      {/* Table */}
-      <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-zinc-100 bg-zinc-50">
-              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Name</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">
+      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+        <Table className="w-full text-sm">
+          <TableHeader>
+            <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50">
+              <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500">
+                Name
+              </TableHead>
+              <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500">
                 <div className="flex items-center gap-1">
                   Customers
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
+                  <span className="text-zinc-400">↓</span>
                 </div>
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Created</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Updated</th>
-              <th className="px-4 py-3 w-10" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-100">
+              </TableHead>
+              <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500">
+                Created
+              </TableHead>
+              <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500">
+                Updated
+              </TableHead>
+              <TableHead className="w-10 px-4 py-3" />
+            </TableRow>
+          </TableHeader>
+          <TableBody className="divide-y divide-zinc-100">
             {groups.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-sm text-zinc-400">
-                  {search ? `No groups matching "${search}"` : 'No customer groups yet. Click "Create" to add one.'}
-                </td>
-              </tr>
+              <TableRow>
+                <TableCell
+                  colSpan={5}
+                  className="px-4 py-12 text-center text-sm text-zinc-400"
+                >
+                  {search
+                    ? `No groups matching "${search}"`
+                    : 'No customer groups yet. Click "Create" to add one.'}
+                </TableCell>
+              </TableRow>
             ) : (
-              groups.map(g => (
-                <tr key={g.group_id} className="hover:bg-zinc-50">
-                  <td className="px-4 py-3 font-medium text-zinc-800">
-                    <Link href={`/admin/customers/groups/${g.group_id}`} className="hover:underline">
-                      {g.group_name}
+              groups.map((group) => (
+                <TableRow key={group.group_id} className="hover:bg-zinc-50">
+                  <TableCell className="px-4 py-3 font-medium text-zinc-800">
+                    <Link
+                      href={`/admin/customers/groups/${group.group_id}`}
+                      className="hover:underline"
+                    >
+                      {group.group_name}
                     </Link>
-                  </td>
-                  <td className="px-4 py-3 text-zinc-600">{g.customer_count}</td>
-                  <td className="px-4 py-3 text-zinc-500 text-xs whitespace-nowrap">{fmtDateTime(g.created_at)}</td>
-                  <td className="px-4 py-3 text-zinc-500 text-xs whitespace-nowrap">{fmtDateTime(g.updated_at)}</td>
-                  <td className="px-4 py-3">
-                    <button className="p-1 text-zinc-400 hover:text-zinc-700">
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z" />
-                      </svg>
-                    </button>
-                  </td>
-                </tr>
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-zinc-600">
+                    {group.customer_count}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap px-4 py-3 text-xs text-zinc-500">
+                    {fmtDateTime(group.created_at)}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap px-4 py-3 text-xs text-zinc-500">
+                    {fmtDateTime(group.updated_at)}
+                  </TableCell>
+                  <TableCell className="px-4 py-3">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="text-zinc-400 hover:text-zinc-700"
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
               ))
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
 
-        <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-100 bg-zinc-50 text-xs text-zinc-500">
-          <span>1 — {groups.length} of {total} results</span>
+        <div className="flex items-center justify-between border-t border-zinc-100 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">
+          <span>
+            {startResult} — {endResult} of {total} results
+          </span>
           <div className="flex items-center gap-3">
-            <span>{page} of {totalPages} pages</span>
+            <span>
+              {page} of {totalPages} pages
+            </span>
             <div className="flex gap-1">
               {page > 1 ? (
-                <Link href={`/admin/customers/groups?page=${page - 1}${search ? `&search=${search}` : ''}`}
-                  className="px-2 py-1 rounded border border-zinc-300 hover:bg-white transition-colors">
-                  Prev
-                </Link>
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="h-auto rounded border-zinc-300 px-2 py-1 text-xs hover:bg-white"
+                >
+                  <Link
+                    href={`/admin/customers/groups?page=${page - 1}${search ? `&search=${search}` : ''}`}
+                  >
+                    Prev
+                  </Link>
+                </Button>
               ) : (
-                <span className="px-2 py-1 rounded border border-zinc-200 text-zinc-300 cursor-not-allowed">Prev</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled
+                  className="h-auto rounded border-zinc-200 px-2 py-1 text-xs text-zinc-300"
+                >
+                  Prev
+                </Button>
               )}
               {page < totalPages ? (
-                <Link href={`/admin/customers/groups?page=${page + 1}${search ? `&search=${search}` : ''}`}
-                  className="px-2 py-1 rounded border border-zinc-300 hover:bg-white transition-colors">
-                  Next
-                </Link>
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="h-auto rounded border-zinc-300 px-2 py-1 text-xs hover:bg-white"
+                >
+                  <Link
+                    href={`/admin/customers/groups?page=${page + 1}${search ? `&search=${search}` : ''}`}
+                  >
+                    Next
+                  </Link>
+                </Button>
               ) : (
-                <span className="px-2 py-1 rounded border border-zinc-200 text-zinc-300 cursor-not-allowed">Next</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled
+                  className="h-auto rounded border-zinc-200 px-2 py-1 text-xs text-zinc-300"
+                >
+                  Next
+                </Button>
               )}
             </div>
           </div>

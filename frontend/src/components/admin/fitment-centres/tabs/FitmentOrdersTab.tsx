@@ -1,7 +1,19 @@
 'use client'
 
 import { useState } from 'react'
+import { Search } from 'lucide-react'
 import type { AdminCentreKPIs, AdminCentreJob, AdminCentreJobStatus, AdminCentreStats } from '@/types/admin.types'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui/table'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 const COMMISSION_RATE = 0.12
@@ -43,9 +55,9 @@ function StatusPill({ status }: { status: string }) {
     in_progress: 'Delayed',
   }
   return (
-    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${map[status] ?? 'bg-zinc-100 text-zinc-600'}`}>
+    <Badge className={`h-auto rounded-full px-2 py-0.5 text-xs font-semibold border-0 ${map[status] ?? 'bg-zinc-100 text-zinc-600'}`}>
       {label[status] ?? status}
-    </span>
+    </Badge>
   )
 }
 
@@ -76,7 +88,7 @@ function SimpleBarChart({ data }: { data: { month: string; amount: number }[] })
       {data.map(d => (
         <div key={d.month} className="flex-1 flex flex-col items-center gap-0.5" title={`${d.month}: $${d.amount.toFixed(0)}`}>
           <div
-            className="w-full bg-yellow-400 rounded-sm min-h-[2px]"
+            className="w-full bg-primary rounded-sm min-h-[2px]"
             style={{ height: `${(d.amount / max) * 96}px` }}
           />
           <span className="text-[9px] text-zinc-400 rotate-45 origin-left translate-y-2">{d.month.slice(5)}</span>
@@ -192,29 +204,29 @@ export default function FitmentOrdersTab({
             ? jobs.length
             : jobCountByStatus(tab.key)
           return (
-            <button
+            <Button
               key={tab.key}
+              type="button"
+              variant="ghost"
               onClick={() => applyStatus(tab.key)}
-              className={`px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors border-b-2 -mb-px ${
+              className={`px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap h-auto transition-colors ${
                 activeStatus === tab.key
-                  ? 'text-zinc-900 border-zinc-900'
-                  : 'text-zinc-500 border-transparent hover:text-zinc-700'
+                  ? 'text-zinc-900 bg-primary hover:bg-primary/90'
+                  : 'text-zinc-500 hover:text-zinc-700'
               }`}
             >
               {tab.label} ({count})
-            </button>
+            </Button>
           )
         })}
         <div className="flex-1" />
         <form onSubmit={handleSearch} className="relative">
-          <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-          </svg>
-          <input
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
+          <Input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search..."
-            className="pl-8 pr-3 py-1.5 text-xs border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400/30 focus:border-yellow-400 w-36"
+            className="pl-8 pr-3 text-xs border-zinc-300 rounded-lg focus:ring-primary/30 focus:border-primary w-36 h-8"
           />
         </form>
       </div>
@@ -224,73 +236,63 @@ export default function FitmentOrdersTab({
         <h3 className="text-sm font-semibold text-zinc-900">All Orders</h3>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-zinc-100 bg-zinc-50">
-              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 whitespace-nowrap">Order ID</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 whitespace-nowrap">Fitment ID</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 whitespace-nowrap">Date & Time</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Customer</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Services</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Tyre</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-zinc-500">Fitment</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-zinc-500">Total</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-zinc-500">Commission</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Status</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Payment</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-50">
-            {loading ? (
-              <tr><td colSpan={11} className="px-4 py-8 text-center text-sm text-zinc-400">Loading...</td></tr>
-            ) : jobs.length === 0 ? (
-              <tr><td colSpan={11} className="px-4 py-8 text-center text-sm text-zinc-400">No orders found.</td></tr>
-            ) : (
-              jobs.map(job => {
-                const total      = job.earnings_amount ?? 0
-                const fitment    = total * 0.1
-                const commission = total * COMMISSION_RATE
-                return (
-                  <tr key={job.job_id} className="hover:bg-zinc-50">
-                    <td className="px-4 py-3 text-xs font-mono text-zinc-600 whitespace-nowrap">
-                      OD-{job.task_number}
-                    </td>
-                    <td className="px-4 py-3 text-xs font-mono text-zinc-600 whitespace-nowrap">
-                      FD-{job.task_number}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-zinc-500 whitespace-nowrap">
-                      {fmtDateTime(job.scheduled_date, job.scheduled_time)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="text-sm font-medium text-zinc-800 whitespace-nowrap">{job.customer_name}</p>
-                      <p className="text-xs text-zinc-400">{job.customer_phone ?? '—'}</p>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-zinc-600">
-                      {job.vehicle_model ?? '—'}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-zinc-600">
-                      {job.tyre_size ? `${job.tyre_size} × ${job.quantity}` : '—'}
-                      {job.tyre_pattern && <p className="text-zinc-400">{job.tyre_pattern}</p>}
-                    </td>
-                    <td className="px-4 py-3 text-right text-xs text-zinc-700">{fmtAUD(fitment)}</td>
-                    <td className="px-4 py-3 text-right text-xs font-semibold text-zinc-800">{fmtAUD(total)}</td>
-                    <td className="px-4 py-3 text-right text-xs text-zinc-700">{fmtAUD(commission)}</td>
-                    <td className="px-4 py-3"><StatusPill status={job.job_status} /></td>
-                    <td className="px-4 py-3">
-                      <span className={`text-xs font-semibold ${
-                        job.job_status === 'completed' ? 'text-green-600' : 'text-amber-600'
-                      }`}>
-                        {job.job_status === 'completed' ? 'Paid' : 'Pending'}
-                      </span>
-                    </td>
-                  </tr>
-                )
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+      <Table className="w-full text-sm">
+        <TableHeader>
+          <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50">
+            <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500 whitespace-nowrap">Order ID</TableHead>
+            <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500 whitespace-nowrap">Fitment ID</TableHead>
+            <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500 whitespace-nowrap">Date & Time</TableHead>
+            <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Customer</TableHead>
+            <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Services</TableHead>
+            <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Tyre</TableHead>
+            <TableHead className="px-4 py-3 text-right text-xs font-medium text-zinc-500">Fitment</TableHead>
+            <TableHead className="px-4 py-3 text-right text-xs font-medium text-zinc-500">Total</TableHead>
+            <TableHead className="px-4 py-3 text-right text-xs font-medium text-zinc-500">Commission</TableHead>
+            <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Status</TableHead>
+            <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Payment</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody className="divide-y divide-zinc-50">
+          {loading ? (
+            <TableRow><TableCell colSpan={11} className="px-4 py-8 text-center text-sm text-zinc-400">Loading...</TableCell></TableRow>
+          ) : jobs.length === 0 ? (
+            <TableRow><TableCell colSpan={11} className="px-4 py-8 text-center text-sm text-zinc-400">No orders found.</TableCell></TableRow>
+          ) : (
+            jobs.map(job => {
+              const total      = job.earnings_amount ?? 0
+              const fitment    = total * 0.1
+              const commission = total * COMMISSION_RATE
+              return (
+                <TableRow key={job.job_id} className="hover:bg-zinc-50">
+                  <TableCell className="px-4 py-3 text-xs font-mono text-zinc-600 whitespace-nowrap">OD-{job.task_number}</TableCell>
+                  <TableCell className="px-4 py-3 text-xs font-mono text-zinc-600 whitespace-nowrap">FD-{job.task_number}</TableCell>
+                  <TableCell className="px-4 py-3 text-xs text-zinc-500 whitespace-nowrap">{fmtDateTime(job.scheduled_date, job.scheduled_time)}</TableCell>
+                  <TableCell className="px-4 py-3">
+                    <p className="text-sm font-medium text-zinc-800 whitespace-nowrap">{job.customer_name}</p>
+                    <p className="text-xs text-zinc-400">{job.customer_phone ?? '—'}</p>
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-xs text-zinc-600">{job.vehicle_model ?? '—'}</TableCell>
+                  <TableCell className="px-4 py-3 text-xs text-zinc-600">
+                    {job.tyre_size ? `${job.tyre_size} × ${job.quantity}` : '—'}
+                    {job.tyre_pattern && <p className="text-zinc-400">{job.tyre_pattern}</p>}
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-right text-xs text-zinc-700">{fmtAUD(fitment)}</TableCell>
+                  <TableCell className="px-4 py-3 text-right text-xs font-semibold text-zinc-800">{fmtAUD(total)}</TableCell>
+                  <TableCell className="px-4 py-3 text-right text-xs text-zinc-700">{fmtAUD(commission)}</TableCell>
+                  <TableCell className="px-4 py-3"><StatusPill status={job.job_status} /></TableCell>
+                  <TableCell className="px-4 py-3">
+                    <span className={`text-xs font-semibold ${
+                      job.job_status === 'completed' ? 'text-green-600' : 'text-amber-600'
+                    }`}>
+                      {job.job_status === 'completed' ? 'Paid' : 'Pending'}
+                    </span>
+                  </TableCell>
+                </TableRow>
+              )
+            })
+          )}
+        </TableBody>
+      </Table>
 
       {/* Pagination */}
       <div className="flex items-center justify-between px-5 py-3 text-xs text-zinc-500">
@@ -298,16 +300,20 @@ export default function FitmentOrdersTab({
         <div className="flex items-center gap-3">
           <span>{page} of {totalPages || 1} pages</span>
           <div className="flex gap-1">
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => page > 1 && goPage(page - 1)}
               disabled={page <= 1}
-              className="px-2 py-1 rounded border border-zinc-300 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
-            >Prev</button>
-            <button
+              className="px-2 py-1 h-auto rounded border-zinc-300 text-xs"
+            >Prev</Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => page < totalPages && goPage(page + 1)}
               disabled={page >= totalPages}
-              className="px-2 py-1 rounded border border-zinc-300 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
-            >Next</button>
+              className="px-2 py-1 h-auto rounded border-zinc-300 text-xs"
+            >Next</Button>
           </div>
         </div>
       </div>
@@ -322,7 +328,7 @@ export default function FitmentOrdersTab({
                 <button
                   key={v}
                   onClick={() => setChartView(v)}
-                  className={`px-3 py-1 ${chartView === v ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-50'}`}
+                  className={`px-3 py-1 ${chartView === v ? 'bg-primary text-zinc-900' : 'text-zinc-600 hover:bg-zinc-50'}`}
                 >
                   {v.charAt(0).toUpperCase() + v.slice(1)}
                 </button>

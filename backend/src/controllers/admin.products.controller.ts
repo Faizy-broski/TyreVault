@@ -68,6 +68,30 @@ export async function updateVariantStock(req: Request, res: Response, next: Next
   } catch (err) { next(err) }
 }
 
+export async function deleteProduct(req: Request, res: Response, next: NextFunction) {
+  try {
+    await ProductsService.deleteProduct(String((req.params as P).id))
+    res.json({ success: true })
+  } catch (err) { next(err) }
+}
+
+export async function deleteVariant(req: Request, res: Response, next: NextFunction) {
+  try {
+    await ProductsService.deleteVariant(String((req.params as P).variantId))
+    res.json({ success: true })
+  } catch (err) { next(err) }
+}
+
+export async function updateVariantPrices(req: Request, res: Response, next: NextFunction) {
+  try {
+    await ProductsService.updateVariantPrices(
+      String((req.params as P).variantId),
+      req.body.prices ?? {}
+    )
+    res.json({ success: true })
+  } catch (err) { next(err) }
+}
+
 export async function getFormMeta(req: Request, res: Response, next: NextFunction) {
   try {
     const [brands, collections, categories] = await Promise.all([

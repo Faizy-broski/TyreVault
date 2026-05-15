@@ -1,87 +1,153 @@
-import { createClient } from '@/lib/supabase/server'
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useParams } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import FitmentCentreDetailClient from '@/components/admin/fitment-centres/FitmentCentreDetailClient'
+import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import type {
-  AdminFitmentCentreDetail,
-  AdminCentreKPIs,
   AdminCentreJob,
+  AdminCentreKPIs,
   AdminCentreStats,
-  PaymentSummary,
-  PaymentHistoryRow,
+  AdminFitmentCentreDetail,
   BankDetails,
   ComplianceDoc,
+  PaymentHistoryRow,
+  PaymentSummary,
 } from '@/types/admin.types'
 import type { FitterPricingRow } from '@/types/fitter.types'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
-interface Props {
-  params: Promise<{ id: string }>
+async function apiFetch<T>(path: string, token: string): Promise<T> {
+  const res = await fetch(`${API}${path}`, { headers: { Authorization: `Bearer ${token}` } })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw new Error(body.error ?? `API returned ${res.status}`)
+  }
+  return res.json()
 }
 
-export default async function FitmentCentreDetailPage({ params }: Props) {
-  const { id } = await params
-  const supabase = await createClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  const token   = session?.access_token ?? ''
-  const headers = { Authorization: `Bearer ${token}` }
+export default function FitmentCentreDetailPage() {
+  const { id } = useParams<{ id: string }>()
 
-  let centre:             AdminFitmentCentreDetail | null = null
-  let kpis:               AdminCentreKPIs | null = null
-  let jobs:               AdminCentreJob[] = []
-  let jobsTotal           = 0
-  let pricing:            FitterPricingRow[] = []
-  let stats:              AdminCentreStats = { purchase12Months: [], loginHistory: [] }
-  let paymentSummary:     PaymentSummary | null = null
-  let initialPayments:    PaymentHistoryRow[] = []
-  let initialPaymentTotal = 0
-  let bankDetails:        BankDetails | null = null
-  let complianceDocs:     ComplianceDoc[] = []
+  const [centre, setCentre]                         = useState<AdminFitmentCentreDetail | null>(null)
+  const [kpis, setKpis]                             = useState<AdminCentreKPIs | null>(null)
+  const [jobs, setJobs]                             = useState<AdminCentreJob[]>([])
+  const [jobsTotal, setJobsTotal]                   = useState(0)
+  const [pricing, setPricing]                       = useState<FitterPricingRow[]>([])
+  const [stats, setStats]                           = useState<AdminCentreStats>({ purchase12Months: [], loginHistory: [] })
+  const [paymentSummary, setPaymentSummary]         = useState<PaymentSummary | null>(null)
+  const [initialPayments, setInitialPayments]       = useState<PaymentHistoryRow[]>([])
+  const [initialPaymentTotal, setInitialPaymentTotal] = useState(0)
+  const [bankDetails, setBankDetails]               = useState<BankDetails | null>(null)
+  const [complianceDocs, setComplianceDocs]         = useState<ComplianceDoc[]>([])
+  const [token, setToken]                           = useState('')
+  const [loading, setLoading]                       = useState(true)
+  const [error, setError]                           = useState<string | null>(null)
 
-  try {
-    const [
-      centreRes, kpisRes, jobsRes, pricingRes, statsRes,
-      paymentSummaryRes, paymentsRes, bankRes, complianceRes,
-    ] = await Promise.all([
-      fetch(`${API}/api/admin/fitment-centres/${id}`,                  { headers, cache: 'no-store' }),
-      fetch(`${API}/api/admin/fitment-centres/${id}/kpis`,             { headers, cache: 'no-store' }),
-      fetch(`${API}/api/admin/fitment-centres/${id}/jobs?page=1`,      { headers, cache: 'no-store' }),
-      fetch(`${API}/api/admin/fitment-centres/${id}/pricing`,          { headers, cache: 'no-store' }),
-      fetch(`${API}/api/admin/fitment-centres/${id}/stats`,            { headers, cache: 'no-store' }),
-      fetch(`${API}/api/admin/fitment-centres/${id}/payments/summary`, { headers, cache: 'no-store' }),
-      fetch(`${API}/api/admin/fitment-centres/${id}/payments?page=1`,  { headers, cache: 'no-store' }),
-      fetch(`${API}/api/admin/fitment-centres/${id}/bank-details`,     { headers, cache: 'no-store' }),
-      fetch(`${API}/api/admin/fitment-centres/${id}/compliance`,       { headers, cache: 'no-store' }),
-    ])
+  useEffect(() => {
+    document.title = centre ? `${centre.business_name} | Tyre Vault` : 'Fitment Centre | Tyre Vault'
+  }, [centre])
 
-    if (centreRes.ok)         centre           = await centreRes.json()
-    if (kpisRes.ok)           kpis             = await kpisRes.json()
-    if (jobsRes.ok)         { const j           = await jobsRes.json(); jobs = j.data ?? []; jobsTotal = j.total ?? 0 }
-    if (pricingRes.ok)        pricing           = await pricingRes.json()
-    if (statsRes.ok)          stats             = await statsRes.json()
-    if (paymentSummaryRes.ok) paymentSummary    = await paymentSummaryRes.json()
-    if (paymentsRes.ok)     { const p           = await paymentsRes.json(); initialPayments = p.data ?? []; initialPaymentTotal = p.total ?? 0 }
-    if (bankRes.ok)           bankDetails       = await bankRes.json()
-    if (complianceRes.ok)     complianceDocs    = await complianceRes.json()
-  } catch { /* backend may not be running in dev */ }
+  useEffect(() => {
+    if (!id) return
+    let cancelled = false
+    async function load() {
+      try {
+        const { data: { session } } = await createClient().auth.getSession()
+        const tok = session?.access_token ?? ''
+        if (!cancelled) setToken(tok)
 
-  if (!centre) {
-    return <div className="p-6 text-sm text-zinc-500">Fitment centre not found.</div>
+        const [
+          centreJson,
+          kpisJson,
+          jobsJson,
+          pricingJson,
+          statsJson,
+          paymentSummaryJson,
+          paymentsJson,
+          bankJson,
+          complianceJson,
+        ] = await Promise.all([
+          apiFetch<AdminFitmentCentreDetail>(`/api/admin/fitment-centres/${id}`, tok),
+          apiFetch<AdminCentreKPIs>(`/api/admin/fitment-centres/${id}/kpis`, tok),
+          apiFetch<{ data: AdminCentreJob[]; total: number }>(`/api/admin/fitment-centres/${id}/jobs?page=1`, tok),
+          apiFetch<FitterPricingRow[]>(`/api/admin/fitment-centres/${id}/pricing`, tok),
+          apiFetch<AdminCentreStats>(`/api/admin/fitment-centres/${id}/stats`, tok),
+          apiFetch<PaymentSummary>(`/api/admin/fitment-centres/${id}/payments/summary`, tok),
+          apiFetch<{ data: PaymentHistoryRow[]; total: number }>(`/api/admin/fitment-centres/${id}/payments?page=1`, tok),
+          apiFetch<BankDetails | null>(`/api/admin/fitment-centres/${id}/bank-details`, tok),
+          apiFetch<ComplianceDoc[]>(`/api/admin/fitment-centres/${id}/compliance`, tok),
+        ])
+
+        if (!cancelled) {
+          setCentre(centreJson)
+          setKpis(kpisJson)
+          setJobs(jobsJson.data ?? [])
+          setJobsTotal(jobsJson.total ?? 0)
+          setPricing(pricingJson ?? [])
+          setStats(statsJson)
+          setPaymentSummary(paymentSummaryJson)
+          setInitialPayments(paymentsJson.data ?? [])
+          setInitialPaymentTotal(paymentsJson.total ?? 0)
+          setBankDetails(bankJson)
+          setComplianceDocs(complianceJson ?? [])
+        }
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load fitment centre')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [id])
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="h-8 w-48 bg-zinc-100 rounded animate-pulse mb-6" />
+        <div className="space-y-4">
+          {[1,2,3,4].map(i => <div key={i} className="h-32 bg-zinc-100 rounded-xl animate-pulse" />)}
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !centre) {
+    return (
+      <div className="p-6">
+        <AdminBreadcrumb crumbs={[{ label: 'Fitment Centre', href: '/admin/fitters' }, { label: 'Centre' }]} />
+        <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+          {error ?? 'Fitment centre not found.'}
+        </div>
+      </div>
+    )
   }
 
   return (
-    <FitmentCentreDetailClient
-      centre={centre}
-      kpis={kpis}
-      initialJobs={jobs}
-      initialJobsTotal={jobsTotal}
-      initialPricing={pricing}
-      stats={stats}
-      paymentSummary={paymentSummary}
-      initialPayments={initialPayments}
-      initialPaymentTotal={initialPaymentTotal}
-      bankDetails={bankDetails}
-      complianceDocs={complianceDocs}
-      accessToken={token}
-    />
+    <div className="p-6">
+      <div className="mb-6">
+        <AdminBreadcrumb crumbs={[
+          { label: 'Fitment Centre', href: '/admin/fitters' },
+          { label: centre.business_name },
+        ]} />
+      </div>
+      <FitmentCentreDetailClient
+        centre={centre}
+        kpis={kpis}
+        initialJobs={jobs}
+        initialJobsTotal={jobsTotal}
+        initialPricing={pricing}
+        stats={stats}
+        paymentSummary={paymentSummary}
+        initialPayments={initialPayments}
+        initialPaymentTotal={initialPaymentTotal}
+        bankDetails={bankDetails}
+        complianceDocs={complianceDocs}
+        accessToken={token}
+      />
+    </div>
   )
 }

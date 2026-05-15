@@ -1,0 +1,499 @@
+'use client'
+
+import { useState, useRef, useEffect, useTransition } from 'react'
+import Link from 'next/link'
+import { MoreVertical, X } from 'lucide-react'
+import { Dialog, DialogContent, DialogTitle, DialogClose } from '@/components/ui/dialog'
+import { getAdminToken } from '@/lib/admin-token'
+
+const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+
+// ── Types ──────────────────────────────────────────────────────────────────
+
+interface SkuStock {
+  product_id: string
+  sku: string
+  tyre_size_display: string
+  product_stock: { warehouse_id: string; available_stock: number; warehouses: { warehouse_name: string } | null }[]
+}
+
+interface SkuPrice {
+  product_id: string
+  tyre_size_display: string
+  product_prices: { price_inc_gst: number; customer_groups: { group_name: string } | null }[]
+}
+
+interface PatternInfo {
+  pattern_id: string
+  pattern_name: string
+  pattern_short_description: string | null
+  on_sale: boolean
+  discountable: boolean
+  tags: string[] | null
+}
+
+interface Props {
+  patternId:   string
+  pattern:     PatternInfo
+  skuStocks:   SkuStock[]
+  skuPrices:   SkuPrice[]
+  onSuccess?:  () => void
+}
+
+// ── Shared modal shell ─────────────────────────────────────────────────────
+
+function Modal({ title, open, onClose, children, wide }: { title: string; open: boolean; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
+  return (
+    <Dialog open={open} onOpenChange={o => !o && onClose()}>
+      <DialogContent
+        className={`p-0 gap-0 rounded-2xl shadow-xl ring-0 bg-white flex flex-col max-h-[90vh] ${wide ? 'sm:max-w-2xl' : 'sm:max-w-lg'}`}
+        showCloseButton={false}
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 flex-shrink-0">
+          <DialogTitle className="text-base font-semibold text-zinc-900">{title}</DialogTitle>
+          <DialogClose className="p-1 text-zinc-400 hover:text-zinc-700 rounded transition-colors">
+            <X className="w-4 h-4" />
+          </DialogClose>
+        </div>
+        {children}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ── Edit Stock Modal ───────────────────────────────────────────────────────
+
+function EditStockModal({ patternId, skus, open, onClose, onSuccess }: {
+  patternId: string; skus: SkuStock[]; open: boolean; onClose: () => void; onSuccess?: () => void
+}) {
+  const [saving, setSaving] = useState(false)
+  const [error, setError]   = useState('')
+
+  const initial: Record<string, Record<string, number>> = {}
+  for (const s of skus) {
+    initial[s.product_id] = {}
+    for (const ps of s.product_stock) {
+      if (ps.warehouse_id) initial[s.product_id][ps.warehouse_id] = ps.available_stock
+    }
+  }
+  const [stocks, setStocks] = useState(initial)
+
+  function set(variantId: string, warehouseId: string, val: number) {
+    setStocks(prev => ({ ...prev, [variantId]: { ...prev[variantId], [warehouseId]: val } }))
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    setError('')
+    try {
+      const token = await getAdminToken()
+      const updates = Object.entries(stocks).flatMap(([variantId, wh]) =>
+        Object.entries(wh).map(([warehouseId, stock]) => ({ variantId, warehouseId, stock }))
+      )
+      const results = await Promise.all(updates.map(u =>
+        fetch(`${API}/api/admin/products/${patternId}/variants/${u.variantId}/stock`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ warehouseId: u.warehouseId, availableStock: u.stock }),
+        })
+      ))
+      const failed = results.find(r => !r.ok)
+      if (failed) throw new Error(`Error ${failed.status}`)
+      onSuccess?.()
+      onClose()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to update stock')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal title="Edit Stock Levels" open={open} onClose={onClose} wide>
+      <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+        <div className="overflow-y-auto flex-1 px-6 py-4 space-y-5">
+          {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+          {skus.map(sku => (
+            <div key={sku.product_id}>
+              <p className="text-sm font-medium text-zinc-800 mb-2">
+                {sku.tyre_size_display} <span className="text-zinc-400 font-normal text-xs">— {sku.sku}</span>
+              </p>
+              {sku.product_stock.length === 0 ? (
+                <p className="text-xs text-zinc-400 italic">No stock rows yet. Use the variant detail page to add stock per warehouse.</p>
+              ) : (
+                <div className="space-y-2">
+                  {sku.product_stock.map((ps, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <span className="text-sm text-zinc-600 w-40 truncate">{ps.warehouses?.warehouse_name ?? 'Unknown'}</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={stocks[sku.product_id]?.[ps.warehouse_id ?? ''] ?? ps.available_stock}
+                        onChange={e => set(sku.product_id, ps.warehouse_id ?? '', Number(e.target.value))}
+                        aria-label={`Stock for ${sku.sku} at ${ps.warehouses?.warehouse_name ?? 'warehouse'}`}
+                        className="w-24 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-zinc-100 flex-shrink-0">
+          <DialogClose asChild>
+            <button type="button" className="px-4 py-2 text-sm border border-zinc-300 rounded-lg text-zinc-700 hover:bg-zinc-50 transition-colors">Cancel</button>
+          </DialogClose>
+          <button type="submit" disabled={saving} className="px-4 py-2 text-sm font-medium bg-primary text-zinc-900 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50">
+            {saving ? 'Saving…' : 'Save Stock Levels'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
+// ── Edit Prices Modal ──────────────────────────────────────────────────────
+
+function EditPricesModal({ patternId, skus, open, onClose, onSuccess }: { patternId: string; skus: SkuPrice[]; open: boolean; onClose: () => void; onSuccess?: () => void }) {
+  const [saving, setSaving] = useState(false)
+  const [error, setError]   = useState('')
+
+  const initial: Record<string, Record<string, number>> = {}
+  for (const s of skus) {
+    initial[s.product_id] = {}
+    for (const pp of s.product_prices) {
+      const key = pp.customer_groups?.group_name ?? 'Retail'
+      initial[s.product_id][key] = pp.price_inc_gst
+    }
+  }
+  const [prices, setPrices] = useState(initial)
+
+  function set(variantId: string, group: string, val: number) {
+    setPrices(prev => ({ ...prev, [variantId]: { ...prev[variantId], [group]: val } }))
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    setError('')
+    try {
+      const token = await getAdminToken()
+      const results = await Promise.all(
+        Object.entries(prices).map(([variantId, groups]) =>
+          fetch(`${API}/api/admin/products/${patternId}/variants/${variantId}/prices`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ prices: groups }),
+          })
+        )
+      )
+      const failed = results.find(r => !r.ok)
+      if (failed) {
+        const body = await failed.json().catch(() => ({}))
+        throw new Error(body.error ?? `Error ${failed.status}`)
+      }
+      onSuccess?.()
+      onClose()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to update prices')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal title="Edit Prices" open={open} onClose={onClose} wide>
+      <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+        <div className="overflow-y-auto flex-1 px-6 py-4 space-y-5">
+          {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+          {skus.map(sku => (
+            <div key={sku.product_id}>
+              <p className="text-sm font-medium text-zinc-800 mb-2">{sku.tyre_size_display}</p>
+              {sku.product_prices.length === 0 ? (
+                <p className="text-xs text-zinc-400 italic">No prices configured.</p>
+              ) : (
+                <div className="space-y-2">
+                  {sku.product_prices.map((pp, i) => {
+                    const group = pp.customer_groups?.group_name ?? 'Retail'
+                    return (
+                      <div key={i} className="flex items-center gap-3">
+                        <span className="text-sm text-zinc-600 w-32">{group}</span>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-sm">$</span>
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            value={prices[sku.product_id]?.[group] ?? pp.price_inc_gst}
+                            onChange={e => set(sku.product_id, group, Number(e.target.value))}
+                            aria-label={`Price for ${sku.tyre_size_display} — ${group}`}
+                            className="w-28 pl-6 pr-3 py-1.5 rounded-lg border border-zinc-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-zinc-100 flex-shrink-0">
+          <DialogClose asChild>
+            <button type="button" className="px-4 py-2 text-sm border border-zinc-300 rounded-lg text-zinc-700 hover:bg-zinc-50 transition-colors">Cancel</button>
+          </DialogClose>
+          <button type="submit" disabled={saving} className="px-4 py-2 text-sm font-medium bg-primary text-zinc-900 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50">
+            {saving ? 'Saving…' : 'Save Prices'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
+// ── Edit Product Modal ─────────────────────────────────────────────────────
+
+function EditProductModal({ patternId, pattern, open, onClose, onSuccess }: { patternId: string; pattern: PatternInfo; open: boolean; onClose: () => void; onSuccess?: () => void }) {
+  const [isPending, startTransition] = useTransition()
+  const [error, setError] = useState('')
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setError('')
+    const fd = new FormData(e.currentTarget)
+    try {
+      const token = await getAdminToken()
+      const res = await fetch(`${API}/api/admin/products/${patternId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          patternName:      fd.get('patternName'),
+          shortDescription: fd.get('patternShortDescription') || null,
+          onSale:           fd.get('onSale') === 'true',
+          discountable:     fd.get('discountable') === 'true',
+          tags:             fd.get('tags') ? String(fd.get('tags')).split(',').map(t => t.trim()).filter(Boolean) : [],
+        }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? `Error ${res.status}`)
+      }
+      startTransition(() => onSuccess?.())
+      onClose()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to update')
+    }
+  }
+
+  return (
+    <Modal title="Edit Product" open={open} onClose={onClose}>
+      <form onSubmit={handleSubmit}>
+        <div className="px-6 py-5 space-y-4">
+          {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+
+          <div>
+            <label htmlFor="patternName" className="block text-sm font-medium text-zinc-700 mb-1">Product Name <span className="text-red-500">*</span></label>
+            <input id="patternName" name="patternName" required defaultValue={pattern.pattern_name}
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
+          </div>
+
+          <div>
+            <label htmlFor="patternShortDescription" className="block text-sm font-medium text-zinc-700 mb-1">Short Description</label>
+            <textarea id="patternShortDescription" name="patternShortDescription" rows={3} defaultValue={pattern.pattern_short_description ?? ''}
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none" />
+          </div>
+
+          <div>
+            <label htmlFor="tags" className="block text-sm font-medium text-zinc-700 mb-1">Tags <span className="text-zinc-400 font-normal">(comma-separated)</span></label>
+            <input id="tags" name="tags" defaultValue={(pattern.tags ?? []).join(', ')}
+              placeholder="summer, performance, touring"
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="onSale" className="block text-sm font-medium text-zinc-700 mb-1">On Sale</label>
+              <select id="onSale" name="onSale" defaultValue={String(pattern.on_sale)}
+                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary">
+                <option value="true">Yes</option>
+                <option value="false">No</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="discountable" className="block text-sm font-medium text-zinc-700 mb-1">Discountable</label>
+              <select id="discountable" name="discountable" defaultValue={String(pattern.discountable)}
+                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary">
+                <option value="true">Yes</option>
+                <option value="false">No</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-zinc-100">
+          <DialogClose asChild>
+            <button type="button" className="px-4 py-2 text-sm border border-zinc-300 rounded-lg text-zinc-700 hover:bg-zinc-50 transition-colors">Cancel</button>
+          </DialogClose>
+          <button type="submit" disabled={isPending} className="px-4 py-2 text-sm font-medium bg-primary text-zinc-900 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50">
+            {isPending ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
+// ── Product Header three-dot menu ──────────────────────────────────────────
+
+function ProductHeaderMenu({ patternId, pattern, skuStocks, skuPrices, onSuccess }: Props) {
+  const [open, setOpen]           = useState(false)
+  const [showEdit, setShowEdit]   = useState(false)
+  const [showStock, setShowStock] = useState(false)
+  const [showPrices, setShowPrices] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function h(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [])
+
+  return (
+    <>
+      <div ref={ref} className="relative">
+        <button type="button" aria-label="Product options" onClick={() => setOpen(o => !o)} className="p-1 text-zinc-400 hover:text-zinc-700 rounded transition-colors">
+          <MoreVertical className="w-5 h-5" />
+        </button>
+        {open && (
+          <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-lg border border-zinc-200 bg-white shadow-lg py-1">
+            {[
+              { label: 'Edit product details', action: () => { setOpen(false); setShowEdit(true) } },
+              { label: 'Edit stock levels',    action: () => { setOpen(false); setShowStock(true) } },
+              { label: 'Edit prices',          action: () => { setOpen(false); setShowPrices(true) } },
+            ].map(item => (
+              <button key={item.label} type="button" onClick={item.action}
+                className="w-full text-left px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors">
+                {item.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <EditProductModal patternId={patternId} pattern={pattern} open={showEdit}   onClose={() => setShowEdit(false)}   onSuccess={onSuccess} />
+      <EditStockModal  patternId={patternId} skus={skuStocks}   open={showStock}  onClose={() => setShowStock(false)}  onSuccess={onSuccess} />
+      <EditPricesModal patternId={patternId} skus={skuPrices}   open={showPrices} onClose={() => setShowPrices(false)} onSuccess={onSuccess} />
+    </>
+  )
+}
+
+// ── Variant actions bar (Edit Stock + Edit Prices buttons in Variants table header) ──
+
+export function VariantsTableActions({ patternId, skuStocks, skuPrices, onSuccess }: Omit<Props, 'pattern'>) {
+  const [showStock, setShowStock]   = useState(false)
+  const [showPrices, setShowPrices] = useState(false)
+
+  return (
+    <>
+      <button type="button" onClick={() => setShowStock(true)}
+        className="text-sm text-zinc-600 hover:text-zinc-900 border border-zinc-300 rounded-md px-3 py-1.5 hover:bg-zinc-50 transition-colors">
+        + Edit Stock Levels
+      </button>
+      <button type="button" onClick={() => setShowPrices(true)}
+        className="text-sm text-zinc-600 hover:text-zinc-900 border border-zinc-300 rounded-md px-3 py-1.5 hover:bg-zinc-50 transition-colors">
+        + Edit Prices
+      </button>
+
+      <EditStockModal  patternId={patternId} skus={skuStocks} open={showStock}  onClose={() => setShowStock(false)}  onSuccess={onSuccess} />
+      <EditPricesModal patternId={patternId} skus={skuPrices} open={showPrices} onClose={() => setShowPrices(false)} onSuccess={onSuccess} />
+    </>
+  )
+}
+
+// ── Variant row three-dot ──────────────────────────────────────────────────
+
+export function VariantRowMenu({ patternId, variantId, variantName, onDeleted }: { patternId: string; variantId: string; variantName: string; onDeleted?: () => void }) {
+  const [open, setOpen]         = useState(false)
+  const [showDel, setShowDel]   = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [delError, setDelError] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function h(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [])
+
+  async function handleDelete() {
+    setDeleting(true)
+    try {
+      const token = await getAdminToken()
+      const res = await fetch(`${API}/api/admin/products/${patternId}/variants/${variantId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? `Error ${res.status}`)
+      }
+      onDeleted?.()
+      setShowDel(false)
+    } catch (err: unknown) {
+      setDelError(err instanceof Error ? err.message : 'Failed')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <>
+      <div ref={ref} className="relative">
+        <button type="button" aria-label="Variant actions" onClick={() => setOpen(o => !o)} className="p-1 text-zinc-400 hover:text-zinc-700 rounded transition-colors">
+          <MoreVertical className="w-4 h-4" />
+        </button>
+        {open && (
+          <div className="absolute right-0 top-full mt-1 z-50 w-40 rounded-lg border border-zinc-200 bg-white shadow-lg py-1">
+            <Link href={`/admin/products/${patternId}/variants/${variantId}`}
+              className="flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
+              onClick={() => setOpen(false)}>
+              Edit Variant
+            </Link>
+            <button type="button" onClick={() => { setOpen(false); setShowDel(true) }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
+              Delete Variant
+            </button>
+          </div>
+        )}
+      </div>
+
+      <Dialog open={showDel} onOpenChange={o => { if (!o) setShowDel(false) }}>
+        <DialogContent className="rounded-2xl shadow-xl ring-0 bg-white sm:max-w-sm" showCloseButton={false}>
+          <DialogTitle className="text-base font-semibold text-zinc-900">Delete Variant</DialogTitle>
+          <p className="text-sm text-zinc-600">Delete <strong>{variantName}</strong>? This cannot be undone.</p>
+          {delError && <p className="text-sm text-red-600">{delError}</p>}
+          <div className="flex gap-3 justify-end">
+            <DialogClose asChild>
+              <button type="button" className="px-4 py-2 text-sm border border-zinc-300 rounded-lg text-zinc-700 hover:bg-zinc-50 transition-colors">Cancel</button>
+            </DialogClose>
+            <button type="button" onClick={handleDelete} disabled={deleting}
+              className="px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors">
+              {deleting ? 'Deleting…' : 'Delete'}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+// ── Default export: the product header three-dot + all modals ─────────────
+
+export default function ProductActionsBar(props: Props) {
+  return <ProductHeaderMenu {...props} />
+}

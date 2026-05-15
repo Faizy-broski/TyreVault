@@ -1,19 +1,43 @@
 'use client'
 
-import { useRef, useState, useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { X } from 'lucide-react'
+import { Dialog, DialogContent, DialogTitle, DialogClose } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import type { CustomerListItem } from '@/types/admin.types'
+import { BACKEND_API_URL, createBackendHeaders, readBackendError } from '@/lib/backend-api'
 
 type Props = {
+  accessToken: string
   customer: CustomerListItem
   onClose: () => void
+  onSuccess?: () => void
 }
 
-export default function EditCustomerModal({ customer, onClose }: Props) {
-  const router     = useRouter()
-  const dialogRef  = useRef<HTMLDialogElement>(null)
+const FIELDS = [
+  { name: 'email',     label: 'Email',      type: 'email' as const },
+  { name: 'firstName', label: 'First Name', type: 'text'  as const },
+  { name: 'lastName',  label: 'Last Name',  type: 'text'  as const },
+  { name: 'company',   label: 'Company',    type: 'text'  as const },
+  { name: 'phone',     label: 'Phone',      type: 'tel'   as const },
+]
+
+export default function EditCustomerModal({ accessToken, customer, onClose, onSuccess }: Props) {
+  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+
+  const defaults: Record<string, string> = {
+    email:     customer.email            ?? '',
+    firstName: customer.first_name       ?? '',
+    lastName:  customer.last_name        ?? '',
+    company:   customer.business_name    ?? '',
+    phone:     customer.phone            ?? '',
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -22,11 +46,12 @@ export default function EditCustomerModal({ customer, onClose }: Props) {
 
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/customers/${customer.customer_id}`,
+        `${BACKEND_API_URL}/api/admin/customers/${customer.customer_id}`,
         {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
+          headers: createBackendHeaders(accessToken, {
+            'Content-Type': 'application/json',
+          }),
           body: JSON.stringify({
             email:     fd.get('email'),
             firstName: fd.get('firstName'),
@@ -37,74 +62,69 @@ export default function EditCustomerModal({ customer, onClose }: Props) {
         }
       )
       if (!res.ok) {
-        const body = await res.json()
-        throw new Error(body.error ?? 'Update failed')
+        throw new Error(await readBackendError(res, 'Update failed'))
       }
       startTransition(() => router.refresh())
-      onClose()
+      onSuccess ? onSuccess() : onClose()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Unknown error')
     }
   }
 
-  function handleBackdropClick(e: React.MouseEvent<HTMLDialogElement>) {
-    if (e.target === dialogRef.current) onClose()
-  }
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
-        {/* Header */}
+    <Dialog open onOpenChange={o => !o && onClose()}>
+      <DialogContent className="p-0 gap-0 rounded-2xl shadow-xl ring-0 bg-white sm:max-w-md" showCloseButton={false}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
-          <h2 className="text-base font-semibold text-zinc-900">Edit Customer</h2>
+          <DialogTitle className="text-base font-semibold text-zinc-900">Edit Customer</DialogTitle>
           <div className="flex items-center gap-2">
             <span className="text-xs text-zinc-400 font-mono">esc</span>
-            <button onClick={onClose} className="p-1 text-zinc-400 hover:text-zinc-700 rounded">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <DialogClose asChild>
+              <Button type="button" variant="ghost" size="icon-sm" className="text-zinc-400 hover:text-zinc-700">
+                <X className="w-4 h-4" />
+              </Button>
+            </DialogClose>
           </div>
         </div>
 
         <form onSubmit={handleSubmit}>
           <div className="px-6 py-5 space-y-4">
             {error && (
-              <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
+              <Alert variant="destructive" className="bg-red-50 border-red-200">
+                <AlertDescription className="text-red-600">{error}</AlertDescription>
+              </Alert>
             )}
-
-            {[
-              { name: 'email',     label: 'Email',      type: 'email',  defaultValue: customer.email,      required: true },
-              { name: 'firstName', label: 'First Name', type: 'text',   defaultValue: customer.first_name ?? '' },
-              { name: 'lastName',  label: 'Last Name',  type: 'text',   defaultValue: customer.last_name  ?? '' },
-              { name: 'company',   label: 'Company',    type: 'text',   defaultValue: customer.business_name ?? '' },
-              { name: 'phone',     label: 'Phone',      type: 'tel',    defaultValue: customer.phone      ?? '' },
-            ].map(field => (
+            {FIELDS.map(field => (
               <div key={field.name}>
-                <label className="block text-sm font-medium text-zinc-700 mb-1">{field.label}</label>
-                <input
+                <Label htmlFor={field.name} className="block text-sm font-medium text-zinc-700 mb-1">
+                  {field.label}
+                </Label>
+                <Input
+                  id={field.name}
                   name={field.name}
                   type={field.type}
-                  defaultValue={field.defaultValue}
-                  required={field.required}
-                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-500/20 focus:border-zinc-500"
+                  defaultValue={defaults[field.name]}
+                  className="rounded-lg border-zinc-300 focus:ring-primary/30 focus:border-primary"
                 />
               </div>
             ))}
           </div>
 
           <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-zinc-100">
-            <button type="button" onClick={onClose}
-              className="px-4 py-2 text-sm text-zinc-600 hover:text-zinc-900 border border-zinc-300 rounded-lg hover:bg-zinc-50 transition-colors">
-              Cancel
-            </button>
-            <button type="submit" disabled={isPending}
-              className="px-4 py-2 text-sm font-medium text-white bg-zinc-900 rounded-lg hover:bg-zinc-700 transition-colors disabled:opacity-50">
+            <DialogClose asChild>
+              <Button type="button" variant="outline" className="px-4 py-2 text-sm text-zinc-600 border-zinc-300 rounded-lg hover:bg-zinc-50">
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button
+              type="submit"
+              disabled={isPending}
+              className="px-4 py-2 text-sm font-medium text-zinc-900 bg-primary rounded-lg hover:bg-primary/90"
+            >
               {isPending ? 'Saving…' : 'Save'}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
