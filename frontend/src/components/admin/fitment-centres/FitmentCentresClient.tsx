@@ -198,14 +198,14 @@ export default function FitmentCentresClient({
               </TableRow>
             ) : (
               centres.map((c) => (
-                <TableRow key={c.fitment_id} className="hover:bg-zinc-50">
+                <TableRow key={c.fitment_centre_id} className="hover:bg-zinc-50">
                   <TableCell className="px-5 py-3">
-                    <Link href={`/admin/fitters/${c.fitment_id}`} className="flex flex-col group">
+                    <Link href={`/admin/fitters/${c.fitment_centre_id}`} className="flex flex-col group">
                       <span className="font-medium text-primary w-fit group-hover:underline">
                         {c.business_name}
                       </span>
                       <span className="text-zinc-400 text-xs w-fit group-hover:text-zinc-400 group-hover:underline">
-                        {c.profiles?.email ?? "—"}
+                        {c?.email ?? "—"}
                       </span>
                     </Link>
                   </TableCell>
@@ -223,7 +223,7 @@ export default function FitmentCentresClient({
                       onUpdated={(updated) =>
                         setCentres((prev) =>
                           prev.map((x) =>
-                            x.fitment_id === updated.fitment_id ? updated : x,
+                            x.fitment_centre_id === updated.fitment_centre_id ? updated : x,
                           ),
                         )
                       }
