@@ -13,14 +13,17 @@ router.use(requireRole('super_admin'))
 router.get('/meta', ctrl.getFormMeta)
 
 // Products CRUD
-router.get('/',           ctrl.getProducts)
-router.post('/',          ctrl.createProduct)
-router.get('/:id',        ctrl.getProduct)
-router.put('/:id',        ctrl.updateProduct)
+router.get('/',              ctrl.getProducts)
+router.post('/',             ctrl.createProduct)
+router.get('/:id',           ctrl.getProduct)
+router.put('/:id',           ctrl.updateProduct)
+router.delete('/:id',        ctrl.deleteProduct)
 router.patch('/:id/publish', ctrl.publishProduct)
 
 // Variants
-router.post('/:id/variants',                         ctrl.addVariant)
-router.patch('/:id/variants/:variantId/stock',       ctrl.updateVariantStock)
+router.post('/:id/variants',                              ctrl.addVariant)
+router.delete('/:id/variants/:variantId',                 ctrl.deleteVariant)
+router.patch('/:id/variants/:variantId/stock',            ctrl.updateVariantStock)
+router.patch('/:id/variants/:variantId/prices',           ctrl.updateVariantPrices)
 
 export default router

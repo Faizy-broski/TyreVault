@@ -33,10 +33,11 @@ export async function listOrders(opts: {
 
   let query = db
     .from('orders')
+    // fitment_id,
     .select(`
       order_id, order_number, created_at, currency,
       payment_status, order_status, total_amount,
-      order_type, fitment_id,
+      order_type, 
       shipping_address_snapshot,
       customers ( customer_id, first_name, last_name, email ),
       order_items ( order_item_id )
@@ -51,7 +52,8 @@ export async function listOrders(opts: {
     query = query.ilike('order_number', `%${search}%`)
   }
 
-  return query
+  const { data, error, count } = await query
+  return { data, error, count }
 }
 
 // ── Get single order ────────────────────────────────────────────────────────
@@ -59,12 +61,13 @@ export async function listOrders(opts: {
 export async function getOrder(orderId: string) {
   const { data, error } = await db
     .from('orders')
+    // fitment_id,
     .select(`
       order_id, order_number, created_at, currency, notes,
       shipping_cost, gst_amount, discount_amount,
       total_amount,
       payment_status, order_status,
-      order_type, fitment_id,
+      order_type, 
       shipping_address_snapshot, billing_address_snapshot,
       customers (
         customer_id, email, first_name, last_name, phone, created_at, profile_id
@@ -272,9 +275,11 @@ async function recalcOrderStatus(orderId: string) {
 // ── Warehouse list (for fulfillment dropdown) ────────────────────────────────
 
 export async function listWarehouses() {
-  return db.from('warehouses').select('warehouse_id, warehouse_name').eq('is_active', true)
+  const { data, error } = await db.from('warehouses').select('warehouse_id, warehouse_name').eq('is_active', true)
+  return { data, error }
 }
 
 export async function listShippingMethods() {
-  return db.from('shipping_methods').select('shipping_method_id, method_name').limit(20)
+  const { data, error } = await db.from('shipping_methods').select('shipping_method_id, method_name').limit(20)
+  return { data, error }
 }

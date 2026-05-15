@@ -1,5 +1,6 @@
 'use client'
 
+import { useRef } from 'react'
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import type { CreateProductFormValues } from '../schema'
 
@@ -32,11 +33,16 @@ const RichTextArea = ({ name, label }: { name: keyof CreateProductFormValues; la
   )
 }
 
-export default function BasicInfoTab({ autoSlug }: { autoSlug: string }) {
+export default function BasicInfoTab({ autoSlug, brands }: {
+  autoSlug: string
+  brands: { brand_id: string; brand_name: string }[]
+}) {
   const { register, watch, setValue, formState: { errors } } = useFormContext<CreateProductFormValues>()
   const { fields: faqFields, append: appendFaq, remove: removeFaq } = useFieldArray<CreateProductFormValues, 'faqList'>({
     name: 'faqList',
   })
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const galleryImages = watch('galleryImages') ?? []
 
   const patternName = watch('patternName')
 
@@ -47,7 +53,7 @@ export default function BasicInfoTab({ autoSlug }: { autoSlug: string }) {
   }
 
   return (
-    <div className="max-w-2xl space-y-8">
+    <div className="space-y-8">
 
       {/* ── General ─────────────────────────────────────────────────────── */}
       <section>
@@ -58,9 +64,12 @@ export default function BasicInfoTab({ autoSlug }: { autoSlug: string }) {
             <label className="block text-sm font-medium text-zinc-700 mb-1">Brand</label>
             <select
               {...register('brandId')}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-500/20 focus:border-zinc-500 bg-white"
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white"
             >
               <option value="">Select brand</option>
+              {brands.map(b => (
+                <option key={b.brand_id} value={b.brand_id}>{b.brand_name}</option>
+              ))}
             </select>
             {errors.brandId && <p className="mt-1 text-xs text-red-600">{errors.brandId.message}</p>}
           </div>
@@ -72,7 +81,7 @@ export default function BasicInfoTab({ autoSlug }: { autoSlug: string }) {
               {...register('patternName')}
               onBlur={handleNameBlur}
               placeholder="Michelin Pilot Sport 4"
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-500/20 focus:border-zinc-500"
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
             />
             {errors.patternName && <p className="mt-1 text-xs text-red-600">{errors.patternName.message}</p>}
           </div>
@@ -99,14 +108,33 @@ export default function BasicInfoTab({ autoSlug }: { autoSlug: string }) {
             {...register('shortDescription')}
             rows={3}
             placeholder="Brief description of tyre product..."
-            className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-500/20 focus:border-zinc-500 resize-none placeholder-zinc-400"
+            className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none placeholder-zinc-400"
           />
         </div>
 
         {/* Media */}
         <div className="mt-4">
           <label className="block text-sm font-medium text-zinc-700 mb-1">Media</label>
-          <div className="border-2 border-dashed border-zinc-300 rounded-lg p-8 flex flex-col items-center justify-center gap-2 hover:border-zinc-400 transition-colors cursor-pointer bg-zinc-50">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              const files = Array.from(e.target.files ?? [])
+              const urls = files.map(f => URL.createObjectURL(f))
+              setValue('galleryImages', [...galleryImages, ...urls])
+              e.target.value = ''
+            }}
+          />
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => fileInputRef.current?.click()}
+            onKeyDown={(e) => e.key === 'Enter' && fileInputRef.current?.click()}
+            className="border-2 border-dashed border-zinc-300 rounded-lg p-8 flex flex-col items-center justify-center gap-2 hover:border-zinc-400 transition-colors cursor-pointer bg-zinc-50"
+          >
             <svg className="w-6 h-6 text-zinc-400" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
             </svg>
@@ -115,6 +143,26 @@ export default function BasicInfoTab({ autoSlug }: { autoSlug: string }) {
             </p>
             <p className="text-xs text-zinc-400">Drag and drop files here or click to upload</p>
           </div>
+          {galleryImages.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {galleryImages.map((src, i) => (
+                <div key={i} className="relative w-16 h-16 rounded-lg border border-zinc-200 overflow-hidden group">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={src} alt="" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    aria-label="Remove image"
+                    onClick={() => setValue('galleryImages', galleryImages.filter((_, j) => j !== i))}
+                    className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                  >
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -163,14 +211,14 @@ export default function BasicInfoTab({ autoSlug }: { autoSlug: string }) {
                 <input
                   {...register(`faqList.${index}.question`)}
                   placeholder="Question"
-                  className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-md focus:outline-none focus:ring-2 focus:ring-zinc-500/20"
+                  className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                 />
                 <div className="flex gap-2">
                   <textarea
                     {...register(`faqList.${index}.answer`)}
                     placeholder="Answer"
                     rows={2}
-                    className="flex-1 px-3 py-2 text-sm border border-zinc-200 rounded-md focus:outline-none focus:ring-2 focus:ring-zinc-500/20 resize-none"
+                    className="flex-1 px-3 py-2 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none"
                   />
                   <button
                     type="button"

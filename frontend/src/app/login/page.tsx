@@ -1,22 +1,22 @@
-'use client'
+"use client";
 
-import { useState, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 function ForgotPasswordButton({ email }: { email: string }) {
-  const [sent, setSent]       = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   async function send() {
-    if (!email) return
-    setLoading(true)
-    const supabase = createClient()
+    if (!email) return;
+    setLoading(true);
+    const supabase = createClient();
     await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/api/auth/callback?next=/update-password`,
-    })
-    setSent(true)
-    setLoading(false)
+    });
+    setSent(true);
+    setLoading(false);
   }
 
   return (
@@ -26,49 +26,53 @@ function ForgotPasswordButton({ email }: { email: string }) {
       disabled={loading || sent}
       className="w-full text-center text-xs text-zinc-400 hover:text-zinc-600 transition-colors mt-1 disabled:opacity-50"
     >
-      {sent ? '✓ Reset link sent — check your email' : loading ? 'Sending…' : 'Forgot password?'}
+      {sent
+        ? "✓ Reset link sent — check your email"
+        : loading
+          ? "Sending…"
+          : "Forgot password?"}
     </button>
-  )
+  );
 }
 
 function LoginForm() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const redirect = searchParams.get('redirect') ?? '/'
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get("redirect") ?? "/";
 
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
 
-    const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
     if (error) {
-      setError(error.message)
-      setLoading(false)
-      return
+      setError(error.message);
+      setLoading(false);
+      return;
     }
 
-    router.push(redirect)
-    router.refresh()
+    router.push(redirect);
+    router.refresh();
   }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4">
       <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-sm ring-1 ring-black/5">
-        <div className="mb-8">
+        <div className="mb-6">
           <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
             Sign in to Tyre Vault
           </h1>
-          <p className="mt-1 text-sm text-zinc-500">
-            Enter your email and password to continue.
-          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -86,7 +90,7 @@ function LoginForm() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500/20"
+              className="mt-1 block w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
               placeholder="you@example.com"
             />
           </div>
@@ -105,7 +109,7 @@ function LoginForm() {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500/20"
+              className="mt-1 block w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
               placeholder="••••••••"
             />
           </div>
@@ -119,16 +123,16 @@ function LoginForm() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-zinc-900 transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {loading ? 'Signing in…' : 'Sign in'}
+            {loading ? "Signing in…" : "Sign in"}
           </button>
 
           <ForgotPasswordButton email={email} />
         </form>
       </div>
     </div>
-  )
+  );
 }
 
 export default function LoginPage() {
@@ -136,5 +140,5 @@ export default function LoginPage() {
     <Suspense>
       <LoginForm />
     </Suspense>
-  )
+  );
 }

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import DashboardClient from '@/components/fitter/DashboardClient'
 import type { FitterKPIs, FitmentJob } from '@/types/fitter.types'
+import {dummykpis, dummyjobs} from "@/dummydata/fitter/DashbaordFitterData"
 
 export const metadata = { title: 'Dashboard — Fitment Portal' }
 
@@ -33,8 +34,10 @@ export default async function FitterDashboardPage() {
 
   return (
     <DashboardClient
-      initialKPIs={kpis}
-      initialJobs={jobs}
+      // initialKPIs={kpis}
+      initialKPIs={dummykpis}
+      // initialJobs={jobs}
+      initialJobs={dummyjobs}
       centreId={centreId}
       accessToken={token}
     />

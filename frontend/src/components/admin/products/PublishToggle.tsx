@@ -1,15 +1,15 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 
 type Props = {
   patternId: string
   isPublished: boolean
+  onSuccess?: () => void
 }
 
-export default function PublishToggle({ patternId, isPublished }: Props) {
-  const router = useRouter()
+export default function PublishToggle({ patternId, isPublished, onSuccess }: Props) {
   const [published, setPublished] = useState(isPublished)
   const [isPending, startTransition] = useTransition()
 
@@ -18,17 +18,20 @@ export default function PublishToggle({ patternId, isPublished }: Props) {
     setPublished(next)
 
     try {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token ?? ''
+
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/products/${patternId}/publish`,
+        `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'}/api/admin/products/${patternId}/publish`,
         {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ publish: next }),
         }
       )
       if (!res.ok) throw new Error('Failed')
-      startTransition(() => router.refresh())
+      startTransition(() => onSuccess?.())
     } catch {
       setPublished(!next)
     }
@@ -53,12 +56,13 @@ export default function PublishToggle({ patternId, isPublished }: Props) {
       </p>
 
       <button
+        type="button"
         onClick={toggle}
         disabled={isPending}
         className={`w-full rounded-lg px-3 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
           published
             ? 'border border-zinc-300 text-zinc-700 hover:bg-zinc-50'
-            : 'bg-zinc-900 text-white hover:bg-zinc-700'
+            : 'bg-primary text-zinc-900 hover:bg-primary/90'
         }`}
       >
         {isPending ? 'Saving…' : published ? 'Unpublish' : 'Publish'}

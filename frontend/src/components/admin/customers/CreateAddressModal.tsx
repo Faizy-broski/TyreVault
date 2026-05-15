@@ -2,13 +2,22 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { X } from 'lucide-react'
+import { Dialog, DialogContent, DialogTitle, DialogClose } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { BACKEND_API_URL, createBackendHeaders, readBackendError } from '@/lib/backend-api'
 
 type Props = {
+  accessToken: string
   customerId: string
   onClose: () => void
+  onSuccess?: () => void
 }
 
-export default function CreateAddressModal({ customerId, onClose }: Props) {
+export default function CreateAddressModal({ accessToken, customerId, onClose, onSuccess }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -20,11 +29,12 @@ export default function CreateAddressModal({ customerId, onClose }: Props) {
 
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/customers/${customerId}/addresses`,
+        `${BACKEND_API_URL}/api/admin/customers/${customerId}/addresses`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
+          headers: createBackendHeaders(accessToken, {
+            'Content-Type': 'application/json',
+          }),
           body: JSON.stringify({
             addressName:  fd.get('addressName'),
             addressLine1: fd.get('addressLine1'),
@@ -39,161 +49,169 @@ export default function CreateAddressModal({ customerId, onClose }: Props) {
         }
       )
       if (!res.ok) {
-        const body = await res.json()
-        throw new Error(body.error ?? 'Failed to create address')
+        throw new Error(await readBackendError(res, 'Failed to create address'))
       }
       startTransition(() => router.refresh())
-      onClose()
+      onSuccess ? onSuccess() : onClose()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Unknown error')
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4">
-        {/* Header */}
+    <Dialog open onOpenChange={o => !o && onClose()}>
+      <DialogContent className="p-0 gap-0 rounded-2xl shadow-xl ring-0 bg-white sm:max-w-lg" showCloseButton={false}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
-          <h2 className="text-base font-semibold text-zinc-900">Create Address</h2>
+          <DialogTitle className="text-base font-semibold text-zinc-900">Create Address</DialogTitle>
           <div className="flex items-center gap-2">
             <span className="text-xs text-zinc-400 font-mono">esc</span>
-            <button onClick={onClose} className="p-1 text-zinc-400 hover:text-zinc-700 rounded">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <DialogClose asChild>
+              <Button type="button" variant="ghost" size="icon-sm" className="text-zinc-400 hover:text-zinc-700">
+                <X className="w-4 h-4" />
+              </Button>
+            </DialogClose>
           </div>
         </div>
 
         <form onSubmit={handleSubmit}>
           <div className="px-6 py-5 space-y-4">
             {error && (
-              <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
+              <Alert variant="destructive" className="bg-red-50 border-red-200">
+                <AlertDescription className="text-red-600">{error}</AlertDescription>
+              </Alert>
             )}
 
-            {/* Address name — full width, required */}
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">
+              <Label htmlFor="addressName" className="block text-sm font-medium text-zinc-700 mb-1">
                 Address name <span className="text-red-500">*</span>
-              </label>
-              <input
+              </Label>
+              <Input
+                id="addressName"
                 name="addressName"
                 required
                 placeholder="Home, Office, Warehouse…"
-                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-500/20 focus:border-zinc-500"
+                className="rounded-lg border-zinc-300 focus:ring-primary/30 focus:border-primary"
               />
             </div>
 
-            {/* Address + Apartment — 2 cols */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1">
+                <Label htmlFor="addressLine1" className="block text-sm font-medium text-zinc-700 mb-1">
                   Address <span className="text-red-500">*</span>
-                </label>
-                <input
+                </Label>
+                <Input
+                  id="addressLine1"
                   name="addressLine1"
                   required
                   placeholder="123 Main St"
-                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-500/20 focus:border-zinc-500"
+                  className="rounded-lg border-zinc-300 focus:ring-primary/30 focus:border-primary"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1">
+                <Label htmlFor="addressLine2" className="block text-sm font-medium text-zinc-700 mb-1">
                   <span className="text-zinc-500">Apartment, suite, etc.</span>{' '}
                   <span className="text-xs text-zinc-400">(Optional)</span>
-                </label>
-                <input
+                </Label>
+                <Input
+                  id="addressLine2"
                   name="addressLine2"
                   placeholder="Apt 4B"
-                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-500/20 focus:border-zinc-500"
+                  className="rounded-lg border-zinc-300 focus:ring-primary/30 focus:border-primary"
                 />
               </div>
             </div>
 
-            {/* Postal Code + City */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1">
+                <Label htmlFor="postalCode" className="block text-sm font-medium text-zinc-700 mb-1">
                   Postal Code <span className="text-xs text-zinc-400">(Optional)</span>
-                </label>
-                <input
+                </Label>
+                <Input
+                  id="postalCode"
                   name="postalCode"
                   placeholder="2000"
-                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-500/20 focus:border-zinc-500"
+                  className="rounded-lg border-zinc-300 focus:ring-primary/30 focus:border-primary"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1">
+                <Label htmlFor="city" className="block text-sm font-medium text-zinc-700 mb-1">
                   City <span className="text-xs text-zinc-400">(Optional)</span>
-                </label>
-                <input
+                </Label>
+                <Input
+                  id="city"
                   name="city"
                   placeholder="Sydney"
-                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-500/20 focus:border-zinc-500"
+                  className="rounded-lg border-zinc-300 focus:ring-primary/30 focus:border-primary"
                 />
               </div>
             </div>
 
-            {/* Country + State */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1">Country</label>
-                <input
+                <Label htmlFor="country" className="block text-sm font-medium text-zinc-700 mb-1">Country</Label>
+                <Input
+                  id="country"
                   name="country"
                   placeholder="Australia"
-                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-500/20 focus:border-zinc-500"
+                  className="rounded-lg border-zinc-300 focus:ring-primary/30 focus:border-primary"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1">
+                <Label htmlFor="state" className="block text-sm font-medium text-zinc-700 mb-1">
                   State <span className="text-xs text-zinc-400">(Optional)</span>
-                </label>
-                <input
+                </Label>
+                <Input
+                  id="state"
                   name="state"
                   placeholder="NSW"
-                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-500/20 focus:border-zinc-500"
+                  className="rounded-lg border-zinc-300 focus:ring-primary/30 focus:border-primary"
                 />
               </div>
             </div>
 
-            {/* Company + Phone */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1">
+                <Label htmlFor="company" className="block text-sm font-medium text-zinc-700 mb-1">
                   Company <span className="text-xs text-zinc-400">(Optional)</span>
-                </label>
-                <input
+                </Label>
+                <Input
+                  id="company"
                   name="company"
                   placeholder="Acme Pty Ltd"
-                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-500/20 focus:border-zinc-500"
+                  className="rounded-lg border-zinc-300 focus:ring-primary/30 focus:border-primary"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1">
+                <Label htmlFor="phone" className="block text-sm font-medium text-zinc-700 mb-1">
                   Phone <span className="text-xs text-zinc-400">(Optional)</span>
-                </label>
-                <input
+                </Label>
+                <Input
+                  id="phone"
                   name="phone"
                   type="tel"
                   placeholder="+61 400 000 000"
-                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-500/20 focus:border-zinc-500"
+                  className="rounded-lg border-zinc-300 focus:ring-primary/30 focus:border-primary"
                 />
               </div>
             </div>
           </div>
 
           <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-zinc-100">
-            <button type="button" onClick={onClose}
-              className="px-4 py-2 text-sm text-zinc-600 hover:text-zinc-900 border border-zinc-300 rounded-lg hover:bg-zinc-50 transition-colors">
-              Cancel
-            </button>
-            <button type="submit" disabled={isPending}
-              className="px-4 py-2 text-sm font-medium text-white bg-zinc-900 rounded-lg hover:bg-zinc-700 transition-colors disabled:opacity-50">
+            <DialogClose asChild>
+              <Button type="button" variant="outline" className="px-4 py-2 text-sm text-zinc-600 border-zinc-300 rounded-lg hover:bg-zinc-50">
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button
+              type="submit"
+              disabled={isPending}
+              className="px-4 py-2 text-sm font-medium text-zinc-900 bg-primary rounded-lg hover:bg-primary/90"
+            >
               {isPending ? 'Saving…' : 'Save'}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

@@ -102,11 +102,9 @@ export default function ApplicationReviewClient({ application: initial, accessTo
   const wh = Array.isArray(app.working_hours) ? app.working_hours as Record<string, unknown>[] : []
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className=" ">
       {/* Back */}
-      <Link href="/admin/fitters/applications" className="text-sm text-zinc-500 hover:text-zinc-800 flex items-center gap-1 mb-6">
-        ← Back to Applications
-      </Link>
+
 
       <div className="flex items-start justify-between mb-6">
         <div>
@@ -140,7 +138,7 @@ export default function ApplicationReviewClient({ application: initial, accessTo
           <YesNo label="Fits Wheel Packages"   value={app.fits_wheel_packages} />
           <YesNo label="Fits Truck"            value={app.fits_truck} />
           <YesNo label="Wheel Alignment"       value={app.wheel_alignment_available} />
-          {app.wheel_alignment_available && app.wheel_alignment_price && (
+          {!!app.wheel_alignment_available && !!app.wheel_alignment_price && (
             <p className="text-xs text-zinc-500 mt-1 pl-1">Pricing: ${String(app.wheel_alignment_price)}</p>
           )}
           <YesNo label="Mobile Fitting"        value={app.mobile_fitting_available} />
@@ -173,7 +171,7 @@ export default function ApplicationReviewClient({ application: initial, accessTo
               onChange={e => setNotes(e.target.value)}
               placeholder="Admin notes (optional)..."
               rows={3}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400/20 focus:border-zinc-400 resize-none mb-4"
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none mb-4"
             />
             {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
             <div className="flex gap-3">

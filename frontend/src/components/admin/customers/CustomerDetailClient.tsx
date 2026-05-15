@@ -1,135 +1,189 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import Link from 'next/link'
-import EditCustomerModal from './EditCustomerModal'
-import type { CustomerListItem, Address, CustomerGroup } from '@/types/admin.types'
-import type { CustomerOrder, OrderStats } from '@/app/admin/customers/[customerId]/page'
-
-// ── Helpers ────────────────────────────────────────────────────────────────
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { MapPin, Pencil, Plus, Trash2, Truck } from "lucide-react";
+import EditCustomerModal from "./EditCustomerModal";
+import CreateAddressModal from "./CreateAddressModal";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import type {
+  Address,
+  CustomerGroup,
+  CustomerListItem,
+} from "@/types/admin.types";
+import type {
+  CustomerOrder,
+  OrderStats,
+} from "@/app/admin/customers/[customerId]/page";
+import {
+  BACKEND_API_URL,
+  createBackendHeaders,
+  readBackendError,
+} from "@/lib/backend-api";
 
 function fmtDate(d: string) {
-  return new Date(d).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
+  return new Date(d).toLocaleDateString("en-AU", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 function fmtDateTime(d: string) {
-  return new Date(d).toLocaleString('en-AU', {
-    day: 'numeric', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  })
+  return new Date(d).toLocaleString("en-AU", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function fmtMoney(n: number) {
-  return `$${n.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return `$${n.toLocaleString("en-AU", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
-
-// ── Badge helpers ──────────────────────────────────────────────────────────
 
 function AccountBadge({ isGuest }: { isGuest: boolean }) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium border ${
-      isGuest
-        ? 'bg-amber-50 text-amber-700 border-amber-200'
-        : 'bg-green-50 text-green-700 border-green-200'
-    }`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${isGuest ? 'bg-amber-500' : 'bg-green-500'}`} />
-      {isGuest ? 'Guest' : 'Registered'}
-    </span>
-  )
+    <Badge
+      className={`inline-flex h-auto items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+        isGuest
+          ? "border-amber-200 bg-amber-50 text-amber-700"
+          : "border-green-200 bg-green-50 text-green-700"
+      }`}
+    >
+      <span
+        className={`h-1.5 w-1.5 rounded-full ${isGuest ? "bg-amber-500" : "bg-green-500"}`}
+      />
+      {isGuest ? "Guest" : "Registered"}
+    </Badge>
+  );
 }
 
 function PaymentDot({ status }: { status: string }) {
   const colMap: Record<string, string> = {
-    paid:          'bg-green-500',
-    unpaid:        'bg-amber-500',
-    partially_paid:'bg-blue-500',
-    refunded:      'bg-zinc-400',
-  }
+    paid: "bg-green-500",
+    unpaid: "bg-amber-500",
+    partially_paid: "bg-blue-500",
+    refunded: "bg-zinc-400",
+  };
+
   return (
-    <span className="inline-flex items-center gap-1.5 text-xs text-zinc-600 capitalize">
-      <span className={`w-2 h-2 rounded-full ${colMap[status] ?? colMap.unpaid}`} />
-      {status.replace(/_/g, ' ')}
+    <span className="inline-flex items-center gap-1.5 text-xs capitalize text-zinc-600">
+      <span className={`h-2 w-2 rounded-full ${colMap[status] ?? colMap.unpaid}`} />
+      {status.replace(/_/g, " ")}
     </span>
-  )
+  );
 }
 
 function OrderStatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
-    fulfilled:  'bg-green-50 text-green-700 border-green-200',
-    processing: 'bg-amber-50 text-amber-700 border-amber-200',
-    paid:       'bg-blue-50 text-blue-700 border-blue-200',
-    pending:    'bg-zinc-100 text-zinc-600 border-zinc-200',
-    cancelled:  'bg-red-50 text-red-700 border-red-200',
-    refunded:   'bg-zinc-100 text-zinc-600 border-zinc-200',
-  }
-  const label = status.replace(/_/g, ' ')
+    fulfilled: "border-green-200 bg-green-50 text-green-700",
+    processing: "border-amber-200 bg-amber-50 text-amber-700",
+    paid: "border-blue-200 bg-blue-50 text-blue-700",
+    pending: "border-zinc-200 bg-zinc-100 text-zinc-600",
+    cancelled: "border-red-200 bg-red-50 text-red-700",
+    refunded: "border-zinc-200 bg-zinc-100 text-zinc-600",
+  };
+
   return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium capitalize whitespace-nowrap ${map[status] ?? map.pending}`}>
-      {label}
-    </span>
-  )
+    <Badge
+      className={`h-auto whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${map[status] ?? map.pending}`}
+    >
+      {status.replace(/_/g, " ")}
+    </Badge>
+  );
 }
 
-function DeliveryTypeCell({ orderType, fitmentId }: {
-  orderType: string | null
-  fitmentId: string | null
+function DeliveryTypeCell({
+  orderType,
+  fitmentId,
+}: {
+  orderType: string | null;
+  fitmentId: string | null;
 }) {
-  if (!orderType || orderType === 'home_delivery' || orderType === 'shipping') {
+  if (!orderType || orderType === "home_delivery" || orderType === "shipping") {
     return (
       <span className="inline-flex items-center gap-1.5 text-xs text-zinc-700">
-        <svg className="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H3m16.5 0h-.75m-14.25 0h.75m3 0h7.5m3.75 0h.75M15 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-7.5-9h15M3.75 9h.75m0 0V6.75M3.75 9v6.75M20.25 9h-.75m0 0V6.75m0 2.25v6.75" />
-        </svg>
+        <Truck className="h-3.5 w-3.5 text-zinc-400" />
         Home Delivery
       </span>
-    )
+    );
   }
+
   return (
     <span className="inline-flex flex-col gap-0.5 text-xs">
-      <span className="text-zinc-700 flex items-center gap-1">
-        <svg className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
-        </svg>
+      <span className="flex items-center gap-1 text-zinc-700">
+        <MapPin className="h-3.5 w-3.5 flex-shrink-0 text-zinc-400" />
         Fitment Centre
       </span>
       {fitmentId && (
-        <Link href={`/admin/fitters/${fitmentId}`} className="text-blue-600 hover:underline pl-5">
+        <Link
+          href={`/admin/fitters/${fitmentId}`}
+          className="pl-5 text-primary hover:underline"
+        >
           #{fitmentId.slice(0, 8).toUpperCase()}
         </Link>
       )}
     </span>
-  )
+  );
 }
-
-// ── Props ──────────────────────────────────────────────────────────────────
 
 type Props = {
-  customer:       CustomerListItem
-  orders:         CustomerOrder[]
-  orderStats:     OrderStats
-  groups:         CustomerGroup[]
-  addresses:      Address[]
-  primaryAddress: Address | null
-}
-
-// ── Component ──────────────────────────────────────────────────────────────
+  accessToken: string;
+  customer: CustomerListItem;
+  orders: CustomerOrder[];
+  orderStats: OrderStats;
+  groups: CustomerGroup[];
+  addresses: Address[];
+  primaryAddress: Address | null;
+  onRefresh?: () => void;
+};
 
 export default function CustomerDetailClient({
-  customer, orders, orderStats, groups, addresses, primaryAddress,
+  accessToken,
+  customer,
+  orders,
+  orderStats,
+  groups,
+  addresses,
+  primaryAddress,
+  onRefresh,
 }: Props) {
-  const [showEdit, setShowEdit]           = useState(false)
-  const [paymentFilter, setPaymentFilter] = useState<string | null>(null)
-  const [fulfilFilter, setFulfilFilter]   = useState<string | null>(null)
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const modalParam = searchParams.get('modal');
 
-  const fullName   = [customer.first_name, customer.last_name].filter(Boolean).join(' ') || '—'
-  const isGuest    = !customer.profile_id
+  function closeModal() { router.replace(pathname) }
 
-  const filteredOrders = orders.filter(o => {
-    if (paymentFilter && o.payment_status !== paymentFilter) return false
-    if (fulfilFilter  && o.order_status !== fulfilFilter) return false
-    return true
-  })
+  const [addressPendingId, setAddressPendingId] = useState<string | null>(null);
+  const [addressError, setAddressError] = useState<string | null>(null);
+  const [paymentFilter, setPaymentFilter] = useState<string | null>(null);
+  const [fulfilFilter, setFulfilFilter] = useState<string | null>(null);
+
+  const fullName =
+    [customer.first_name, customer.last_name].filter(Boolean).join(" ") || "—";
+  const isGuest = !customer.profile_id;
+
+  const filteredOrders = orders.filter((order) => {
+    if (paymentFilter && order.payment_status !== paymentFilter) return false;
+    if (fulfilFilter && order.order_status !== fulfilFilter) return false;
+    return true;
+  });
 
   const addressDisplay = primaryAddress
     ? [
@@ -139,250 +193,380 @@ export default function CustomerDetailClient({
         primaryAddress.state,
         primaryAddress.postcode,
         primaryAddress.country,
-      ].filter(Boolean).join(', ')
-    : '—'
+      ]
+        .filter(Boolean)
+        .join(", ")
+    : "—";
+
+  async function handleDeleteAddress(addressId: string) {
+    setAddressPendingId(addressId);
+    setAddressError(null);
+
+    try {
+      const res = await fetch(
+        `${BACKEND_API_URL}/api/admin/customers/${customer.customer_id}/addresses/${addressId}`,
+        {
+          method: "DELETE",
+          headers: createBackendHeaders(accessToken),
+        },
+      );
+
+      if (!res.ok) {
+        throw new Error(await readBackendError(res, "Failed to delete address"));
+      }
+
+      onRefresh?.();
+    } catch (err: unknown) {
+      setAddressError(
+        err instanceof Error ? err.message : "Failed to delete address",
+      );
+    } finally {
+      setAddressPendingId(null);
+    }
+  }
 
   return (
     <>
-      {showEdit && (
-        <EditCustomerModal customer={customer} onClose={() => setShowEdit(false)} />
+      {modalParam === 'add-address' && (
+        <CreateAddressModal
+          accessToken={accessToken}
+          customerId={customer.customer_id}
+          onClose={closeModal}
+          onSuccess={() => { closeModal(); onRefresh?.() }}
+        />
       )}
 
-      {/* ── Page header ─────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between mb-6">
+      {modalParam === 'edit' && (
+        <EditCustomerModal
+          accessToken={accessToken}
+          customer={customer}
+          onClose={closeModal}
+          onSuccess={() => { closeModal(); onRefresh?.() }}
+        />
+      )}
+
+      <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-blue-600">{fullName}</h1>
+          <h1 className="text-2xl font-bold text-primary">{fullName}</h1>
           <AccountBadge isGuest={isGuest} />
         </div>
-        <button
-          onClick={() => setShowEdit(true)}
-          className="flex items-center gap-2 rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
-          </svg>
-          Edit Profile
-        </button>
+        <div className="flex items-center gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.push(`${pathname}?modal=add-address`)}
+            className="flex items-center gap-2 rounded-lg border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+          >
+            <Plus className="h-4 w-4" />
+            Add Address
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.push(`${pathname}?modal=edit`)}
+            className="flex items-center gap-2 rounded-lg border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+          >
+            <Pencil className="h-4 w-4" />
+            Edit Profile
+          </Button>
+        </div>
       </div>
 
       <div className="flex gap-6">
-        {/* ── Main ─────────────────────────────────────────────────────── */}
-        <div className="flex-1 space-y-5 min-w-0">
-
-          {/* Profile info grid */}
-          <div className="rounded-xl border border-zinc-200 bg-white divide-y divide-zinc-100">
-            {/* Row 1 */}
+        <div className="min-w-0 flex-1 space-y-5">
+          <div className="divide-y divide-zinc-100 rounded-xl border border-zinc-200 bg-white">
             <div className="grid grid-cols-3 divide-x divide-zinc-100">
               <div className="px-5 py-4">
-                <p className="text-xs text-zinc-400 mb-1">Customer ID</p>
-                <p className="text-sm font-medium text-zinc-800 font-mono">
+                <p className="mb-1 text-xs text-zinc-400">Customer ID</p>
+                <p className="font-mono text-sm font-medium text-zinc-800">
                   {customer.customer_id.slice(0, 8).toUpperCase()}
                 </p>
               </div>
               <div className="px-5 py-4">
-                <p className="text-xs text-zinc-400 mb-1">Email</p>
-                <p className="text-sm text-zinc-800 truncate">{customer.email}</p>
+                <p className="mb-1 text-xs text-zinc-400">Email</p>
+                <p className="truncate text-sm text-zinc-800">{customer.email}</p>
               </div>
               <div className="px-5 py-4">
-                <p className="text-xs text-zinc-400 mb-1">Full Name</p>
+                <p className="mb-1 text-xs text-zinc-400">Full Name</p>
                 <p className="text-sm text-zinc-800">{fullName}</p>
               </div>
             </div>
 
-            {/* Row 2 */}
             <div className="grid grid-cols-3 divide-x divide-zinc-100">
               <div className="px-5 py-4">
-                <p className="text-xs text-zinc-400 mb-1">Member Since</p>
+                <p className="mb-1 text-xs text-zinc-400">Member Since</p>
                 <p className="text-sm text-zinc-800">{fmtDate(customer.created_at)}</p>
               </div>
               <div className="px-5 py-4">
-                <p className="text-xs text-zinc-400 mb-1">Phone</p>
-                <p className="text-sm text-zinc-800">{customer.phone || '—'}</p>
+                <p className="mb-1 text-xs text-zinc-400">Phone</p>
+                <p className="text-sm text-zinc-800">{customer.phone || "—"}</p>
               </div>
               <div className="px-5 py-4">
-                <p className="text-xs text-zinc-400 mb-1">Account Status</p>
+                <p className="mb-1 text-xs text-zinc-400">Account Status</p>
                 <AccountBadge isGuest={isGuest} />
               </div>
             </div>
 
-            {/* Row 3 — Address */}
             <div className="px-5 py-4">
-              <p className="text-xs text-zinc-400 mb-1">Primary Address</p>
+              <p className="mb-1 text-xs text-zinc-400">Primary Address</p>
               <p className="text-sm text-zinc-800">{addressDisplay}</p>
             </div>
           </div>
 
-          {/* Orders */}
-          <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200">
+          <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+            <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-4">
               <h2 className="text-sm font-semibold text-zinc-900">Orders</h2>
               <div className="flex items-center gap-2">
-                {/* Payment filter */}
-                {(['unpaid', 'paid', 'partially_paid', 'refunded'] as const).map(s => (
-                  <button
-                    key={s}
-                    onClick={() => setPaymentFilter(paymentFilter === s ? null : s)}
-                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors capitalize ${
-                      paymentFilter === s
-                        ? 'bg-zinc-800 text-white border-zinc-800'
-                        : 'bg-white text-zinc-600 border-zinc-300 hover:border-zinc-500'
+                {(["unpaid", "paid", "partially_paid", "refunded"] as const).map(
+                  (status) => (
+                    <Button
+                      key={status}
+                      type="button"
+                      onClick={() =>
+                        setPaymentFilter(paymentFilter === status ? null : status)
+                      }
+                      className={`inline-flex h-auto items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${
+                        paymentFilter === status
+                          ? "border-zinc-800 bg-zinc-800 text-white"
+                          : "border-zinc-300 bg-white text-zinc-600 hover:border-zinc-500"
+                      }`}
+                    >
+                      + {status}
+                    </Button>
+                  ),
+                )}
+                <div className="mx-1 h-4 w-px bg-zinc-200" />
+                {(["pending", "processing", "fulfilled"] as const).map((status) => (
+                  <Button
+                    key={status}
+                    type="button"
+                    onClick={() =>
+                      setFulfilFilter(fulfilFilter === status ? null : status)
+                    }
+                    className={`inline-flex h-auto items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${
+                      fulfilFilter === status
+                        ? "border-zinc-800 bg-zinc-800 text-white"
+                        : "border-zinc-300 bg-white text-zinc-600 hover:border-zinc-500"
                     }`}
                   >
-                    + {s}
-                  </button>
-                ))}
-                <div className="w-px h-4 bg-zinc-200 mx-1" />
-                {/* Fulfillment filter */}
-                {(['pending', 'processing', 'fulfilled'] as const).map(s => (
-                  <button
-                    key={s}
-                    onClick={() => setFulfilFilter(fulfilFilter === s ? null : s)}
-                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors capitalize ${
-                      fulfilFilter === s
-                        ? 'bg-zinc-800 text-white border-zinc-800'
-                        : 'bg-white text-zinc-600 border-zinc-300 hover:border-zinc-500'
-                    }`}
-                  >
-                    + {s}
-                  </button>
+                    + {status}
+                  </Button>
                 ))}
               </div>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-zinc-100 bg-zinc-50">
-                    {['Order #', 'Delivery Type', 'Created ↓', 'Payment', 'Fulfillment', 'Items', 'Type', 'Order Total'].map(h => (
-                      <th key={h} className="px-4 py-3 text-left text-xs font-medium text-zinc-500 whitespace-nowrap">
-                        {h}
-                      </th>
+              <Table className="w-full text-sm">
+                <TableHeader>
+                  <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50">
+                    {[
+                      "Order #",
+                      "Delivery Type",
+                      "Created ↓",
+                      "Payment",
+                      "Fulfillment",
+                      "Items",
+                      "Type",
+                      "Order Total",
+                    ].map((heading) => (
+                      <TableHead
+                        key={heading}
+                        className="whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-zinc-500"
+                      >
+                        {heading}
+                      </TableHead>
                     ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100">
+                  </TableRow>
+                </TableHeader>
+                <TableBody className="divide-y divide-zinc-100">
                   {filteredOrders.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="px-4 py-8 text-center text-sm text-zinc-400">
+                    <TableRow>
+                      <TableCell
+                        colSpan={8}
+                        className="px-4 py-8 text-center text-sm text-zinc-400"
+                      >
                         No orders found.
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ) : (
-                    filteredOrders.map(o => (
-                      <tr key={o.order_id} className="hover:bg-zinc-50">
-                        <td className="px-4 py-3">
+                    filteredOrders.map((order) => (
+                      <TableRow key={order.order_id} className="hover:bg-zinc-50">
+                        <TableCell className="px-4 py-3">
                           <Link
-                            href={`/admin/orders/${o.order_id}`}
-                            className="font-medium text-blue-600 hover:underline whitespace-nowrap"
+                            href={`/admin/orders/${order.order_id}`}
+                            className="whitespace-nowrap font-medium text-primary hover:underline"
                           >
-                            #{o.order_number}
+                            {order.order_number}
                           </Link>
-                        </td>
-                        <td className="px-4 py-3">
+                        </TableCell>
+                        <TableCell className="px-4 py-3">
                           <DeliveryTypeCell
-                            orderType={o.order_type}
-                            fitmentId={o.fitment_id}
+                            orderType={order.order_type}
+                            fitmentId={order.fitment_id}
                           />
-                        </td>
-                        <td className="px-4 py-3 text-xs text-zinc-500 whitespace-nowrap">
-                          {fmtDateTime(o.created_at)}
-                        </td>
-                        <td className="px-4 py-3">
-                          <PaymentDot status={o.payment_status} />
-                        </td>
-                        <td className="px-4 py-3">
-                          <OrderStatusBadge status={o.order_status} />
-                        </td>
-                        <td className="px-4 py-3 text-zinc-600 text-center">{o.item_count}</td>
-                        <td className="px-4 py-3 text-xs text-zinc-600 capitalize">
-                          {o.payment_method?.replace(/_/g, ' ') ?? '—'}
-                        </td>
-                        <td className="px-4 py-3 font-medium text-zinc-800 whitespace-nowrap">
-                          {fmtMoney(o.total_amount)}
-                        </td>
-                      </tr>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap px-4 py-3 text-xs text-zinc-500">
+                          {fmtDateTime(order.created_at)}
+                        </TableCell>
+                        <TableCell className="px-4 py-3">
+                          <PaymentDot status={order.payment_status} />
+                        </TableCell>
+                        <TableCell className="px-4 py-3">
+                          <OrderStatusBadge status={order.order_status} />
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-center text-zinc-600">
+                          {order.item_count}
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-xs capitalize text-zinc-600">
+                          {order.payment_method?.replace(/_/g, " ") ?? "—"}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap px-4 py-3 font-medium text-zinc-800">
+                          {fmtMoney(order.total_amount)}
+                        </TableCell>
+                      </TableRow>
                     ))
                   )}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
 
-            <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-100 bg-zinc-50 text-xs text-zinc-500">
-              <span>Showing {filteredOrders.length} of {orders.length} orders</span>
+            <div className="flex items-center justify-between border-t border-zinc-100 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">
+              <span>
+                Showing {filteredOrders.length} of {orders.length} orders
+              </span>
               <span>Page 1 of 1</span>
             </div>
           </div>
 
-          {/* Customer Groups */}
           {groups.length > 0 && (
-            <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
-              <div className="px-5 py-4 border-b border-zinc-200">
-                <h2 className="text-sm font-semibold text-zinc-900">Customer Groups</h2>
+            <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+              <div className="border-b border-zinc-200 px-5 py-4">
+                <h2 className="text-sm font-semibold text-zinc-900">
+                  Customer Groups
+                </h2>
               </div>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-zinc-100 bg-zinc-50">
-                    <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Group Name</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Members</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Created</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100">
-                  {groups.map(g => (
-                    <tr key={g.group_id} className="hover:bg-zinc-50">
-                      <td className="px-4 py-3 font-medium text-zinc-800">{g.group_name}</td>
-                      <td className="px-4 py-3 text-zinc-600">{g.customer_count}</td>
-                      <td className="px-4 py-3 text-xs text-zinc-500">{fmtDate(g.created_at)}</td>
-                    </tr>
+              <Table className="w-full text-sm">
+                <TableHeader>
+                  <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50">
+                    <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500">
+                      Group Name
+                    </TableHead>
+                    <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500">
+                      Members
+                    </TableHead>
+                    <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500">
+                      Created
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody className="divide-y divide-zinc-100">
+                  {groups.map((group) => (
+                    <TableRow key={group.group_id} className="hover:bg-zinc-50">
+                      <TableCell className="px-4 py-3 font-medium text-zinc-800">
+                        {group.group_name}
+                      </TableCell>
+                      <TableCell className="px-4 py-3 text-zinc-600">
+                        {group.customer_count}
+                      </TableCell>
+                      <TableCell className="px-4 py-3 text-xs text-zinc-500">
+                        {fmtDate(group.created_at)}
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           )}
         </div>
 
-        {/* ── Right sidebar ─────────────────────────────────────────────── */}
         <div className="w-64 flex-shrink-0 space-y-4">
-
-          {/* Order summary card */}
           <div className="rounded-xl border border-zinc-200 bg-white p-5">
-            <h3 className="text-sm font-semibold text-zinc-900 mb-4">Orders</h3>
+            <h3 className="mb-4 text-sm font-semibold text-zinc-900">Orders</h3>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs text-zinc-500">Total Value</span>
-                <span className="text-sm font-semibold text-zinc-900">{fmtMoney(orderStats.totalValue)}</span>
+                <span className="text-sm font-semibold text-zinc-900">
+                  {fmtMoney(orderStats.totalValue)}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-zinc-500">Orders</span>
-                <span className="text-sm font-semibold text-zinc-900">{orderStats.count}</span>
+                <span className="text-sm font-semibold text-zinc-900">
+                  {orderStats.count}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs text-zinc-500">Avg. Order Value</span>
-                <span className="text-sm font-semibold text-zinc-900">{fmtMoney(orderStats.avgOrderValue)}</span>
+                <span className="text-sm font-semibold text-zinc-900">
+                  {fmtMoney(orderStats.avgOrderValue)}
+                </span>
               </div>
               {orderStats.lastOrderDate && (
-                <div className="pt-2 border-t border-zinc-100">
+                <div className="border-t border-zinc-100 pt-2">
                   <p className="text-xs text-zinc-400">Last Order</p>
-                  <p className="text-xs text-zinc-600 mt-0.5">{fmtDate(orderStats.lastOrderDate)}</p>
+                  <p className="mt-0.5 text-xs text-zinc-600">
+                    {fmtDate(orderStats.lastOrderDate)}
+                  </p>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Addresses card */}
           <div className="rounded-xl border border-zinc-200 bg-white p-4">
-            <h3 className="text-sm font-semibold text-zinc-900 mb-3">
-              Addresses{addresses.length > 0 && <span className="ml-1.5 text-zinc-400 font-normal">({addresses.length})</span>}
-            </h3>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold text-zinc-900">
+                Addresses
+                {addresses.length > 0 && (
+                  <span className="ml-1.5 font-normal text-zinc-400">
+                    ({addresses.length})
+                  </span>
+                )}
+              </h3>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.push(`${pathname}?modal=add-address`)}
+                className="h-auto rounded-lg border-zinc-300 px-2.5 py-1 text-xs text-zinc-700 hover:bg-zinc-50"
+              >
+                Add
+              </Button>
+            </div>
+
+            {addressError && (
+              <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
+                {addressError}
+              </p>
+            )}
+
             {addresses.length === 0 ? (
-              <p className="text-xs text-zinc-400 text-center py-2">No addresses on file.</p>
+              <p className="py-2 text-center text-xs text-zinc-400">
+                No addresses on file.
+              </p>
             ) : (
               <div className="space-y-2">
-                {addresses.map(addr => (
-                  <div key={addr.address_id} className="rounded-lg border border-zinc-200 p-3">
-                    <p className="text-xs font-medium text-zinc-700">{addr.address_name}</p>
-                    <p className="text-xs text-zinc-500 mt-0.5">
-                      {[addr.address_line_1, addr.suburb, addr.state].filter(Boolean).join(', ')}
+                {addresses.map((address) => (
+                  <div
+                    key={address.address_id}
+                    className="rounded-lg border border-zinc-200 p-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-xs font-medium text-zinc-700">
+                        {address.address_name}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteAddress(address.address_id)}
+                        disabled={addressPendingId === address.address_id}
+                        className="text-zinc-400 transition-colors hover:text-red-600 disabled:opacity-50"
+                        aria-label={`Delete ${address.address_name} address`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <p className="mt-0.5 text-xs text-zinc-500">
+                      {[address.address_line_1, address.suburb, address.state]
+                        .filter(Boolean)
+                        .join(", ")}
                     </p>
                   </div>
                 ))}
@@ -392,5 +576,5 @@ export default function CustomerDetailClient({
         </div>
       </div>
     </>
-  )
+  );
 }

@@ -41,7 +41,61 @@ export async function listCustomers(opts: {
   if (accountType === 'guest')      query = query.is('profile_id', null)
   if (accountType === 'registered') query = query.not('profile_id', 'is', null)
 
-  return query
+  const { data, error, count } = await query
+
+  if (error || !data?.length) {
+    return { data: data ?? [], error, count }
+  }
+
+  const customerIds = data.map(customer => customer.customer_id)
+  const { data: orderRows, error: ordersError } = await supabaseAdmin
+    .from('orders')
+    .select('customer_id, total_amount, order_number, created_at')
+    .in('customer_id', customerIds)
+    .order('created_at', { ascending: false })
+
+  if (ordersError || !orderRows?.length) {
+    return { data, error: ordersError, count }
+  }
+
+  const orderSummaryByCustomer = new Map<string, {
+    order_count: number
+    total_spent: number
+    last_order_number: string | null
+    last_order_date: string | null
+  }>()
+
+  for (const row of orderRows) {
+    const customerId = row.customer_id as string
+    const existing = orderSummaryByCustomer.get(customerId) ?? {
+      order_count: 0,
+      total_spent: 0,
+      last_order_number: null,
+      last_order_date: null,
+    }
+
+    existing.order_count += 1
+    existing.total_spent += Number(row.total_amount ?? 0)
+
+    if (!existing.last_order_number) {
+      existing.last_order_number = row.order_number ?? null
+      existing.last_order_date = row.created_at ?? null
+    }
+
+    orderSummaryByCustomer.set(customerId, existing)
+  }
+
+  const enriched = data.map(customer => ({
+    ...customer,
+    ...(orderSummaryByCustomer.get(customer.customer_id) ?? {
+      order_count: 0,
+      total_spent: 0,
+      last_order_number: null,
+      last_order_date: null,
+    }),
+  }))
+
+  return { data: enriched, error: null, count }
 }
 
 export async function getCustomer(customerId: string) {
@@ -59,7 +113,7 @@ export async function getCustomer(customerId: string) {
       .select(`
         order_id, order_number, created_at,
         payment_status, order_status, total_amount,
-        order_type, payment_method, fitment_id,
+        order_type,
         order_items ( product_id )
       `)
       .eq('customer_id', customerId)
@@ -151,16 +205,23 @@ export async function createAddress(customerId: string, payload: {
   phone?: string
 }) {
   return supabaseAdmin.from('addresses').insert({
-    customer_id:   customerId,
-    address_name:  payload.addressName,
+    customer_id:    customerId,
+    owner_type:     'customer',
+    owner_id:       customerId,
+    address_name:   payload.addressName,
+    // original NOT NULL column + spec-compliance alias both required
+    address_line1:  payload.addressLine1,
     address_line_1: payload.addressLine1,
+    address_line2:  payload.addressLine2 ?? null,
     address_line_2: payload.addressLine2 ?? null,
+    city:           payload.city         ?? null,
     suburb:         payload.city         ?? null,
+    postal_code:    payload.postalCode   ?? null,
     postcode:       payload.postalCode   ?? null,
-    country:       payload.country      ?? null,
-    state:         payload.state        ?? null,
-    company:       payload.company      ?? null,
-    phone:         payload.phone        ?? null,
+    country:        payload.country      ?? null,
+    state:          payload.state        ?? null,
+    company:        payload.company      ?? null,
+    phone:          payload.phone        ?? null,
   }).select('address_id').single()
 }
 
@@ -200,7 +261,8 @@ export async function listCustomerGroups(opts: { search?: string; page?: number 
 
   if (search) query = query.ilike('group_name', `%${search}%`)
 
-  return query
+  const { data, error, count } = await query
+  return { data, error, count }
 }
 
 export async function getCustomerGroup(groupId: string) {
@@ -215,7 +277,7 @@ export async function getCustomerGroup(groupId: string) {
       .from('customer_group_members')
       .select(`
         customers (
-          customer_id, email, first_name, last_name, company, phone, created_at, profile_id
+          customer_id, email, first_name, last_name, business_name, phone, created_at, profile_id
         )
       `)
       .eq('group_id', groupId)
