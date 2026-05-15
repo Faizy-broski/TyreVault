@@ -12,6 +12,18 @@ router.use(requireRole('super_admin'))
 // Form metadata (brands, collections, categories for dropdowns)
 router.get('/meta', ctrl.getFormMeta)
 
+// Collections CRUD
+router.get('/collections',      ctrl.getCollections)
+router.post('/collections',     ctrl.postCollection)
+router.patch('/collections/:id', ctrl.patchCollection)
+router.delete('/collections/:id', ctrl.removeCollection)
+
+// Categories CRUD
+router.get('/categories',       ctrl.getCategories)
+router.post('/categories',      ctrl.postCategory)
+router.patch('/categories/:id', ctrl.patchCategory)
+router.delete('/categories/:id', ctrl.removeCategory)
+
 // Products CRUD
 router.get('/',              ctrl.getProducts)
 router.post('/',             ctrl.createProduct)

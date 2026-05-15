@@ -11,14 +11,28 @@ export async function listFitmentCentres(opts: {
   const from = (page - 1) * PAGE_LIMIT
   const to   = from + PAGE_LIMIT - 1
 
+  // let query = supabase
+  //   .from('fitment_centres')
+  //   .select(
+  //     `fitment_id, business_name, partner_id, is_active,
+  //      contact_phone, business_number, created_at,
+  //      profiles!user_id (email)`,
+  //     { count: 'exact' }
+  //   )
   let query = supabase
-    .from('fitment_centres')
-    .select(
-      `fitment_id, business_name, partner_id, is_active,
-       contact_phone, business_number, created_at,
-       profiles!user_id (email)`,
-      { count: 'exact' }
-    )
+    .from('fitment_centres_with_users')
+    .select(`
+      fitment_centre_id,
+      business_name,
+      user_id,
+      partner_id,
+      is_active,
+      contact_phone,
+      business_number,
+      created_at,
+      role,
+      email
+    `, { count: 'exact' })
 
   if (opts.status === 'active') query = query.eq('is_active', true)
   if (opts.status === 'hold')   query = query.eq('is_active', false)
@@ -34,9 +48,20 @@ export async function listFitmentCentres(opts: {
 
 export async function getFitmentCentre(id: string) {
   const { data, error } = await supabase
-    .from('fitment_centres')
-    .select(`*, profiles!user_id (email, created_at)`)
-    .eq('fitment_id', id)
+    .from('fitment_centres_with_users')
+    .select(`
+      fitment_centre_id,
+      user_id,
+      business_name,
+      partner_id,
+      is_active,
+      contact_phone,
+      business_number,
+      created_at,
+      role,
+      email
+    `)
+    .eq('fitment_centre_id', id)
     .single()
 
   if (error) throw error
@@ -47,7 +72,7 @@ export async function updateFitmentCentreStatus(id: string, isActive: boolean) {
   const { error } = await supabase
     .from('fitment_centres')
     .update({ is_active: isActive })
-    .eq('fitment_id', id)
+    .eq('fitment_centre_id', id)
   if (error) throw error
 }
 
@@ -59,7 +84,7 @@ export async function updateFitmentCentreProfile(id: string, updates: Record<str
   const { error } = await supabase
     .from('fitment_centres')
     .update(safe)
-    .eq('fitment_id', id)
+    .eq('fitment_centre_id', id)
   if (error) throw error
 }
 
@@ -76,7 +101,7 @@ export async function listCentreJobs(id: string, opts: {
   let query = supabase
     .from('fitment_jobs')
     .select('*', { count: 'exact' })
-    .eq('fitment_id', id)
+    .eq('fitment_centre_id', id)
 
   if (opts.status) query = query.eq('job_status', opts.status)
   if (opts.search) query = query.ilike('customer_name', `%${opts.search}%`)
@@ -98,18 +123,18 @@ export async function getCentreKPIs(id: string) {
     supabase
       .from('fitment_jobs')
       .select('job_id', { count: 'exact', head: true })
-      .eq('fitment_id', id)
+      .eq('fitment_centre_id', id)
       .in('job_status', ['pending', 'assigned', 'accepted']),
     supabase
       .from('fitment_jobs')
       .select('job_id', { count: 'exact', head: true })
-      .eq('fitment_id', id)
+      .eq('fitment_centre_id', id)
       .eq('job_status', 'completed')
       .gte('created_at', startOfMonth),
     supabase
       .from('fitment_jobs')
       .select('earnings_amount')
-      .eq('fitment_id', id)
+      .eq('fitment_centre_id', id)
       .eq('job_status', 'completed')
       .gte('created_at', startOfMonth),
   ])
@@ -130,7 +155,7 @@ export async function getCentrePricing(id: string) {
   const { data, error } = await supabase
     .from('fitter_pricing')
     .select('*')
-    .eq('fitment_id', id)
+    .eq('fitment_centre_id', id)
   if (error) throw error
   return data ?? []
 }
@@ -143,10 +168,10 @@ export async function upsertCentrePricing(id: string, rows: {
   per_set_of_4: number | null
   callout_fee:  number | null
 }[]) {
-  const upsertRows = rows.map(r => ({ ...r, fitment_id: id }))
+  const upsertRows = rows.map(r => ({ ...r, fitment_centre_id: id }))
   const { error } = await supabase
     .from('fitter_pricing')
-    .upsert(upsertRows, { onConflict: 'fitment_id,tyre_type,rim_range' })
+    .upsert(upsertRows, { onConflict: 'fitment_centre_id,tyre_type,rim_range' })
   if (error) throw error
 }
 
@@ -158,7 +183,7 @@ export async function getPaymentSummary(id: string) {
   const { data: payouts } = await supabase
     .from('fitment_centre_payouts')
     .select('gross_amount, net_payout, status, payment_date, settlement_schedule')
-    .eq('fitment_id', id)
+    .eq('fitment_centre_id', id)
     .order('payment_date', { ascending: false })
 
   const rows  = payouts ?? []
@@ -201,7 +226,7 @@ export async function listPaymentHistory(id: string, opts: {
   let query = supabase
     .from('fitment_centre_payouts')
     .select('*', { count: 'exact' })
-    .eq('fitment_id', id)
+    .eq('fitment_centre_id', id)
 
   if (opts.status) query = query.eq('status', opts.status)
 
@@ -217,7 +242,7 @@ export async function getBankDetails(id: string) {
   const { data } = await supabase
     .from('fitment_centre_bank_details')
     .select('*')
-    .eq('fitment_id', id)
+    .eq('fitment_centre_id', id)
     .single()
   return data ?? null
 }
@@ -230,7 +255,7 @@ export async function upsertBankDetails(id: string, details: {
 }) {
   const { error } = await supabase
     .from('fitment_centre_bank_details')
-    .upsert({ ...details, fitment_id: id }, { onConflict: 'fitment_id' })
+    .upsert({ ...details, fitment_centre_id: id }, { onConflict: 'fitment_centre_id' })
   if (error) throw error
 }
 
@@ -240,7 +265,7 @@ export async function listComplianceDocs(id: string) {
   const { data, error } = await supabase
     .from('fitment_centre_compliance_docs')
     .select('*')
-    .eq('fitment_id', id)
+    .eq('fitment_centre_id', id)
     .order('created_at', { ascending: true })
   if (error) throw error
   return data ?? []
@@ -255,7 +280,7 @@ export async function updateComplianceDoc(
     .from('fitment_centre_compliance_docs')
     .update(updates)
     .eq('id', docId)
-    .eq('fitment_id', centreId)
+    .eq('fitment_centre_id', centreId)
   if (error) throw error
 }
 
@@ -267,7 +292,7 @@ export async function getCentreStats(id: string) {
   const { data } = await supabase
     .from('fitter_earnings')
     .select('amount, created_at')
-    .eq('fitment_id', id)
+    .eq('fitment_centre_id', id)
     .gte('created_at', since)
     .order('created_at', { ascending: true })
 

@@ -42,7 +42,7 @@ export default function FitmentCentreRowMenu({ centre, accessToken, onUpdated }:
 
     try {
       const [profileRes, statusRes] = await Promise.all([
-        fetch(`${BACKEND_API_URL}/api/admin/fitment-centres/${centre.fitment_id}/profile`, {
+        fetch(`${BACKEND_API_URL}/api/admin/fitment-centres/${centre.fitment_centre_id}/profile`, {
           method: 'PATCH',
           headers,
           body: JSON.stringify({
@@ -51,7 +51,7 @@ export default function FitmentCentreRowMenu({ centre, accessToken, onUpdated }:
             business_number: fd.get('businessNumber') || null,
           }),
         }),
-        fetch(`${BACKEND_API_URL}/api/admin/fitment-centres/${centre.fitment_id}/status`, {
+        fetch(`${BACKEND_API_URL}/api/admin/fitment-centres/${centre.fitment_centre_id}/status`, {
           method: 'PATCH',
           headers,
           body: JSON.stringify({ is_active: fd.get('isActive') === 'true' }),

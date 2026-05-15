@@ -89,7 +89,7 @@ export default function FitmentCentreDetailClient({
     try {
       const next = !isActive
       const res = await fetch(
-        `${API}/api/admin/fitment-centres/${centre.fitment_id}/status`,
+        `${API}/api/admin/fitment-centres/${centre.fitment_centre_id}/status`,
         { method: 'PATCH', headers, body: JSON.stringify({ is_active: next }) }
       )
       if (res.ok) setIsActive(next)
@@ -100,7 +100,7 @@ export default function FitmentCentreDetailClient({
     return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(n)
   }
 
-  const email      = centre.profiles?.email ?? '—'
+  const email      = centre.email ?? '—'
   const joinedDate = centre.created_at
     ? new Date(centre.created_at).toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit', year: 'numeric' })
     : '—'
@@ -337,7 +337,7 @@ export default function FitmentCentreDetailClient({
 
           <TabsContent value="orders" className="mt-0">
             <FitmentOrdersTab
-              centreId={centre.fitment_id}
+              centreId={centre.fitment_centre_id}
               kpis={kpis}
               initialJobs={initialJobs}
               initialTotal={initialJobsTotal}
@@ -347,14 +347,14 @@ export default function FitmentCentreDetailClient({
           </TabsContent>
           <TabsContent value="pricing" className="mt-0">
             <PricingOverrideTab
-              centreId={centre.fitment_id}
+              centreId={centre.fitment_centre_id}
               initialRows={initialPricing}
               accessToken={accessToken}
             />
           </TabsContent>
           <TabsContent value="payment" className="mt-0">
             <PaymentSettlementTab
-              centreId={centre.fitment_id}
+              centreId={centre.fitment_centre_id}
               initialSummary={paymentSummary}
               initialHistory={initialPayments}
               initialTotal={initialPaymentTotal}
@@ -364,7 +364,7 @@ export default function FitmentCentreDetailClient({
           </TabsContent>
           <TabsContent value="compliance" className="mt-0">
             <ComplianceDocTab
-              centreId={centre.fitment_id}
+              centreId={centre.fitment_centre_id}
               initialDocs={complianceDocs}
               accessToken={accessToken}
             />
