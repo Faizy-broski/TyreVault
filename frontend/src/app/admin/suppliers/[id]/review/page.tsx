@@ -1,48 +1,110 @@
-import { createClient } from '@/lib/supabase/server'
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useParams } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import MappingReviewClient from '@/components/admin/suppliers/MappingReviewClient'
+import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import type { SupplierMapping, Supplier } from '@/types/admin.types'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
-interface Props { params: Promise<{ id: string }> }
+export default function MappingReviewPage() {
+  const { id } = useParams<{ id: string }>()
 
-export default async function MappingReviewPage({ params }: Props) {
-  const { id } = await params
+  const [supplier, setSupplier]   = useState<Supplier | null>(null)
+  const [mappings, setMappings]   = useState<SupplierMapping[]>([])
+  const [total, setTotal]         = useState(0)
+  const [token, setToken]         = useState('')
+  const [loading, setLoading]     = useState(true)
+  const [error, setError]         = useState<string | null>(null)
 
-  const supabase = await createClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  const token = session?.access_token ?? ''
+  useEffect(() => {
+    document.title = supplier ? `${supplier.supplier_name} — Mapping Review | Tyre Vault` : 'Mapping Review | Tyre Vault'
+  }, [supplier])
 
-  let supplier: Supplier | null = null
-  let mappings: SupplierMapping[] = []
-  let total = 0
+  useEffect(() => {
+    if (!id) return
+    let cancelled = false
+    async function load() {
+      try {
+        const { data: { session } } = await createClient().auth.getSession()
+        const tok = session?.access_token ?? ''
+        if (!cancelled) setToken(tok)
 
-  try {
-    const [sRes, mRes] = await Promise.all([
-      fetch(`${API}/api/admin/suppliers/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: 'no-store',
-      }),
-      fetch(`${API}/api/admin/suppliers/${id}/mappings?filter=pending&page=1`, {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: 'no-store',
-      }),
-    ])
-    if (sRes.ok)  supplier = await sRes.json()
-    if (mRes.ok) {
-      const body = await mRes.json()
-      mappings = body.data  ?? []
-      total    = body.total ?? 0
+        const headers = { Authorization: `Bearer ${tok}` }
+        const [sRes, mRes] = await Promise.all([
+          fetch(`${API}/api/admin/suppliers/${id}`, { headers }),
+          fetch(`${API}/api/admin/suppliers/${id}/mappings?filter=pending&page=1`, { headers }),
+        ])
+
+        if (!sRes.ok) {
+          const body = await sRes.json().catch(() => ({}))
+          throw new Error(body.error ?? `API returned ${sRes.status}`)
+        }
+
+        const sData = await sRes.json()
+        if (!cancelled) setSupplier(sData)
+
+        if (mRes.ok) {
+          const mData = await mRes.json()
+          if (!cancelled) {
+            setMappings(mData.data ?? [])
+            setTotal(mData.total ?? 0)
+          }
+        }
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load data')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
     }
-  } catch { /* dev */ }
+    load()
+    return () => { cancelled = true }
+  }, [id])
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="h-8 w-48 bg-zinc-100 rounded animate-pulse mb-6" />
+        <div className="space-y-4">
+          {[1,2,3].map(i => <div key={i} className="h-32 bg-zinc-100 rounded-xl animate-pulse" />)}
+        </div>
+      </div>
+    )
+  }
+
+  const supplierName = supplier?.supplier_name ?? id
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <AdminBreadcrumb crumbs={[
+          { label: 'Suppliers', href: '/admin/suppliers' },
+          { label: supplierName, href: `/admin/suppliers/${id}` },
+          { label: 'Review' },
+        ]} />
+        <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">{error}</div>
+      </div>
+    )
+  }
 
   return (
-    <MappingReviewClient
-      supplierId={id}
-      supplierName={supplier?.supplier_name ?? id}
-      initialMappings={mappings}
-      initialTotal={total}
-      accessToken={token}
-    />
+    <div className="p-6">
+      <div className="mb-6">
+        <AdminBreadcrumb crumbs={[
+          { label: 'Suppliers', href: '/admin/suppliers' },
+          { label: supplierName, href: `/admin/suppliers/${id}` },
+          { label: 'Review' },
+        ]} />
+      </div>
+      <MappingReviewClient
+        supplierId={id}
+        supplierName={supplierName}
+        initialMappings={mappings}
+        initialTotal={total}
+        accessToken={token}
+      />
+    </div>
   )
 }

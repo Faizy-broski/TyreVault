@@ -1,19 +1,14 @@
-import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
-import type { OrderListItem, PaymentStatus, OrderStatus } from '@/types/admin.types'
+'use client'
 
-export const metadata = { title: 'Orders' }
+import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams, useRouter, usePathname } from 'next/navigation'
+import Link from 'next/link'
+import { createClient } from '@/lib/supabase/client'
+import type { OrderListItem, PaymentStatus, OrderStatus } from '@/types/admin.types'
+import OrderFiltersBar from '@/components/admin/orders/OrderFiltersBar'
+import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
-
-interface Props {
-  searchParams: Promise<{
-    search?:            string
-    page?:             string
-    paymentStatus?:    string
-    fulfillmentStatus?: string
-  }>
-}
 
 // ── Badge helpers ──────────────────────────────────────────────────────────
 
@@ -48,10 +43,7 @@ function OrderStatusBadge({ status }: { status: OrderStatus }) {
   )
 }
 
-function DeliveryTypeCell({ orderType, fitmentId }: {
-  orderType: string | null
-  fitmentId: string | null
-}) {
+function DeliveryTypeCell({ orderType, fitmentId }: { orderType: string | null; fitmentId: string | null }) {
   if (!orderType || orderType === 'home_delivery' || orderType === 'shipping') {
     return <span className="text-xs text-zinc-700">Home Delivery</span>
   }
@@ -59,7 +51,7 @@ function DeliveryTypeCell({ orderType, fitmentId }: {
     <span className="flex flex-col gap-0.5 text-xs">
       <span className="text-zinc-700">Fitment Centre</span>
       {fitmentId && (
-        <Link href={`/admin/fitters/${fitmentId}`} className="text-blue-600 hover:underline">
+        <Link href={`/admin/fitters/${fitmentId}`} className="text-primary hover:underline">
           #FIT-001
         </Link>
       )}
@@ -83,13 +75,9 @@ function addressSnippet(snap: Record<string, string> | null) {
   return [snap.address_line1, snap.city, snap.postal_code].filter(Boolean).join(', ') || '—'
 }
 
-// ── KPI Card ───────────────────────────────────────────────────────────────
-
-function KpiCard({ title, value, sub, icon }: {
-  title: string; value: string; sub: string; icon: React.ReactNode
-}) {
+function KpiCard({ title, value, sub, icon }: { title: string; value: string; sub: string; icon: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-5 flex items-start justify-between">
+    <div className="rounded-2xl border border-zinc-200 bg-white p-5 flex items-start justify-between">
       <div>
         <p className="text-sm text-zinc-500 mb-2">{title}</p>
         <p className="text-2xl font-bold text-zinc-900">{value}</p>
@@ -100,127 +88,153 @@ function KpiCard({ title, value, sub, icon }: {
   )
 }
 
-// ── Page ───────────────────────────────────────────────────────────────────
+const LIMIT = 20
 
-export default async function OrdersPage({ searchParams }: Props) {
-  const params            = await searchParams
-  const search            = params.search            ?? ''
-  const page              = Number(params.page       ?? 1)
-  const paymentStatus     = params.paymentStatus     ?? ''
-  const fulfillmentStatus = params.fulfillmentStatus ?? ''
-  const limit             = 20
+export default function OrdersPage() {
+  const searchParams    = useSearchParams()
+  const router          = useRouter()
+  const pathname        = usePathname()
 
-  // Auth token for API calls
-  const supabase = await createClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  const headers = { Authorization: `Bearer ${session?.access_token ?? ''}` }
+  const search            = searchParams.get('search')            ?? ''
+  const page              = Number(searchParams.get('page')        ?? 1)
+  const paymentStatus     = searchParams.get('paymentStatus')     ?? ''
+  const fulfillmentStatus = searchParams.get('fulfillmentStatus') ?? ''
 
-  const qs = new URLSearchParams()
-  if (search)            qs.set('search', search)
-  if (paymentStatus)     qs.set('paymentStatus', paymentStatus)
-  if (fulfillmentStatus) qs.set('fulfillmentStatus', fulfillmentStatus)
-  qs.set('page', String(page))
+  const [orders, setOrders]   = useState<OrderListItem[]>([])
+  const [total, setTotal]     = useState(0)
+  const [stats, setStats]     = useState({ totalOrders: 0, totalRevenue: 0, avgOrderSize: 0, pendingPayment: 0 })
+  const [loading, setLoading] = useState(true)
+  const [error, setError]     = useState<string | null>(null)
 
-  let orders: OrderListItem[] = []
-  let total = 0
-  let stats = { totalOrders: 0, totalRevenue: 0, avgOrderSize: 0, pendingPayment: 0 }
+  useEffect(() => { document.title = 'Orders | Tyre Vault' }, [])
 
-  try {
-    const [listRes, statsRes] = await Promise.all([
-      fetch(`${API}/api/admin/orders?${qs}`,       { headers, cache: 'no-store' }),
-      fetch(`${API}/api/admin/orders/stats`,        { headers, cache: 'no-store' }),
-    ])
-    if (listRes.ok)  { const j = await listRes.json();  orders = j.data ?? []; total = j.total ?? 0 }
-    if (statsRes.ok) { stats = await statsRes.json() }
-  } catch { /* backend may not be running in dev */ }
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const { data: { session } } = await createClient().auth.getSession()
+      const token = session?.access_token ?? ''
+      const headers = { Authorization: `Bearer ${token}` }
 
-  const totalPages = Math.ceil(total / limit)
+      const qs = new URLSearchParams()
+      if (search)            qs.set('search', search)
+      if (paymentStatus)     qs.set('paymentStatus', paymentStatus)
+      if (fulfillmentStatus) qs.set('fulfillmentStatus', fulfillmentStatus)
+      qs.set('page', String(page))
+
+      const [listRes, statsRes] = await Promise.all([
+        fetch(`${API}/api/admin/orders?${qs}`, { headers }),
+        fetch(`${API}/api/admin/orders/stats`,  { headers }),
+      ])
+
+      if (!listRes.ok)  throw new Error(`Orders API ${listRes.status}: ${await listRes.text()}`)
+      if (!statsRes.ok) throw new Error(`Stats API ${statsRes.status}: ${await statsRes.text()}`)
+
+      const listJson  = await listRes.json()
+      const statsJson = await statsRes.json()
+
+      setOrders(listJson.data ?? [])
+      setTotal(listJson.total ?? 0)
+      setStats(statsJson)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load orders')
+    } finally {
+      setLoading(false)
+    }
+  }, [search, page, paymentStatus, fulfillmentStatus])
+
+  useEffect(() => { load() }, [load])
+
+  const totalPages = Math.ceil(total / LIMIT)
 
   function buildHref(overrides: Record<string, string>) {
     const p = new URLSearchParams()
     const merged = { search, paymentStatus, fulfillmentStatus, page: String(page), ...overrides }
     Object.entries(merged).forEach(([k, v]) => { if (v) p.set(k, v) })
-    return `/admin/orders?${p}`
+    return `${pathname}?${p}`
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-1.5 text-sm text-zinc-500">
-        <Link href="/admin" className="hover:text-zinc-900">Home</Link>
-        <span>›</span>
-        <span className="text-zinc-900 font-medium">Orders</span>
-      </div>
+    <div className="p-4 sm:p-6 space-y-5 sm:space-y-6">
+      <AdminBreadcrumb crumbs={[{ label: 'Orders' }]} />
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-4 gap-4">
-        <KpiCard
-          title="Total Orders"
-          value={stats.totalOrders.toLocaleString()}
-          sub="All time"
-          icon={
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
-            </svg>
-          }
-        />
-        <KpiCard
-          title="Total Revenue"
-          value={fmtMoney(stats.totalRevenue)}
-          sub="Paid orders"
-          icon={
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 11.25v8.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 109.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1114.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
-            </svg>
-          }
-        />
-        <KpiCard
-          title="Average Order size"
-          value={fmtMoney(stats.avgOrderSize)}
-          sub="Per Order"
-          icon={
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
-            </svg>
-          }
-        />
-        <KpiCard
-          title="Pending Payment"
-          value={stats.pendingPayment.toLocaleString()}
-          sub="Orders awaiting payment"
-          icon={
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
-            </svg>
-          }
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {loading ? (
+          <>
+            {[1,2,3,4].map(i => (
+              <div key={i} className="rounded-2xl border border-zinc-200 bg-white p-5">
+                <div className="h-4 w-28 bg-zinc-100 rounded animate-pulse mb-3" />
+                <div className="h-7 w-24 bg-zinc-100 rounded animate-pulse mb-2" />
+                <div className="h-3 w-20 bg-zinc-100 rounded animate-pulse" />
+              </div>
+            ))}
+          </>
+        ) : (
+          <>
+            <KpiCard
+              title="Total Orders"
+              value={stats.totalOrders.toLocaleString()}
+              sub="All time"
+              icon={
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+                </svg>
+              }
+            />
+            <KpiCard
+              title="Total Revenue"
+              value={fmtMoney(stats.totalRevenue)}
+              sub="Paid orders"
+              icon={
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 11.25v8.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 109.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1114.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+                </svg>
+              }
+            />
+            <KpiCard
+              title="Average Order Size"
+              value={fmtMoney(stats.avgOrderSize)}
+              sub="Per order"
+              icon={
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
+                </svg>
+              }
+            />
+            <KpiCard
+              title="Pending Payment"
+              value={stats.pendingPayment.toLocaleString()}
+              sub="Orders awaiting payment"
+              icon={
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
+                </svg>
+              }
+            />
+          </>
+        )}
       </div>
 
       {/* Orders table */}
-      <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
+      <div className="rounded-2xl border border-zinc-200 bg-white overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200">
           <h2 className="text-sm font-semibold text-zinc-900">Orders</h2>
           <div className="flex items-center gap-2">
-            {/* Filter chips */}
-            <Link
-              href={paymentStatus ? buildHref({ paymentStatus: '' }) : '#'}
-              className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs transition-colors ${
-                paymentStatus ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-300 text-zinc-600 hover:border-zinc-500'
-              }`}
-            >
-              {!paymentStatus && <span>+</span>} Payment {paymentStatus && `· ${paymentStatus}`}
-            </Link>
-            <Link
-              href={fulfillmentStatus ? buildHref({ fulfillmentStatus: '' }) : '#'}
-              className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs transition-colors ${
-                fulfillmentStatus ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-300 text-zinc-600 hover:border-zinc-500'
-              }`}
-            >
-              {!fulfillmentStatus && <span>+</span>} Fulfilment {fulfillmentStatus && `· ${fulfillmentStatus}`}
-            </Link>
-
-            {/* Search */}
-            <form className="flex items-center gap-2 ml-2">
+            <OrderFiltersBar
+              search={search}
+              paymentStatus={paymentStatus}
+              fulfillmentStatus={fulfillmentStatus}
+            />
+            <form className="flex items-center gap-2 ml-2" onSubmit={e => {
+              e.preventDefault()
+              const fd = new FormData(e.currentTarget)
+              const p  = new URLSearchParams(searchParams.toString())
+              const s  = fd.get('search') as string
+              if (s) p.set('search', s); else p.delete('search')
+              p.set('page', '1')
+              router.push(`${pathname}?${p}`)
+            }}>
               {paymentStatus     && <input type="hidden" name="paymentStatus"     value={paymentStatus} />}
               {fulfillmentStatus && <input type="hidden" name="fulfillmentStatus" value={fulfillmentStatus} />}
               <div className="relative">
@@ -231,10 +245,10 @@ export default async function OrdersPage({ searchParams }: Props) {
                   name="search"
                   defaultValue={search}
                   placeholder="Search"
-                  className="pl-8 pr-3 py-1.5 text-xs border border-zinc-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-400 w-36"
+                  className="pl-8 pr-3 py-1.5 text-xs border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 w-36"
                 />
               </div>
-              <button type="submit" className="p-1.5 rounded border border-zinc-200 text-zinc-400 hover:bg-zinc-50">
+              <button type="submit" aria-label="Apply filters" className="p-1.5 rounded border border-zinc-200 text-zinc-400 hover:bg-zinc-50">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
                 </svg>
@@ -242,6 +256,10 @@ export default async function OrdersPage({ searchParams }: Props) {
             </form>
           </div>
         </div>
+
+        {error && (
+          <div className="px-5 py-3 bg-red-50 border-b border-red-100 text-sm text-red-600">{error}</div>
+        )}
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -253,66 +271,79 @@ export default async function OrdersPage({ searchParams }: Props) {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
-              {orders.length === 0 ? (
+              {loading ? (
+                <>
+                  {[1,2,3,4,5,6,7,8].map(i => (
+                    <tr key={i}>
+                      <td className="px-4 py-3.5"><div className="h-4 w-20 bg-zinc-100 rounded animate-pulse" /></td>
+                      <td className="px-4 py-3.5"><div className="h-4 w-28 bg-zinc-100 rounded animate-pulse" /></td>
+                      <td className="px-4 py-3.5"><div className="h-4 w-32 bg-zinc-100 rounded animate-pulse" /></td>
+                      <td className="px-4 py-3.5"><div className="h-4 w-40 bg-zinc-100 rounded animate-pulse" /></td>
+                      <td className="px-4 py-3.5"><div className="h-4 w-24 bg-zinc-100 rounded animate-pulse" /></td>
+                      <td className="px-4 py-3.5"><div className="h-5 w-16 bg-zinc-100 rounded-full animate-pulse" /></td>
+                      <td className="px-4 py-3.5"><div className="h-5 w-20 bg-zinc-100 rounded-full animate-pulse" /></td>
+                      <td className="px-4 py-3.5"><div className="h-4 w-8 bg-zinc-100 rounded animate-pulse" /></td>
+                      <td className="px-4 py-3.5"><div className="h-4 w-16 bg-zinc-100 rounded animate-pulse" /></td>
+                    </tr>
+                  ))}
+                </>
+              ) : orders.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-4 py-12 text-center text-sm text-zinc-400">
                     {search ? `No orders matching "${search}"` : 'No orders yet.'}
                   </td>
                 </tr>
-              ) : (
-                orders.map(o => {
-                  const customerName = o.customers
-                    ? [o.customers.first_name, o.customers.last_name].filter(Boolean).join(' ') || o.customers.email
-                    : '—'
-                  return (
-                    <tr key={o.order_id} className="hover:bg-zinc-50">
-                      <td className="px-4 py-3">
-                        <Link href={`/admin/orders/${o.order_id}`} className="font-medium text-blue-600 hover:underline">
-                          {o.order_number}
+              ) : orders.map(o => {
+                const customerName = o.customers
+                  ? [o.customers.first_name, o.customers.last_name].filter(Boolean).join(' ') || o.customers.email
+                  : '—'
+                return (
+                  <tr key={o.order_id} className="hover:bg-zinc-50">
+                    <td className="px-4 py-3">
+                      <Link href={`/admin/orders/${o.order_id}`} className="font-medium text-primary hover:underline">
+                        {o.order_number}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-zinc-500 whitespace-nowrap">
+                      {fmtDateTime(o.created_at)}
+                    </td>
+                    <td className="px-4 py-3">
+                      {o.customers ? (
+                        <Link href={`/admin/customers/${o.customers.customer_id}`} className="text-primary hover:underline text-xs">
+                          {customerName}
                         </Link>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-zinc-500 whitespace-nowrap">
-                        {fmtDateTime(o.created_at)}
-                      </td>
-                      <td className="px-4 py-3">
-                        {o.customers ? (
-                          <Link href={`/admin/customers/${o.customers.customer_id}`} className="text-blue-600 hover:underline text-xs">
-                            {customerName}
-                          </Link>
-                        ) : <span className="text-zinc-400 text-xs">—</span>}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-zinc-600 max-w-[160px] truncate">
-                        {addressSnippet(o.shipping_address_snapshot)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <DeliveryTypeCell
-                          orderType={o.order_type}
-                          fitmentId={o.fitment_id}
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <PaymentDot status={o.payment_status} />
-                      </td>
-                      <td className="px-4 py-3">
-                        <OrderStatusBadge status={o.order_status} />
-                      </td>
-                      <td className="px-4 py-3 text-zinc-600 text-center">
-                        {o.order_items?.length ?? 0}
-                      </td>
-                      <td className="px-4 py-3 font-medium text-zinc-900 whitespace-nowrap">
-                        {fmtMoney(Number(o.total_amount))}
-                      </td>
-                    </tr>
-                  )
-                })
-              )}
+                      ) : <span className="text-zinc-400 text-xs">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-zinc-600 max-w-[160px] truncate">
+                      {addressSnippet(o.shipping_address_snapshot)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <DeliveryTypeCell orderType={o.order_type} fitmentId={o.fitment_id} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <PaymentDot status={o.payment_status} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <OrderStatusBadge status={o.order_status} />
+                    </td>
+                    <td className="px-4 py-3 text-zinc-600 text-center">
+                      {o.order_items?.length ?? 0}
+                    </td>
+                    <td className="px-4 py-3 font-medium text-zinc-900 whitespace-nowrap">
+                      {fmtMoney(Number(o.total_amount))}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
 
         {/* Pagination */}
         <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-100 bg-zinc-50 text-xs text-zinc-500">
-          <span>{Math.min((page - 1) * limit + 1, total)} — {Math.min(page * limit, total)} of {total} results</span>
+          <span>
+            {total === 0 ? '0 results' : `${Math.min((page - 1) * LIMIT + 1, total)} — ${Math.min(page * LIMIT, total)} of ${total} results`}
+          </span>
           <div className="flex items-center gap-3">
             <span>{page} of {totalPages || 1} pages</span>
             <div className="flex gap-1">

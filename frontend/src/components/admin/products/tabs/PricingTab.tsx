@@ -13,7 +13,7 @@ function calcMargin(price: number, cost: number): string {
 }
 
 export default function PricingTab({ warehouses }: Props) {
-  const { register, control, formState: { errors } } = useFormContext<CreateProductFormValues>()
+  const { register, control, setValue } = useFormContext<CreateProductFormValues>()
 
   const variants = useWatch({ control, name: 'variants' }) ?? []
   const pricing  = useWatch({ control, name: 'pricing'  }) ?? []
@@ -37,19 +37,6 @@ export default function PricingTab({ warehouses }: Props) {
           <p className="text-sm text-zinc-500 mt-0.5">
             Set prices and stock levels for each variant
           </p>
-        </div>
-        <div className="flex gap-2">
-          <button type="button"
-            className="flex items-center gap-1.5 rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-50">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6z" />
-            </svg>
-            View
-          </button>
-          <button type="button"
-            className="text-sm text-zinc-500 hover:text-zinc-900 px-3 py-2 transition-colors">
-            Reset to default
-          </button>
         </div>
       </div>
 
@@ -92,7 +79,7 @@ export default function PricingTab({ warehouses }: Props) {
                         step="0.01"
                         min="0"
                         {...register(`pricing.${index}.priceIncGst`, { valueAsNumber: true })}
-                        className="w-24 rounded border border-zinc-200 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                        className="w-24 rounded border border-zinc-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                         placeholder="0.00"
                       />
                     </div>
@@ -107,7 +94,7 @@ export default function PricingTab({ warehouses }: Props) {
                         step="0.01"
                         min="0"
                         {...register(`pricing.${index}.compareAtPrice`, { valueAsNumber: true })}
-                        className="w-24 rounded border border-zinc-200 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                        className="w-24 rounded border border-zinc-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                         placeholder="0.00"
                       />
                     </div>
@@ -122,7 +109,7 @@ export default function PricingTab({ warehouses }: Props) {
                         step="0.01"
                         min="0"
                         {...register(`pricing.${index}.costPrice`, { valueAsNumber: true })}
-                        className="w-24 rounded border border-zinc-200 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                        className="w-24 rounded border border-zinc-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                         placeholder="0.00"
                       />
                     </div>
@@ -141,7 +128,7 @@ export default function PricingTab({ warehouses }: Props) {
                       type="number"
                       min="0"
                       {...register(`pricing.${index}.inventory`, { valueAsNumber: true })}
-                      className="w-20 rounded border border-zinc-200 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                      className="w-20 rounded border border-zinc-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                       placeholder="0"
                     />
                   </td>
@@ -152,7 +139,7 @@ export default function PricingTab({ warehouses }: Props) {
                       type="number"
                       min="0"
                       {...register(`pricing.${index}.lowStockAlert`, { valueAsNumber: true })}
-                      className="w-16 rounded border border-zinc-200 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                      className="w-16 rounded border border-zinc-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                       placeholder="10"
                     />
                   </td>
@@ -170,22 +157,16 @@ export default function PricingTab({ warehouses }: Props) {
           <select
             onChange={(e) => {
               variants.forEach((_, i) => {
-                // @ts-ignore — dynamic form path
-                const field = document.querySelector(`[name="pricing.${i}.warehouseId"]`) as HTMLInputElement
-                if (field) field.value = e.target.value
+                setValue(`pricing.${i}.warehouseId`, e.target.value, { shouldDirty: true })
               })
             }}
-            className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-zinc-500/20"
+            className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
           >
             <option value="">Select warehouse</option>
             {warehouses.map(w => (
               <option key={w.warehouse_id} value={w.warehouse_id}>{w.warehouse_name}</option>
             ))}
           </select>
-          {/* Hidden inputs per row */}
-          {variants.map((_, i) => (
-            <input key={i} type="hidden" {...register(`pricing.${i}.warehouseId`)} />
-          ))}
         </div>
       )}
     </div>

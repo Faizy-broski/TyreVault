@@ -100,7 +100,7 @@ export default function VariantsTab() {
           <button
             type="button"
             onClick={() => append(EMPTY_VARIANT)}
-            className="flex items-center gap-1.5 rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-700 transition-colors"
+            className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-primary/90 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -143,7 +143,7 @@ export default function VariantsTab() {
                       {...register(`variants.${index}.tyreSizeDisplay`)}
                       onBlur={e => handleSizeBlur(index, e.target.value)}
                       placeholder="225/45R17"
-                      className="w-28 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                      className="w-28 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
                     />
                   </td>
                   {/* SKU */}
@@ -151,7 +151,7 @@ export default function VariantsTab() {
                     <input
                       {...register(`variants.${index}.sku`)}
                       placeholder="MB-501"
-                      className="w-24 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                      className="w-24 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
                     />
                   </td>
                   {/* Width */}
@@ -159,7 +159,7 @@ export default function VariantsTab() {
                     <input
                       type="number"
                       {...register(`variants.${index}.width`, { valueAsNumber: true })}
-                      className="w-16 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                      className="w-16 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
                     />
                   </td>
                   {/* Aspect Ratio / Profile */}
@@ -167,7 +167,7 @@ export default function VariantsTab() {
                     <input
                       type="number"
                       {...register(`variants.${index}.profile`, { valueAsNumber: true })}
-                      className="w-16 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                      className="w-16 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
                     />
                   </td>
                   {/* Rim Size */}
@@ -175,7 +175,7 @@ export default function VariantsTab() {
                     <input
                       type="number"
                       {...register(`variants.${index}.rimSize`, { valueAsNumber: true })}
-                      className="w-16 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                      className="w-16 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
                     />
                   </td>
                   {/* Speed Rating */}
@@ -183,7 +183,7 @@ export default function VariantsTab() {
                     <input
                       {...register(`variants.${index}.speedRating`)}
                       placeholder="W"
-                      className="w-14 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                      className="w-14 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
                     />
                   </td>
                   {/* Load Index */}
@@ -191,7 +191,7 @@ export default function VariantsTab() {
                     <input
                       {...register(`variants.${index}.loadIndex`)}
                       placeholder="92"
-                      className="w-14 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                      className="w-14 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
                     />
                   </td>
                   {/* Fuel Rating */}
@@ -199,7 +199,7 @@ export default function VariantsTab() {
                     <input
                       {...register(`variants.${index}.fuelRating`)}
                       placeholder="D"
-                      className="w-12 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                      className="w-12 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
                     />
                   </td>
                   {/* Wet Grip */}
@@ -207,7 +207,7 @@ export default function VariantsTab() {
                     <input
                       {...register(`variants.${index}.wetGrip`)}
                       placeholder="B"
-                      className="w-12 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                      className="w-12 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
                     />
                   </td>
                   {/* Noise dB */}
@@ -215,7 +215,7 @@ export default function VariantsTab() {
                     <input
                       {...register(`variants.${index}.noiseDb`)}
                       placeholder="72dB"
-                      className="w-16 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                      className="w-16 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
                     />
                   </td>
                   {/* Runflat checkbox */}

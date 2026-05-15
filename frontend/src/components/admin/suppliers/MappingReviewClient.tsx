@@ -39,11 +39,12 @@ export default function MappingReviewClient({
   initialTotal,
   accessToken,
 }: Props) {
-  const [mappings, setMappings] = useState<SupplierMapping[]>(initialMappings)
-  const [total, setTotal]       = useState(initialTotal)
-  const [page, setPage]         = useState(1)
-  const [loading, setLoading]   = useState(false)
-  const [manualId, setManualId] = useState<string | null>(null)
+  const [mappings, setMappings]   = useState<SupplierMapping[]>(initialMappings)
+  const [total, setTotal]         = useState(initialTotal)
+  const [page, setPage]           = useState(1)
+  const [loading, setLoading]     = useState(false)
+  const [manualId, setManualId]   = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const headers = { Authorization: `Bearer ${accessToken}` }
 
@@ -64,19 +65,37 @@ export default function MappingReviewClient({
   }, [supplierId])
 
   async function approve(mapId: string) {
-    const res = await fetch(`${API}/api/admin/suppliers/mappings/${mapId}/approve`, {
-      method: 'PATCH',
-      headers,
-    })
-    if (res.ok) removeRow(mapId)
+    setActionError(null)
+    try {
+      const res = await fetch(`${API}/api/admin/suppliers/mappings/${mapId}/approve`, {
+        method: 'PATCH',
+        headers,
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? `Approve failed (${res.status})`)
+      }
+      removeRow(mapId)
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : 'Unknown error')
+    }
   }
 
   async function reject(mapId: string) {
-    const res = await fetch(`${API}/api/admin/suppliers/mappings/${mapId}`, {
-      method: 'DELETE',
-      headers,
-    })
-    if (res.ok) removeRow(mapId)
+    setActionError(null)
+    try {
+      const res = await fetch(`${API}/api/admin/suppliers/mappings/${mapId}`, {
+        method: 'DELETE',
+        headers,
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? `Reject failed (${res.status})`)
+      }
+      removeRow(mapId)
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : 'Unknown error')
+    }
   }
 
   function removeRow(mapId: string) {
@@ -101,6 +120,12 @@ export default function MappingReviewClient({
           <p className="text-sm text-zinc-500 mt-0.5">{total} rows awaiting review</p>
         </div>
       </div>
+
+      {actionError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {actionError}
+        </div>
+      )}
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-zinc-200 overflow-x-auto">

@@ -17,6 +17,8 @@ import FitmentOrdersTab    from './tabs/FitmentOrdersTab'
 import PricingOverrideTab  from './tabs/PricingOverrideTab'
 import PaymentSettlementTab from './tabs/PaymentSettlementTab'
 import ComplianceDocTab    from './tabs/ComplianceDocTab'
+import { Button } from '@/components/ui/button'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -111,32 +113,25 @@ export default function FitmentCentreDetailClient({
   ]
 
   return (
-    <div className="p-6 space-y-5">
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-xs text-zinc-400">
-        <span>Fitment Center</span>
-        <span>/</span>
-        <span className="text-zinc-700 font-medium">{centre.business_name}</span>
-      </nav>
-
+    <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-zinc-900">{centre.business_name}</h1>
         <div className="flex items-center gap-2">
-          <button
+          <Button
             onClick={toggleStatus}
             disabled={togglingStatus}
-            className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-60 ${
+            className={`px-4 py-1.5 rounded-lg text-sm font-semibold h-auto transition-colors disabled:opacity-60 ${
               isActive
                 ? 'bg-amber-400 text-zinc-900 hover:bg-amber-500'
                 : 'bg-green-500 text-white hover:bg-green-600'
             }`}
           >
             {togglingStatus ? '...' : isActive ? 'Hold' : 'Activate'}
-          </button>
-          <button className="px-4 py-1.5 rounded-lg text-sm font-semibold border border-zinc-300 text-zinc-700 hover:bg-zinc-50 transition-colors">
+          </Button>
+          <Button variant="outline" className="px-4 py-1.5 rounded-lg text-sm font-semibold h-auto border-zinc-300 text-zinc-700 hover:bg-zinc-50">
             Edit Profile
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -239,7 +234,7 @@ export default function FitmentCentreDetailClient({
         </div>
 
         {/* Right — Customer Critical Info */}
-        <div className="bg-yellow-400 rounded-xl p-4 space-y-3">
+        <div className="bg-primary rounded-xl p-4 space-y-3">
           <p className="text-xs font-bold text-zinc-900 uppercase tracking-wide">Customer critical Information</p>
 
           <div className="bg-white/60 rounded-lg p-3 space-y-0.5">
@@ -265,7 +260,7 @@ export default function FitmentCentreDetailClient({
               <span className="text-xs text-zinc-700">Area</span>
               <span className="text-xs font-semibold text-zinc-900">—</span>
             </div>
-            <div className="pt-2 border-t border-yellow-300">
+            <div className="pt-2 border-t border-white/50">
               <p className="text-xs text-zinc-700">Outstanding Amount</p>
               <p className="text-base font-bold text-zinc-900">{fmtAUD(0)}</p>
             </div>
@@ -321,30 +316,26 @@ export default function FitmentCentreDetailClient({
           </div>
           <p className="text-sm font-bold text-green-600 mt-2">Low Risk</p>
           <p className="text-xs text-zinc-400">— CRS</p>
-          <button className="text-xs text-blue-600 hover:underline mt-1">Edit</button>
+          <Button variant="link" className="text-xs text-primary h-auto p-0 mt-1">Edit</Button>
         </div>
       </div>
 
       {/* Tabs */}
       <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
-        <div className="flex border-b border-zinc-100">
-          {tabs.map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`px-5 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
-                activeTab === tab.key
-                  ? 'text-zinc-900 border-zinc-900'
-                  : 'text-zinc-500 border-transparent hover:text-zinc-700'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        <Tabs value={activeTab} onValueChange={v => setActiveTab(v as Tab)}>
+          <TabsList className="w-full justify-start rounded-none border-b border-zinc-100 bg-transparent px-0 h-auto">
+            {tabs.map(tab => (
+              <TabsTrigger
+                key={tab.key}
+                value={tab.key}
+                className="px-5 py-3 text-sm font-medium rounded-none data-[state=active]:text-zinc-900 data-[state=active]:border-b-3 data-[state=active]:border-b-primary  text-zinc-500 hover:text-zinc-700"
+              >
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
-        <div>
-          {activeTab === 'orders' && (
+          <TabsContent value="orders" className="mt-0">
             <FitmentOrdersTab
               centreId={centre.fitment_id}
               kpis={kpis}
@@ -353,15 +344,15 @@ export default function FitmentCentreDetailClient({
               stats={stats}
               accessToken={accessToken}
             />
-          )}
-          {activeTab === 'pricing' && (
+          </TabsContent>
+          <TabsContent value="pricing" className="mt-0">
             <PricingOverrideTab
               centreId={centre.fitment_id}
               initialRows={initialPricing}
               accessToken={accessToken}
             />
-          )}
-          {activeTab === 'payment' && (
+          </TabsContent>
+          <TabsContent value="payment" className="mt-0">
             <PaymentSettlementTab
               centreId={centre.fitment_id}
               initialSummary={paymentSummary}
@@ -370,15 +361,15 @@ export default function FitmentCentreDetailClient({
               initialBank={bankDetails}
               accessToken={accessToken}
             />
-          )}
-          {activeTab === 'compliance' && (
+          </TabsContent>
+          <TabsContent value="compliance" className="mt-0">
             <ComplianceDocTab
               centreId={centre.fitment_id}
               initialDocs={complianceDocs}
               accessToken={accessToken}
             />
-          )}
-        </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   )
