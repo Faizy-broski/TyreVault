@@ -1,12 +1,12 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import PricingClient from '@/components/fitter/PricingClient'
+import JobsClient from '@/components/fitter/JobsClient'
 
-export const metadata = { title: 'Pricing — Fitment Portal' }
+export const metadata = { title: 'Jobs — Fitment Portal' }
 
-export default async function FitterPricingPage() {
+export default async function FitterJobsPage() {
   const supabase = await createClient()
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) redirect('/login')
-  return <PricingClient accessToken={session.access_token} />
+  return <JobsClient accessToken={session.access_token} />
 }

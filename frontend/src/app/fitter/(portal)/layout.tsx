@@ -39,7 +39,7 @@ export default async function FitterLayout({ children }: { children: React.React
 
   // Fallback centre for dev/preview
   const fallbackCentre: FitmentCentre = {
-    fitment_id:    'dev',
+    fitment_centre_id: 'dev',
     business_name: 'QuickFit Tyres Melbourne',
     partner_id:        'PRT-2024-001',
     contact_phone:     null,
@@ -49,15 +49,18 @@ export default async function FitterLayout({ children }: { children: React.React
   }
 
   return (
-    <div className="flex h-screen bg-zinc-100 overflow-hidden">
+    <div className="flex h-svh bg-zinc-100 overflow-hidden">
+      {/* Desktop sidebar — hidden on mobile, shown lg+ */}
       <FitterSidebar />
-      <div className="flex flex-col flex-1 overflow-hidden">
+
+      {/* Main column */}
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <FitterHeader
           centre={centre ?? fallbackCentre}
           userEmail={user.email ?? ''}
           notificationCount={3}
         />
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden">
           {children}
         </main>
       </div>
