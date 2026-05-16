@@ -136,6 +136,7 @@ export async function postBrand(req: Request, res: Response, next: NextFunction)
   try { res.status(201).json(await ProductsService.createBrand(req.body)) } catch (err) { next(err) }
 }
 
+
 // ── Collections ──────────────────────────────────────────────────────────────
 
 export async function getCollections(req: Request, res: Response, next: NextFunction) {
