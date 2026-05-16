@@ -78,14 +78,19 @@ export default function CustomerDetailPage() {
         const detail: CustomerDetail = json.customer
 
         const customer: CustomerListItem = {
-          customer_id: detail.customer_id,
-          email: detail.email,
-          first_name: detail.first_name,
-          last_name: detail.last_name,
-          business_name: detail.business_name,
-          phone: detail.phone,
-          created_at: detail.created_at,
-          profile_id: detail.profile_id,
+          customer_id:       detail.customer_id,
+          email:             detail.email,
+          first_name:        detail.first_name,
+          last_name:         detail.last_name,
+          business_name:     detail.business_name,
+          phone:             detail.phone,
+          created_at:        detail.created_at,
+          profile_id:        detail.profile_id,
+          customer_type:     detail.customer_type    ?? null,
+          account_status:    detail.account_status   ?? null,
+          credit_limit:      detail.credit_limit     ?? null,
+          payment_terms:     detail.payment_terms    ?? null,
+          billing_address_id: detail.billing_address_id ?? null,
         }
 
         const orders: CustomerOrder[] = detail.orders.map(order => ({

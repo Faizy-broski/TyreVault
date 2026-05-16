@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { BACKEND_API_URL, createBackendHeaders, readBackendError } from '@/lib/backend-api'
+import type { CustomerType } from '@/types/admin.types'
 
 interface Props {
   accessToken: string
@@ -39,11 +40,12 @@ export default function CreateCustomerModal({ accessToken, onClose }: Props) {
           'Content-Type': 'application/json',
         }),
         body: JSON.stringify({
-          email:     fd.get('email'),
-          firstName: fd.get('firstName'),
-          lastName:  fd.get('lastName'),
-          company:   fd.get('company') || undefined,
-          phone:     fd.get('phone')   || undefined,
+          email:        fd.get('email'),
+          firstName:    fd.get('firstName'),
+          lastName:     fd.get('lastName'),
+          company:      fd.get('company')      || undefined,
+          phone:        fd.get('phone')        || undefined,
+          customerType: fd.get('customerType') || undefined,
         }),
       })
       if (!res.ok) {
@@ -90,6 +92,20 @@ export default function CreateCustomerModal({ accessToken, onClose }: Props) {
                 />
               </div>
             ))}
+
+            <div>
+              <Label htmlFor="customerType" className="block text-sm font-medium text-zinc-700 mb-1">Customer Type</Label>
+              <select
+                id="customerType"
+                name="customerType"
+                defaultValue="retail"
+                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+              >
+                {(['retail', 'wholesale', 'fleet', 'trade'] as CustomerType[]).map(t => (
+                  <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-zinc-100">

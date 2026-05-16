@@ -80,7 +80,7 @@ function BankDetailsSection({
   const [editing, setEditing]     = useState(false)
   const [saving, setSaving]       = useState(false)
   const [form, setForm]           = useState<BankDetails>(
-    initial ?? { id: null, fitment_id: centreId, account_holder: '', bank_name: '', bsb: '', account_number: '' }
+    initial ?? { id: null, fitment_centre_id: centreId, account_holder: '', bank_name: '', bsb: '', account_number: '' }
   )
 
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }

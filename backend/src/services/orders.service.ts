@@ -33,11 +33,10 @@ export async function listOrders(opts: {
 
   let query = db
     .from('orders')
-    // fitment_id,
     .select(`
       order_id, order_number, created_at, currency,
       payment_status, order_status, total_amount,
-      order_type, 
+      order_type, fitment_centre_id,
       shipping_address_snapshot,
       customers ( customer_id, first_name, last_name, email ),
       order_items ( order_item_id )
@@ -53,7 +52,9 @@ export async function listOrders(opts: {
   }
 
   const { data, error, count } = await query
-  return { data, error, count }
+  // Map fitment_centre_id → fitment_id to match frontend types
+  const mapped = (data ?? []).map((o: any) => ({ ...o, fitment_id: o.fitment_centre_id ?? null }))
+  return { data: mapped, error, count }
 }
 
 // ── Get single order ────────────────────────────────────────────────────────
@@ -61,13 +62,12 @@ export async function listOrders(opts: {
 export async function getOrder(orderId: string) {
   const { data, error } = await db
     .from('orders')
-    // fitment_id,
     .select(`
       order_id, order_number, created_at, currency, notes,
       shipping_cost, gst_amount, discount_amount,
       total_amount,
       payment_status, order_status,
-      order_type, 
+      order_type, fitment_centre_id,
       shipping_address_snapshot, billing_address_snapshot,
       customers (
         customer_id, email, first_name, last_name, phone, created_at, profile_id
@@ -99,9 +99,12 @@ export async function getOrder(orderId: string) {
 
   if (error || !data) return { data, error }
 
+  // Map fitment_centre_id → fitment_id to match frontend types
+  const fitmentCentreId = (data as any).fitment_centre_id ?? null
+
   // Attach fitment job if this is a fitment-centre delivery
   let fitmentJob: any = null
-  if ((data as any).fitment_id) {
+  if (fitmentCentreId) {
     const { data: job } = await db
       .from('fitment_jobs')
       .select(`
@@ -113,7 +116,7 @@ export async function getOrder(orderId: string) {
     fitmentJob = job ?? null
   }
 
-  return { data: { ...data, fitment_job: fitmentJob }, error: null }
+  return { data: { ...data, fitment_id: fitmentCentreId, fitment_job: fitmentJob }, error: null }
 }
 
 // ── Update order status ─────────────────────────────────────────────────────
@@ -121,10 +124,14 @@ export async function getOrder(orderId: string) {
 export async function updateOrderStatus(orderId: string, patch: {
   paymentStatus?:     string
   fulfillmentStatus?: string
+  notes?:             string | null
 }) {
-  const update: Record<string, string> = {}
-  if (patch.paymentStatus)     update.payment_status = patch.paymentStatus
-  if (patch.fulfillmentStatus) update.order_status   = patch.fulfillmentStatus
+  const update: Record<string, any> = {}
+  if (patch.paymentStatus)        update.payment_status = patch.paymentStatus
+  if (patch.fulfillmentStatus)    update.order_status   = patch.fulfillmentStatus
+  if (patch.notes !== undefined)  update.notes          = patch.notes
+
+  if (Object.keys(update).length === 0) return { error: null }
 
   const { error } = await db.from('orders').update(update).eq('order_id', orderId)
   return { error }
@@ -280,6 +287,6 @@ export async function listWarehouses() {
 }
 
 export async function listShippingMethods() {
-  const { data, error } = await db.from('shipping_methods').select('shipping_method_id, method_name').limit(20)
+  const { data, error } = await db.from('shipping_methods').select('shipping_method_id, method_name').eq('is_active', true).limit(20)
   return { data, error }
 }

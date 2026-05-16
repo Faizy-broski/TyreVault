@@ -22,21 +22,24 @@ interface Warehouse      { warehouse_id: string; warehouse_name: string }
 interface ShippingMethod { shipping_method_id: string; method_name: string }
 
 interface Props {
-  orderId:    string
-  items:      OrderItem[]
-  token:      string
-  onClose:    () => void
-  onSuccess:  (shipment: OrderShipment) => void
+  orderId:         string
+  items:           OrderItem[]
+  unfulfilledQty:  Record<string, number>
+  token:           string
+  onClose:         () => void
+  onSuccess:       (shipment: OrderShipment) => void
 }
 
-export default function FulfillmentModal({ orderId, items, token, onClose, onSuccess }: Props) {
+export default function FulfillmentModal({ orderId, items, unfulfilledQty, token, onClose, onSuccess }: Props) {
+  const fulfillableItems = items.filter(i => (unfulfilledQty[i.order_item_id] ?? 0) > 0)
+
   const [warehouses,      setWarehouses]      = useState<Warehouse[]>([])
   const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([])
   const [warehouseId,     setWarehouseId]     = useState('')
   const [shippingMethod,  setShippingMethod]  = useState('')
   const [sendNotification, setSendNotification] = useState(true)
   const [quantities, setQuantities]           = useState<Record<string, number>>(
-    Object.fromEntries(items.map(i => [i.order_item_id, i.quantity]))
+    Object.fromEntries(fulfillableItems.map(i => [i.order_item_id, unfulfilledQty[i.order_item_id] ?? 0]))
   )
   const [submitting, setSubmitting] = useState(false)
   const [error, setError]           = useState('')
@@ -104,7 +107,7 @@ export default function FulfillmentModal({ orderId, items, token, onClose, onSuc
     } finally { setSubmitting(false) }
   }
 
-  const maxQty = (item: OrderItem) => item.quantity
+  const maxQty = (item: OrderItem) => unfulfilledQty[item.order_item_id] ?? 0
 
   return (
     <Dialog open onOpenChange={o => !o && onClose()}>
@@ -166,14 +169,14 @@ export default function FulfillmentModal({ orderId, items, token, onClose, onSuc
             <div>
               <p className="text-xs font-medium text-zinc-700 mb-2">Items to Fulfill</p>
               <div className="rounded-lg border border-zinc-200 divide-y divide-zinc-100">
-                {items.map(item => (
+                {fulfillableItems.map(item => (
                   <div key={item.order_item_id} className="flex items-center justify-between px-3 py-2.5 gap-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-zinc-800 truncate">
                         {item.skus?.tyre_size_display ?? '—'}
                       </p>
                       <p className="text-xs text-zinc-500 font-mono">{item.skus?.sku ?? '—'}</p>
-                      <p className="text-xs text-zinc-400">Available: {maxQty(item)}</p>
+                      <p className="text-xs text-zinc-400">Unfulfilled: {maxQty(item)}</p>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                       <Button

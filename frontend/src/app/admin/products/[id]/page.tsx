@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
@@ -13,6 +13,7 @@ const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const searchParams = useSearchParams()
 
   const [pattern, setPattern]     = useState<Pattern | null>(null)
   const [skus, setSkus]           = useState<SkuListItem[]>([])
@@ -26,6 +27,9 @@ export default function ProductDetailPage() {
     document.title = pattern ? `${pattern.pattern_name} | Tyre Vault` : 'Product | Tyre Vault'
   }, [pattern])
 
+  // `t` param is injected by EditProductWizard after a successful save to bust the router cache
+  const t = searchParams.get('t')
+
   useEffect(() => {
     if (!id) return
     let cancelled = false
@@ -38,6 +42,7 @@ export default function ProductDetailPage() {
 
         const res = await fetch(`${API}/api/admin/products/${id}`, {
           headers: { Authorization: `Bearer ${tok}` },
+          cache: 'no-store',
         })
         if (!res.ok) {
           const body = await res.json().catch(() => ({}))
@@ -56,7 +61,7 @@ export default function ProductDetailPage() {
     }
     load()
     return () => { cancelled = true }
-  }, [id, refreshKey])
+  }, [id, refreshKey, t])
 
   if (loading) {
     return (
@@ -110,6 +115,15 @@ export default function ProductDetailPage() {
                   <span className={`w-1.5 h-1.5 rounded-full ${pattern.show_on_website ? 'bg-green-500' : 'bg-zinc-400'}`} />
                   {pattern.show_on_website ? 'Published' : 'Draft'}
                 </span>
+                <Link
+                  href={`/admin/products/${id}/edit`}
+                  className="flex items-center gap-1.5 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+                  </svg>
+                  Edit
+                </Link>
                 {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 <ProductActionsBar patternId={id} pattern={pattern} skuStocks={skus as any} skuPrices={skus as any} onSuccess={onRefresh} />
               </div>

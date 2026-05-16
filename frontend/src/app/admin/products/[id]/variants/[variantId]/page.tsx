@@ -4,18 +4,18 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
-import type { Sku, PatternRef, ProductStock, ProductPrice } from '@/types/admin.types'
-import { VariantStockActions, VariantPricingMenu, VariantDangerZone } from '@/components/admin/products/VariantDetailActions'
+import type { Sku, PatternRef, ProductPrice } from '@/types/admin.types'
+import { VariantPricingMenu, VariantDangerZone } from '@/components/admin/products/VariantDetailActions'
+import StockTab from '@/components/admin/products/StockTab'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 export default function VariantDetailPage() {
   const { id, variantId } = useParams<{ id: string; variantId: string }>()
 
-  const [sku, setSku]               = useState<Sku | null>(null)
-  const [warehouses, setWarehouses] = useState<{ warehouse_id: string; warehouse_name: string }[]>([])
-  const [loading, setLoading]       = useState(true)
-  const [error, setError]           = useState<string | null>(null)
+  const [sku, setSku]         = useState<Sku | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError]     = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
   const onRefresh = useCallback(() => setRefreshKey(k => k + 1), [])
@@ -35,10 +35,7 @@ export default function VariantDetailPage() {
         const tok = session?.access_token ?? ''
         const headers = { Authorization: `Bearer ${tok}` }
 
-        const [res, whRes] = await Promise.all([
-          fetch(`${API}/api/admin/products/${id}`, { headers }),
-          fetch(`${API}/api/admin/orders/warehouses`, { headers }),
-        ])
+        const res = await fetch(`${API}/api/admin/products/${id}`, { headers })
         if (!res.ok) {
           const body = await res.json().catch(() => ({}))
           throw new Error(body.error ?? `API returned ${res.status}`)
@@ -56,10 +53,8 @@ export default function VariantDetailPage() {
             brands:       json.pattern.brands ?? null,
           } : null,
         }
-        const whData = whRes.ok ? await whRes.json().catch(() => []) : []
         if (!cancelled) {
           setSku(skuWithPattern)
-          setWarehouses(Array.isArray(whData) ? whData : [])
         }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load variant')
@@ -95,24 +90,41 @@ export default function VariantDetailPage() {
 
   const pattern = sku.patterns as PatternRef | null
   const prices  = (Array.isArray(sku.product_prices) ? sku.product_prices : []) as ProductPrice[]
-  const stocks  = (Array.isArray(sku.product_stock)  ? sku.product_stock  : []) as (ProductStock & { warehouse_id?: string })[]
   const images: string[] = Array.isArray(sku.variant_images) ? sku.variant_images as string[] : []
 
+  const n = (v: string | number | null | undefined) => v != null ? String(v) : '—'
   const specs = [
-    { label: 'SKU',           value: sku.sku },
-    { label: 'Width (mm)',    value: sku.width    != null ? String(sku.width)    : '—' },
-    { label: 'Aspect Ratio',  value: sku.profile  != null ? String(sku.profile)  : '—' },
-    { label: 'Rim Size (in)', value: sku.rim_size != null ? String(sku.rim_size) : '—' },
-    { label: 'Speed Rating',  value: sku.speed_rating  || '—' },
-    { label: 'Load Index',    value: sku.load_index    || '—' },
-    { label: 'Fuel Rating',   value: sku.fuel_rating   || '—' },
-    { label: 'Wet',           value: sku.wet_grip      || '—' },
-    { label: 'Noise',         value: sku.noise_db      || '—' },
-    { label: 'Run Flat',      value: sku.runflat ? 'Yes' : 'No' },
-    { label: 'XL Reinforced', value: sku.xl_reinforced ? 'Yes' : 'No' },
-    { label: 'Ply Rating',    value: sku.ply_rating    || '—' },
-    { label: 'Load Range',    value: sku.load_range    || '—' },
-    { label: 'Origin',        value: sku.country_of_origin || '—' },
+    { label: 'SKU',              value: sku.sku },
+    { label: 'Width (mm)',       value: n(sku.width) },
+    { label: 'Aspect Ratio',     value: n(sku.profile) },
+    { label: 'Rim Size (in)',    value: n(sku.rim_size) },
+    { label: 'Construction',     value: sku.construction_type || '—' },
+    { label: 'Speed Rating',     value: sku.speed_rating  || '—' },
+    { label: 'Load Index',       value: sku.load_index    || '—' },
+    { label: 'Load/Speed Rating',value: sku.load_speed_rating || '—' },
+    { label: 'Fuel Rating',      value: sku.fuel_rating   || '—' },
+    { label: 'Wet Grip',         value: sku.wet_grip      || '—' },
+    { label: 'Noise (dB)',       value: sku.noise_db      || '—' },
+    { label: 'Noise Class',      value: sku.noise_class   || '—' },
+    { label: 'Run Flat',         value: sku.runflat ? 'Yes' : 'No' },
+    { label: 'XL Reinforced',    value: sku.xl_reinforced ? 'Yes' : 'No' },
+    { label: 'Ply Rating',       value: sku.ply_rating    || '—' },
+    { label: 'Load Range',       value: sku.load_range    || '—' },
+    { label: 'Sidewall',         value: sku.sidewall      || '—' },
+    { label: 'Tube Type',        value: sku.tube_type     || '—' },
+    { label: 'Country of Origin',value: sku.country_of_origin || '—' },
+    { label: 'Manufacturer',     value: sku.manufacturer_name || '—' },
+    { label: 'Factory Name',     value: sku.factory_name    || '—' },
+    { label: 'Factory Country',  value: sku.factory_country || '—' },
+    { label: 'Section Width',    value: n(sku.section_width) },
+    { label: 'Tread Depth (mm)', value: n(sku.tread_depth) },
+    { label: 'Tyre Weight (kg)', value: n(sku.tyre_weight) },
+    { label: 'Overall Dia (mm)', value: n(sku.overall_diameter) },
+    { label: 'Max Load',         value: sku.max_load     || '—' },
+    { label: 'Max Pressure',     value: sku.max_pressure || '—' },
+    { label: 'E-Mark',           value: sku.e_mark   || '—' },
+    { label: 'DOT Code',         value: sku.dot_code || '—' },
+    { label: 'UTQG',             value: sku.utqg     || '—' },
   ]
 
   return (
@@ -166,53 +178,9 @@ export default function VariantDetailPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200">
-              <h2 className="text-sm font-semibold text-zinc-900">Inventory</h2>
-              <VariantStockActions
-                patternId={id}
-                variantId={variantId}
-                onSuccess={onRefresh}
-                stocks={warehouses.map(wh => {
-                  const existing = stocks.find(
-                    s => ((s as unknown as { warehouse_id?: string }).warehouse_id ?? s.warehouses?.warehouse_id) === wh.warehouse_id
-                  )
-                  return {
-                    warehouse_id:    wh.warehouse_id,
-                    warehouse_name:  wh.warehouse_name,
-                    available_stock: existing?.available_stock ?? 0,
-                  }
-                })}
-              />
-            </div>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-zinc-100 bg-zinc-50">
-                  <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Location</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Available</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Reserved</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100">
-                {stocks.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-sm text-zinc-400">No inventory locations configured.</td>
-                  </tr>
-                ) : stocks.map((s, i) => {
-                  const avail    = s.available_stock ?? 0
-                  const reserved = s.reserved_stock  ?? 0
-                  return (
-                    <tr key={i} className="hover:bg-zinc-50">
-                      <td className="px-4 py-3 font-medium text-zinc-800">{s.warehouses?.warehouse_name ?? '—'}</td>
-                      <td className="px-4 py-3"><span className={avail === 0 ? 'text-red-600' : 'text-zinc-700'}>{avail}</span></td>
-                      <td className="px-4 py-3 text-zinc-500">{reserved}</td>
-                      <td className="px-4 py-3 text-zinc-700">{avail + reserved}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+          <div className="rounded-xl border border-zinc-200 bg-white p-5">
+            <h2 className="text-sm font-semibold text-zinc-900 mb-4">Stock</h2>
+            <StockTab productId={variantId} patternId={id} />
           </div>
         </div>
 

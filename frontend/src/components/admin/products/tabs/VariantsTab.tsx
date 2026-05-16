@@ -13,6 +13,7 @@ const EMPTY_VARIANT: VariantFormValues = {
   constructionType: undefined,
   speedRating: '',
   loadIndex: '',
+  loadSpeedRating: '',
   fuelRating: '',
   wetGrip: '',
   noiseDb: '',
@@ -21,9 +22,27 @@ const EMPTY_VARIANT: VariantFormValues = {
   xlReinforced: false,
   plyRating: '',
   loadRange: '',
+  sidewall: undefined,
+  tubeType: undefined,
+  manufacturerName: '',
   countryOfOrigin: '',
+  factoryName: '',
+  factoryCountry: '',
+  sectionWidth: undefined,
+  treadDepth: undefined,
+  tyreWeight: undefined,
+  overallDiameter: undefined,
+  maxLoad: '',
+  maxPressure: '',
+  eMark: '',
+  dotCode: '',
+  utqg: '',
   variantImages: [],
 }
+
+const CONSTRUCTION_TYPES = ['R', 'ZR', 'D', '-']
+const SIDEWALL_TYPES     = ['BSW', 'OWL', 'RWL']
+const TUBE_TYPES         = ['tubeless', 'tube_type']
 
 export default function VariantsTab() {
   const { register, control, watch, setValue, formState: { errors } } = useFormContext<CreateProductFormValues>()
@@ -31,17 +50,25 @@ export default function VariantsTab() {
     name: 'variants',
   })
 
-  // Auto-parse tyre size on blur
+  // Auto-parse tyre size on blur — supports metric (225/45R17) and imperial (33x12.50R17)
   function handleSizeBlur(index: number, raw: string) {
     if (!raw) return
     try {
-      const normalized = normalizeTyreSize(raw)
-      // Parse metric: 225/45R17 → width=225, profile=45, rim=17
-      const match = raw.match(/^(\d{2,3})[/\\](\d{2,3})R(\d{2,3})/i)
-      if (match) {
-        setValue(`variants.${index}.width`,   Number(match[1]))
-        setValue(`variants.${index}.profile`, Number(match[2]))
-        setValue(`variants.${index}.rimSize`, Number(match[3]))
+      normalizeTyreSize(raw)
+      // Metric: 225/45R17
+      const metric = raw.match(/^(\d{2,3})[/\\](\d{2,3})[ZzRrDd-]?(\d{2,3})/i)
+      if (metric) {
+        setValue(`variants.${index}.width`,   Number(metric[1]))
+        setValue(`variants.${index}.profile`, Number(metric[2]))
+        setValue(`variants.${index}.rimSize`, Number(metric[3]))
+        return
+      }
+      // Imperial: 33x12.50R17 or 33x12.50-17
+      const imperial = raw.match(/^(\d{2,3})[xX](\d{2,3}(?:\.\d+)?)[Rr-](\d{2,3})/i)
+      if (imperial) {
+        setValue(`variants.${index}.width`,   Number(imperial[1]))
+        setValue(`variants.${index}.profile`, Number(imperial[2]))
+        setValue(`variants.${index}.rimSize`, Number(imperial[3]))
       }
     } catch {}
   }
@@ -57,19 +84,21 @@ export default function VariantsTab() {
         const rows = results.data as Record<string, string>[]
         rows.forEach(row => {
           append({
-            sku:            row.sku ?? row.SKU ?? '',
+            sku:             row.sku ?? row.SKU ?? '',
             tyreSizeDisplay: row.size ?? row.tire_size ?? row['Tire Size'] ?? '',
-            width:          row.width ? Number(row.width) : undefined,
-            profile:        row.profile ?? row.aspect_ratio ? Number(row.profile ?? row.aspect_ratio) : undefined,
-            rimSize:        Number(row.rim_size ?? row['Rim Size'] ?? 0),
-            speedRating:    row.speed_rating ?? row['Speed Rating'] ?? '',
-            loadIndex:      row.load_index ?? row['Load Index'] ?? '',
-            fuelRating:     row.fuel_rating ?? row['Fuel Rating'] ?? '',
-            wetGrip:        row.wet ?? row['Wet'] ?? '',
-            noiseDb:        row.noise ?? row['Noise'] ?? '',
-            runflat:        row.run_flat === 'true' || row['Run Flat'] === 'true',
-            xlReinforced:   false,
-            variantImages:  [],
+            width:           row.width ? Number(row.width) : undefined,
+            profile:         row.profile ?? row.aspect_ratio ? Number(row.profile ?? row.aspect_ratio) : undefined,
+            rimSize:         Number(row.rim_size ?? row['Rim Size'] ?? 0),
+            constructionType: row.construction_type ?? row['Construction'] ?? undefined,
+            speedRating:     row.speed_rating ?? row['Speed Rating'] ?? '',
+            loadIndex:       row.load_index ?? row['Load Index'] ?? '',
+            fuelRating:      row.fuel_rating ?? row['Fuel Rating'] ?? '',
+            wetGrip:         row.wet ?? row['Wet'] ?? '',
+            noiseDb:         row.noise ?? row['Noise'] ?? '',
+            runflat:         row.run_flat === 'true' || row['Run Flat'] === 'true',
+            xlReinforced:    false,
+            countryOfOrigin: row.country_of_origin ?? row['Country'] ?? '',
+            variantImages:   [],
           })
         })
       },
@@ -125,8 +154,9 @@ export default function VariantsTab() {
             <thead>
               <tr className="border-b border-zinc-200 bg-zinc-50">
                 {[
-                  'Tire Size', 'SKU', 'Width (mm)', 'Aspect Ratio', 'Rim Size (in)',
-                  'Speed Rating', 'Load Index', 'Fuel Rating', 'Wet', 'Noise', 'Run Flat', 'Action'
+                  'Tire Size', 'SKU', 'Width (mm)', 'Aspect Ratio', 'Rim Size (in)', 'Build',
+                  'Speed Rating', 'Load Index', 'Fuel Rating', 'Wet', 'Noise', 'Run Flat',
+                  'Country of Origin *', 'Action'
                 ].map(h => (
                   <th key={h} className="px-3 py-3 text-left font-medium text-zinc-500 whitespace-nowrap text-xs">
                     {h}
@@ -178,6 +208,16 @@ export default function VariantsTab() {
                       className="w-16 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
                     />
                   </td>
+                  {/* Construction Type */}
+                  <td className="px-3 py-2">
+                    <select
+                      {...register(`variants.${index}.constructionType`)}
+                      className="w-16 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    >
+                      <option value="">—</option>
+                      {CONSTRUCTION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </td>
                   {/* Speed Rating */}
                   <td className="px-3 py-2">
                     <input
@@ -224,6 +264,14 @@ export default function VariantsTab() {
                       type="checkbox"
                       {...register(`variants.${index}.runflat`)}
                       className="rounded border-zinc-300 text-zinc-900"
+                    />
+                  </td>
+                  {/* Country of Origin — required */}
+                  <td className="px-3 py-2">
+                    <input
+                      {...register(`variants.${index}.countryOfOrigin`)}
+                      placeholder="AU"
+                      className="w-16 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
                     />
                   </td>
                   {/* Delete */}

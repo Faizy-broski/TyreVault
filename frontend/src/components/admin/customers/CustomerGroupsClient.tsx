@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
-import { MoreVertical, Search, SlidersHorizontal } from 'lucide-react'
+import { MoreVertical, Search, SlidersHorizontal, Check, X } from 'lucide-react'
 import CreateGroupModal from './CreateGroupModal'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { Button } from '@/components/ui/button'
@@ -16,7 +16,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import type { CustomerGroup } from '@/types/admin.types'
+
+const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 function fmtDateTime(d: string) {
   return new Date(d).toLocaleString('en-AU', {
@@ -51,6 +59,62 @@ export default function CustomerGroupsClient({
   const pathname    = usePathname()
   const showCreate  = searchParams.get('modal') === 'create'
   const [localSearch, setLocalSearch] = useState(search)
+
+  const [localGroups, setLocalGroups] = useState<CustomerGroup[]>(groups)
+  useEffect(() => { setLocalGroups(groups) }, [groups])
+
+  const [editingId,  setEditingId]    = useState<string | null>(null)
+  const [editName,   setEditName]     = useState('')
+  const [renaming,   setRenaming]     = useState(false)
+  const [renameError, setRenameError] = useState<string | null>(null)
+  const [deletingId, setDeletingId]   = useState<string | null>(null)
+
+  function startEdit(group: CustomerGroup) {
+    setEditingId(group.group_id)
+    setEditName(group.group_name)
+    setRenameError(null)
+  }
+
+  async function saveRename(groupId: string) {
+    if (!editName.trim()) return
+    setRenaming(true)
+    setRenameError(null)
+    try {
+      const res = await fetch(`${API}/api/admin/customers/groups/${groupId}`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body:    JSON.stringify({ name: editName.trim() }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? 'Failed to rename group')
+      }
+      setLocalGroups(prev => prev.map(g =>
+        g.group_id === groupId ? { ...g, group_name: editName.trim(), updated_at: new Date().toISOString() } : g
+      ))
+      setEditingId(null)
+    } catch (err: unknown) {
+      setRenameError(err instanceof Error ? err.message : 'Failed to rename')
+    } finally { setRenaming(false) }
+  }
+
+  async function handleDelete(group: CustomerGroup) {
+    if (!confirm(`Delete group "${group.group_name}"? This cannot be undone.`)) return
+    setDeletingId(group.group_id)
+    try {
+      const res = await fetch(`${API}/api/admin/customers/groups/${group.group_id}`, {
+        method:  'DELETE',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? 'Failed to delete group')
+      }
+      setLocalGroups(prev => prev.filter(g => g.group_id !== group.group_id))
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to delete group')
+    } finally { setDeletingId(null) }
+  }
 
   function openCreate() {
     const p = new URLSearchParams(searchParams.toString())
@@ -164,7 +228,7 @@ export default function CustomerGroupsClient({
             </TableRow>
           </TableHeader>
           <TableBody className="divide-y divide-zinc-100">
-            {groups.length === 0 ? (
+            {localGroups.length === 0 ? (
               <TableRow>
                 <TableCell
                   colSpan={5}
@@ -176,15 +240,44 @@ export default function CustomerGroupsClient({
                 </TableCell>
               </TableRow>
             ) : (
-              groups.map((group) => (
-                <TableRow key={group.group_id} className="hover:bg-zinc-50">
+              localGroups.map((group) => (
+                <TableRow key={group.group_id} className={`hover:bg-zinc-50 ${deletingId === group.group_id ? 'opacity-40 pointer-events-none' : ''}`}>
                   <TableCell className="px-4 py-3 font-medium text-zinc-800">
-                    <Link
-                      href={`/admin/customers/groups/${group.group_id}`}
-                      className="hover:underline"
-                    >
-                      {group.group_name}
-                    </Link>
+                    {editingId === group.group_id ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          autoFocus
+                          value={editName}
+                          onChange={e => setEditName(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') saveRename(group.group_id); if (e.key === 'Escape') setEditingId(null) }}
+                          className="h-7 w-48 rounded border-zinc-300 px-2 py-1 text-sm focus:border-primary focus:ring-primary/20"
+                          disabled={renaming}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => saveRename(group.group_id)}
+                          disabled={renaming || !editName.trim()}
+                          className="rounded p-1 text-green-600 hover:bg-green-50 disabled:opacity-40"
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setEditingId(null); setRenameError(null) }}
+                          className="rounded p-1 text-zinc-400 hover:bg-zinc-100"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                        {renameError && <span className="text-xs text-red-600">{renameError}</span>}
+                      </div>
+                    ) : (
+                      <Link
+                        href={`/admin/customers/groups/${group.group_id}`}
+                        className="hover:underline"
+                      >
+                        {group.group_name}
+                      </Link>
+                    )}
                   </TableCell>
                   <TableCell className="px-4 py-3 text-zinc-600">
                     {group.customer_count}
@@ -196,14 +289,29 @@ export default function CustomerGroupsClient({
                     {fmtDateTime(group.updated_at)}
                   </TableCell>
                   <TableCell className="px-4 py-3">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      className="text-zinc-400 hover:text-zinc-700"
-                    >
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="text-zinc-400 hover:text-zinc-700"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-36">
+                        <DropdownMenuItem onClick={() => startEdit(group)}>
+                          Rename
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleDelete(group)}
+                          className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                        >
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))

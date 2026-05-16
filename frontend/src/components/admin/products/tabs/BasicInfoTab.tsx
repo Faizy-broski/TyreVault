@@ -3,32 +3,22 @@
 import { useRef } from 'react'
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import type { CreateProductFormValues } from '../schema'
+import { CreatableCombobox, slugify } from '@/components/ui/CreatableCombobox'
+import { createClient } from '@/lib/supabase/client'
+import RichTextEditor from '@/components/ui/RichTextEditor'
 
-const RichTextArea = ({ name, label }: { name: keyof CreateProductFormValues; label: string }) => {
-  const { register, formState: { errors } } = useFormContext<CreateProductFormValues>()
+const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+
+const RichField = ({ name, label }: { name: 'tyreOverview' | 'features' | 'warrantyInformation' | 'tyreSpecSheet'; label: string }) => {
+  const { watch, setValue } = useFormContext<CreateProductFormValues>()
   return (
     <div>
       <label className="block text-sm font-medium text-zinc-700 mb-1">{label}</label>
-      {/* Toolbar placeholder — swap for Tiptap/Quill in production */}
-      <div className="border border-zinc-300 rounded-lg overflow-hidden">
-        <div className="flex items-center gap-1 px-2 py-1.5 border-b border-zinc-200 bg-zinc-50">
-          {['B', 'I', '≡', '→', '⊞', '↑', '↓'].map(t => (
-            <button key={t} type="button"
-              className="w-6 h-6 text-xs text-zinc-600 hover:bg-zinc-200 rounded flex items-center justify-center font-mono">
-              {t}
-            </button>
-          ))}
-        </div>
-        <textarea
-          {...register(name as never)}
-          rows={5}
-          placeholder={`Enter ${label.toLowerCase()} here`}
-          className="w-full px-3 py-2 text-sm text-zinc-700 resize-y focus:outline-none placeholder-zinc-400"
-        />
-      </div>
-      {errors[name] && (
-        <p className="mt-1 text-xs text-red-600">{String((errors[name] as { message?: string })?.message)}</p>
-      )}
+      <RichTextEditor
+        value={watch(name) ?? ''}
+        onChange={v => setValue(name, v)}
+        placeholder={`Enter ${label.toLowerCase()} here…`}
+      />
     </div>
   )
 }
@@ -38,6 +28,7 @@ export default function BasicInfoTab({ autoSlug, brands }: {
   brands: { brand_id: string; brand_name: string }[]
 }) {
   const { register, watch, setValue, formState: { errors } } = useFormContext<CreateProductFormValues>()
+  const brandId = watch('brandId')
   const { fields: faqFields, append: appendFaq, remove: removeFaq } = useFieldArray<CreateProductFormValues, 'faqList'>({
     name: 'faqList',
   })
@@ -62,15 +53,27 @@ export default function BasicInfoTab({ autoSlug, brands }: {
           {/* Brand */}
           <div>
             <label className="block text-sm font-medium text-zinc-700 mb-1">Brand</label>
-            <select
-              {...register('brandId')}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white"
-            >
-              <option value="">Select brand</option>
-              {brands.map(b => (
-                <option key={b.brand_id} value={b.brand_id}>{b.brand_name}</option>
-              ))}
-            </select>
+            <CreatableCombobox
+              options={brands.map(b => ({ value: b.brand_id, label: b.brand_name }))}
+              value={brandId ?? ''}
+              onChange={v => setValue('brandId', v, { shouldValidate: true })}
+              onCreate={async (name) => {
+                const { data: { session } } = await createClient().auth.getSession()
+                const tok = session?.access_token ?? ''
+                const res = await fetch(`${API}/api/admin/products/brands`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
+                  body: JSON.stringify({ brand_name: name, brand_slug: slugify(name) }),
+                })
+                if (!res.ok) {
+                  const body = await res.json().catch(() => ({}))
+                  throw new Error(body.error ?? 'Failed to create brand')
+                }
+                const data = await res.json()
+                return { value: data.brand_id, label: data.brand_name }
+              }}
+              placeholder="Select or create brand…"
+            />
             {errors.brandId && <p className="mt-1 text-xs text-red-600">{errors.brandId.message}</p>}
           </div>
 
@@ -109,6 +112,20 @@ export default function BasicInfoTab({ autoSlug, brands }: {
             rows={3}
             placeholder="Brief description of tyre product..."
             className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none placeholder-zinc-400"
+          />
+        </div>
+
+        {/* Default Country of Origin */}
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-zinc-700 mb-1">
+            Default Country of Origin
+            <span className="ml-1 text-xs font-normal text-zinc-400">(pattern-level fallback — overridden per variant)</span>
+          </label>
+          <input
+            {...register('defaultCountryOfOrigin')}
+            placeholder="CN"
+            maxLength={3}
+            className="w-24 rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary uppercase"
           />
         </div>
 
@@ -170,10 +187,70 @@ export default function BasicInfoTab({ autoSlug, brands }: {
       <section>
         <h2 className="text-base font-semibold text-zinc-900 mb-4">Product Details</h2>
         <div className="space-y-4">
-          <RichTextArea name="tyreOverview"      label="Tyre Overview" />
-          <RichTextArea name="features"          label="Features" />
-          <RichTextArea name="warrantyInformation" label="Warranty Information" />
-          <RichTextArea name="tyreSpecSheet"     label="Tyre Spec Sheet" />
+          <RichField name="tyreOverview"        label="Tyre Overview" />
+          <RichField name="features"            label="Features" />
+          <RichField name="warrantyInformation" label="Warranty Information" />
+          <RichField name="tyreSpecSheet"       label="Tyre Spec Sheet" />
+        </div>
+      </section>
+
+      {/* ── SEO + Visibility ─────────────────────────────────────────────── */}
+      <section>
+        <h2 className="text-base font-semibold text-zinc-900 mb-4">SEO &amp; Visibility</h2>
+
+        {/* Show on Website toggle */}
+        <div className="rounded-lg border border-zinc-200 p-4 mb-4">
+          <div className="flex items-start gap-3">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={watch('showOnWebsite')}
+              onClick={() => setValue('showOnWebsite', !watch('showOnWebsite'))}
+              className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors mt-0.5 ${
+                watch('showOnWebsite') ? 'bg-primary' : 'bg-zinc-300'
+              }`}
+            >
+              <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                watch('showOnWebsite') ? 'translate-x-4' : 'translate-x-0'
+              }`} />
+            </button>
+            <div>
+              <span className="text-sm font-medium text-zinc-800">Show on Website</span>
+              <p className="text-xs text-zinc-500 mt-0.5">
+                Product will be visible to customers on the storefront
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-1">SEO Title</label>
+            <input
+              {...register('seoTitle')}
+              placeholder="Michelin Pilot Sport 4 Tyres — Buy Online"
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-1">SEO Description</label>
+            <input
+              {...register('seoDescription')}
+              placeholder="Short meta description for search engines"
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+            />
+          </div>
+        </div>
+
+        {/* Tread Image */}
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-zinc-700 mb-1">Tread Image URL</label>
+          <input
+            {...register('treadImage')}
+            placeholder="https://cdn.example.com/tread-pattern.jpg"
+            className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+          />
+          <p className="mt-1 text-xs text-zinc-400">Close-up tread pattern image shown on product detail page</p>
         </div>
       </section>
 

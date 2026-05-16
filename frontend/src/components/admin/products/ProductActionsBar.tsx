@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useTransition } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { MoreVertical, X } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle, DialogClose } from '@/components/ui/dialog'
 import { getAdminToken } from '@/lib/admin-token'
@@ -346,9 +347,9 @@ function EditProductModal({ patternId, pattern, open, onClose, onSuccess }: { pa
 
 // ── Product Header three-dot menu ──────────────────────────────────────────
 
-function ProductHeaderMenu({ patternId, pattern, skuStocks, skuPrices, onSuccess }: Props) {
+function ProductHeaderMenu({ patternId, skuStocks, skuPrices, onSuccess }: Props) {
+  const router = useRouter()
   const [open, setOpen]           = useState(false)
-  const [showEdit, setShowEdit]   = useState(false)
   const [showStock, setShowStock] = useState(false)
   const [showPrices, setShowPrices] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -370,7 +371,7 @@ function ProductHeaderMenu({ patternId, pattern, skuStocks, skuPrices, onSuccess
         {open && (
           <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-lg border border-zinc-200 bg-white shadow-lg py-1">
             {[
-              { label: 'Edit product details', action: () => { setOpen(false); setShowEdit(true) } },
+              { label: 'Edit product details', action: () => { setOpen(false); router.push(`/admin/products/${patternId}/edit`) } },
               { label: 'Edit stock levels',    action: () => { setOpen(false); setShowStock(true) } },
               { label: 'Edit prices',          action: () => { setOpen(false); setShowPrices(true) } },
             ].map(item => (
@@ -383,7 +384,6 @@ function ProductHeaderMenu({ patternId, pattern, skuStocks, skuPrices, onSuccess
         )}
       </div>
 
-      <EditProductModal patternId={patternId} pattern={pattern} open={showEdit}   onClose={() => setShowEdit(false)}   onSuccess={onSuccess} />
       <EditStockModal  patternId={patternId} skus={skuStocks}   open={showStock}  onClose={() => setShowStock(false)}  onSuccess={onSuccess} />
       <EditPricesModal patternId={patternId} skus={skuPrices}   open={showPrices} onClose={() => setShowPrices(false)} onSuccess={onSuccess} />
     </>

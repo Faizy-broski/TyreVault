@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import {
   ShoppingCart,
   ClipboardList,
@@ -202,6 +203,38 @@ export default function DashboardClient({
   const [activeTab, setTab] = useState<JobStatus>('pending')
 
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }
+
+  // Supabase Realtime — push new job assignments onto the list without page refresh
+  useEffect(() => {
+    if (!centreId) return
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`fitter-jobs-${centreId}`)
+      .on(
+        'postgres_changes',
+        {
+          event:  'INSERT',
+          schema: 'public',
+          table:  'fitment_jobs',
+          filter: `fitment_id=eq.${centreId}`,
+        },
+        (payload) => {
+          const newJob = payload.new as FitmentJob
+          setJobs(prev => {
+            if (prev.some(j => j.job_id === newJob.job_id)) return prev
+            return [newJob, ...prev]
+          })
+          setKpis(prev => ({
+            ...prev,
+            newJobsToday: prev.newJobsToday + 1,
+            pendingJobs:  prev.pendingJobs  + 1,
+          }))
+        },
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [centreId])
 
   async function handleStatusChange(jobId: string, status: 'accepted' | 'completed' | 'cancelled') {
     const res = await fetch(`${API}/api/fitter/portal/jobs/${jobId}`, {

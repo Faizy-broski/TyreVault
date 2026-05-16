@@ -29,6 +29,37 @@ function AccountBadge({ isGuest }: { isGuest: boolean }) {
   )
 }
 
+const CUSTOMER_TYPE_STYLES: Record<string, string> = {
+  retail:    'bg-blue-50 text-blue-700',
+  wholesale: 'bg-purple-50 text-purple-700',
+  fleet:     'bg-cyan-50 text-cyan-700',
+  trade:     'bg-orange-50 text-orange-700',
+}
+
+function CustomerTypeBadge({ type }: { type: string | null }) {
+  if (!type) return <span className="text-zinc-400 text-xs">—</span>
+  return (
+    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize ${CUSTOMER_TYPE_STYLES[type] ?? 'bg-zinc-100 text-zinc-600'}`}>
+      {type}
+    </span>
+  )
+}
+
+const ACCOUNT_STATUS_STYLES: Record<string, string> = {
+  active:  'bg-green-50 text-green-700',
+  paused:  'bg-amber-50 text-amber-700',
+  blocked: 'bg-red-50 text-red-700',
+}
+
+function AccountStatusBadge({ status }: { status: string | null }) {
+  if (!status) return <span className="text-zinc-400 text-xs">—</span>
+  return (
+    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize ${ACCOUNT_STATUS_STYLES[status] ?? 'bg-zinc-100 text-zinc-600'}`}>
+      {status}
+    </span>
+  )
+}
+
 function fmtDate(d: string | null | undefined) {
   if (!d) return '—'
   return new Date(d).toLocaleDateString('en-AU', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -58,10 +89,12 @@ export default function CustomersPage() {
   const router        = useRouter()
   const pathname      = usePathname()
 
-  const search      = searchParams.get('search') ?? ''
-  const page        = Number(searchParams.get('page') ?? 1)
-  const accountType = (searchParams.get('accountType') as 'guest' | 'registered' | undefined) ?? undefined
-  const modal       = searchParams.get('modal')
+  const search       = searchParams.get('search') ?? ''
+  const page         = Number(searchParams.get('page') ?? 1)
+  const accountType  = (searchParams.get('accountType') as 'guest' | 'registered' | undefined) ?? undefined
+  const customerType = searchParams.get('customerType') ?? ''
+  const statusFilter = searchParams.get('status') ?? ''
+  const modal        = searchParams.get('modal')
 
   const [stats, setStats]         = useState<CustomerStats>({ totalCustomers: 0, totalOrders: 0, avgOrderSize: 0, totalRevenue: 0 })
   const [customers, setCustomers] = useState<CustomerListItem[]>([])
@@ -86,6 +119,8 @@ export default function CustomersPage() {
         const qs = new URLSearchParams({ page: String(page) })
         if (search) qs.set('search', search)
         if (accountType) qs.set('accountType', accountType)
+        if (customerType) qs.set('customerType', customerType)
+        if (statusFilter) qs.set('status', statusFilter)
 
         const [statsRes, custsRes] = await Promise.all([
           fetch(`${API}/api/admin/customers/stats`, { headers }),
@@ -124,10 +159,12 @@ export default function CustomersPage() {
     const p = new URLSearchParams()
     if (search) p.set('search', search)
     if (accountType) p.set('accountType', accountType)
+    if (customerType) p.set('customerType', customerType)
+    if (statusFilter) p.set('status', statusFilter)
     if (page > 1) p.set('page', String(page))
     Object.entries(extra).forEach(([k, v]) => { if (v) p.set(k, v); else p.delete(k) })
     return p.toString() ? `${pathname}?${p}` : pathname
-  }, [search, accountType, page, pathname])
+  }, [search, accountType, customerType, statusFilter, page, pathname])
 
   const totalPages  = Math.max(1, Math.ceil(count / LIMIT))
   const startResult = count === 0 ? 0 : (page - 1) * LIMIT + 1
@@ -175,20 +212,63 @@ export default function CustomersPage() {
           </button>
         </div>
 
-        <div className="flex items-center gap-2 border-b border-zinc-100 px-5 py-3">
-          <Link
-            href={buildHref({ accountType: accountType === 'guest' ? '' : 'guest', page: '1' })}
-            className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs transition-colors ${
-              accountType === 'guest'
-                ? 'border-primary bg-primary text-zinc-900'
-                : 'border-zinc-300 text-zinc-600 hover:border-zinc-500'
-            }`}
-          >
-            <span className="text-zinc-400">+</span> Account
-          </Link>
-          <Link href={buildHref({ page: '1' })} className="flex items-center gap-1 rounded-full border border-zinc-300 px-3 py-1 text-xs text-zinc-600 transition-colors hover:border-zinc-500">
-            <span className="text-zinc-400">+</span> Created
-          </Link>
+        <div className="flex flex-wrap items-center gap-2 border-b border-zinc-100 px-5 py-3">
+          {([
+            { label: 'All',        value: '' },
+            { label: 'Guest',       value: 'guest' },
+            { label: 'Registered',  value: 'registered' },
+          ] as const).map(f => (
+            <Link
+              key={f.value}
+              href={buildHref({ accountType: f.value, page: '1' })}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                (accountType ?? '') === f.value
+                  ? 'bg-zinc-900 text-white'
+                  : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900'
+              }`}
+            >
+              {f.label}
+            </Link>
+          ))}
+          <div className="mx-1 h-4 w-px bg-zinc-200" />
+          {([
+            { label: 'All Types',  value: '' },
+            { label: 'Retail',     value: 'retail' },
+            { label: 'Wholesale',  value: 'wholesale' },
+            { label: 'Fleet',      value: 'fleet' },
+            { label: 'Trade',      value: 'trade' },
+          ]).map(f => (
+            <Link
+              key={f.value}
+              href={buildHref({ customerType: f.value, page: '1' })}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                customerType === f.value
+                  ? 'bg-zinc-900 text-white'
+                  : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900'
+              }`}
+            >
+              {f.label}
+            </Link>
+          ))}
+          <div className="mx-1 h-4 w-px bg-zinc-200" />
+          {([
+            { label: 'Any Status', value: '' },
+            { label: 'Active',     value: 'active' },
+            { label: 'Paused',     value: 'paused' },
+            { label: 'Blocked',    value: 'blocked' },
+          ]).map(f => (
+            <Link
+              key={f.value}
+              href={buildHref({ status: f.value, page: '1' })}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                statusFilter === f.value
+                  ? 'bg-zinc-900 text-white'
+                  : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900'
+              }`}
+            >
+              {f.label}
+            </Link>
+          ))}
           <div className="flex-1" />
           <form onSubmit={e => {
             e.preventDefault()
@@ -197,6 +277,8 @@ export default function CustomersPage() {
             const p = new URLSearchParams()
             if (q) p.set('search', q)
             if (accountType) p.set('accountType', accountType)
+            if (customerType) p.set('customerType', customerType)
+            if (statusFilter) p.set('status', statusFilter)
             p.set('page', '1')
             router.push(`${pathname}?${p}`)
           }} className="flex items-center gap-2">
@@ -221,6 +303,8 @@ export default function CustomersPage() {
               <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Email</th>
               <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Name</th>
               <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Account</th>
+              <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Type</th>
+              <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Status</th>
               <th className="px-5 py-3 text-right text-xs font-medium text-zinc-500">Orders</th>
               <th className="px-5 py-3 text-right text-xs font-medium text-zinc-500">Total Value</th>
               <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Last Order</th>
@@ -232,14 +316,14 @@ export default function CustomersPage() {
             {loading ? (
               [1,2,3,4,5].map(i => (
                 <tr key={i}>
-                  <td colSpan={9} className="px-5 py-3">
+                  <td colSpan={11} className="px-5 py-3">
                     <div className="h-5 bg-zinc-100 rounded animate-pulse" />
                   </td>
                 </tr>
               ))
             ) : customers.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-5 py-10 text-center text-sm text-zinc-400">
+                <td colSpan={11} className="px-5 py-10 text-center text-sm text-zinc-400">
                   {search ? `No customers matching "${search}"` : 'No customers yet.'}
                 </td>
               </tr>
@@ -258,6 +342,8 @@ export default function CustomersPage() {
                       </Link>
                     </td>
                     <td className="px-5 py-3"><AccountBadge isGuest={!customer.profile_id} /></td>
+                    <td className="px-5 py-3"><CustomerTypeBadge type={customer.customer_type ?? null} /></td>
+                    <td className="px-5 py-3"><AccountStatusBadge status={customer.account_status ?? null} /></td>
                     <td className="px-5 py-3 text-right text-sm text-zinc-700">{customer.order_count ?? 0}</td>
                     <td className="px-5 py-3 text-right text-sm font-medium text-zinc-800">{fmtAUD(customer.total_spent ?? 0)}</td>
                     <td className="px-5 py-3">

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import type { CustomerListItem } from '@/types/admin.types'
+import type { CustomerListItem, CustomerType, AccountStatus } from '@/types/admin.types'
 import { BACKEND_API_URL, createBackendHeaders, readBackendError } from '@/lib/backend-api'
 
 type Props = {
@@ -35,7 +35,7 @@ export default function EditCustomerModal({ accessToken, customer, onClose, onSu
     email:     customer.email            ?? '',
     firstName: customer.first_name       ?? '',
     lastName:  customer.last_name        ?? '',
-    company:   customer.business_name    ?? '',
+    company:   customer.business_name      ?? '',
     phone:     customer.phone            ?? '',
   }
 
@@ -53,11 +53,13 @@ export default function EditCustomerModal({ accessToken, customer, onClose, onSu
             'Content-Type': 'application/json',
           }),
           body: JSON.stringify({
-            email:     fd.get('email'),
-            firstName: fd.get('firstName'),
-            lastName:  fd.get('lastName'),
-            company:   fd.get('company'),
-            phone:     fd.get('phone'),
+            email:         fd.get('email'),
+            firstName:     fd.get('firstName'),
+            lastName:      fd.get('lastName'),
+            company:       fd.get('company'),
+            phone:         fd.get('phone'),
+            customerType:  fd.get('customerType'),
+            accountStatus: fd.get('accountStatus'),
           }),
         }
       )
@@ -107,6 +109,35 @@ export default function EditCustomerModal({ accessToken, customer, onClose, onSu
                 />
               </div>
             ))}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="customerType" className="block text-sm font-medium text-zinc-700 mb-1">Customer Type</Label>
+                <select
+                  id="customerType"
+                  name="customerType"
+                  defaultValue={customer.customer_type ?? 'retail'}
+                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                >
+                  {(['retail', 'wholesale', 'fleet', 'trade'] as CustomerType[]).map(t => (
+                    <option key={t} value={t} className="capitalize">{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="accountStatus" className="block text-sm font-medium text-zinc-700 mb-1">Account Status</Label>
+                <select
+                  id="accountStatus"
+                  name="accountStatus"
+                  defaultValue={customer.account_status ?? 'active'}
+                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                >
+                  {(['active', 'paused', 'blocked'] as AccountStatus[]).map(s => (
+                    <option key={s} value={s} className="capitalize">{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-zinc-100">

@@ -197,7 +197,7 @@ export default function CreateProductWizard({ brands, collections, categories, w
         {/* Tab content */}
         <div className="flex-1 overflow-y-auto px-6 py-6">
           {activeTab === 'basic'      && <BasicInfoTab autoSlug={autoSlug} brands={brands} />}
-          {activeTab === 'categories' && <CategoriesTab brands={brands} collections={collections} categories={categories} />}
+          {activeTab === 'categories' && <CategoriesTab collections={collections} categories={categories} />}
           {activeTab === 'variants'   && <VariantsTab />}
           {activeTab === 'pricing'    && <PricingTab warehouses={warehouses} />}
         </div>

@@ -16,10 +16,10 @@ interface Props {
 
 function TypeBadge({ type }: { type: Supplier['supplier_type'] }) {
   const map: Record<string, string> = {
-    wholesaler:  'bg-blue-50 text-blue-700',
-    factory:     'bg-purple-50 text-purple-700',
-    distributor: 'bg-primary text-amber-700',
-    importer:    'bg-teal-50 text-teal-700',
+    wholesaler:          'bg-blue-50 text-blue-700',
+    factory:             'bg-purple-50 text-purple-700',
+    marketplace_partner: 'bg-amber-50 text-amber-700',
+    '3pl':               'bg-teal-50 text-teal-700',
   }
   const cls = type ? (map[type] ?? 'bg-zinc-100 text-zinc-600') : 'bg-zinc-100 text-zinc-600'
   return (
@@ -29,16 +29,22 @@ function TypeBadge({ type }: { type: Supplier['supplier_type'] }) {
   )
 }
 
+const ACCESS_LABEL: Record<string, string> = {
+  owned_after_purchase: 'After Purchase',
+  consignment:          'Consignment',
+  live_supplier_stock:  'Live Stock',
+}
+
 function AccessBadge({ type }: { type: Supplier['stock_access_type'] }) {
   const map: Record<string, string> = {
-    api:    'bg-green-50 text-green-700',
-    csv:    'bg-zinc-100 text-zinc-600',
-    manual: 'bg-primary text-amber-700',
+    owned_after_purchase: 'bg-blue-50 text-blue-700',
+    consignment:          'bg-amber-50 text-amber-700',
+    live_supplier_stock:  'bg-green-50 text-green-700',
   }
   const cls = type ? (map[type] ?? 'bg-zinc-100 text-zinc-600') : 'bg-zinc-100 text-zinc-600'
   return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium uppercase ${cls}`}>
-      {type ?? '—'}
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>
+      {type ? (ACCESS_LABEL[type] ?? type) : '—'}
     </span>
   )
 }
