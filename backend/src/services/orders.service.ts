@@ -109,7 +109,7 @@ export async function getOrder(orderId: string) {
       .from('fitment_jobs')
       .select(`
         job_id, task_number, job_status, scheduled_date, scheduled_time,
-        fitment_centres ( fitment_id, business_name )
+        fitment_centres ( fitment_centre_id, business_name )
       `)
       .eq('order_id', orderId)
       .maybeSingle()
