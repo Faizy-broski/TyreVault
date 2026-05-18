@@ -205,6 +205,7 @@ export async function createProduct(payload: CreateProductPayload) {
       pattern_slug: payload.patternSlug,
       pattern_short_description: payload.shortDescription,
       gallery_images: payload.galleryImages ?? [],
+      main_image:     payload.galleryImages?.[0] ?? null,
       tyre_overview: payload.tyreOverview,
       features: payload.features,
       warranty_information: payload.warrantyInformation,
@@ -347,7 +348,10 @@ export async function updateProduct(patternId: string, payload: Partial<CreatePr
   if (payload.patternName !== undefined) updates.pattern_name = payload.patternName
   if (payload.patternSlug !== undefined) updates.pattern_slug = payload.patternSlug
   if (payload.shortDescription !== undefined) updates.pattern_short_description = payload.shortDescription
-  if (payload.galleryImages !== undefined) updates.gallery_images = payload.galleryImages
+  if (payload.galleryImages !== undefined) {
+    updates.gallery_images = payload.galleryImages
+    updates.main_image     = payload.galleryImages[0] ?? null
+  }
   if (payload.tyreOverview !== undefined) updates.tyre_overview = payload.tyreOverview
   if (payload.features !== undefined) updates.features = payload.features
   if (payload.warrantyInformation !== undefined) updates.warranty_information = payload.warrantyInformation

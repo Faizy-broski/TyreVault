@@ -83,20 +83,20 @@ export async function listJobs(centreId: string, status?: string) {
 export async function getJob(centreId: string, jobId: string) {
   return db
     .from('fitment_jobs')
-    .select('job_id, fitment_centre_id, task_number, customer_name, customer_phone, scheduled_date, scheduled_time, tyre_pattern, tyre_size, quantity, vehicle_model, job_status, notes, earnings_amount, created_at')
+    .select('job_id, fitment_centre_id, task_number, customer_name, customer_phone, scheduled_date, scheduled_time, tyre_pattern, tyre_size, quantity, vehicle_model, job_status, notes, fitter_notes, admin_notes, accepted_at, completed_at, earnings_amount, created_at')
     .eq('job_id', jobId)
     .eq('fitment_centre_id', centreId)
     .single()
 }
 
 export async function updateJobStatus(
-  centreId: string,
-  jobId:    string,
-  status:   'accepted' | 'completed' | 'cancelled',
-  notes?:   string
+  centreId:     string,
+  jobId:        string,
+  status:       'accepted' | 'in_progress' | 'completed' | 'cancelled',
+  fitterNotes?: string
 ) {
   const update: Record<string, unknown> = { job_status: status }
-  if (notes !== undefined) update.notes = notes
+  if (fitterNotes !== undefined) update.fitter_notes = fitterNotes
 
   return db
     .from('fitment_jobs')

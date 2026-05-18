@@ -78,7 +78,7 @@ export default function EditProductWizard({
         patternName:         values.patternName,
         patternSlug:         values.patternSlug,
         shortDescription:    values.shortDescription || null,
-        galleryImages:       (values.galleryImages ?? []).filter(u => !u.startsWith('blob:')),
+        galleryImages:       values.galleryImages ?? [],
         tyreOverview:        values.tyreOverview || undefined,
         features:            values.features || undefined,
         warrantyInformation: values.warrantyInformation || undefined,

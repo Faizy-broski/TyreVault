@@ -34,19 +34,10 @@ export default async function FitterLayout({ children }: { children: React.React
         cache: 'no-store',
       })
       if (res.ok) centre = await res.json()
-    } catch { /* backend may not be running in dev */ }
+    } catch { /* backend unreachable */ }
   }
 
-  // Fallback centre for dev/preview
-  const fallbackCentre: FitmentCentre = {
-    fitment_centre_id: 'dev',
-    business_name: 'QuickFit Tyres Melbourne',
-    partner_id:        'PRT-2024-001',
-    contact_phone:     null,
-    business_number:   null,
-    user_id:           user.id,
-    is_active:         true,
-  }
+  if (!centre) redirect('/fitter/onboarding')
 
   return (
     <div className="flex h-svh bg-zinc-100 overflow-hidden">
@@ -56,9 +47,9 @@ export default async function FitterLayout({ children }: { children: React.React
       {/* Main column */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <FitterHeader
-          centre={centre ?? fallbackCentre}
+          centre={centre}
           userEmail={user.email ?? ''}
-          notificationCount={3}
+          notificationCount={0}
         />
         <main className="flex-1 overflow-y-auto overflow-x-hidden">
           {children}

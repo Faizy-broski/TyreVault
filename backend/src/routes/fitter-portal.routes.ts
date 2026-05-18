@@ -4,7 +4,7 @@ import { requireRole } from '../middleware/role.middleware'
 import * as ctrl from '../controllers/fitter-portal.controller'
 
 const router = Router()
-router.use(authMiddleware, requireRole('fitter'))
+router.use(authMiddleware, requireRole('fitter', 'super_admin'))
 
 router.get('/centre',            ctrl.getCentre)
 router.get('/profile',           ctrl.getProfile)

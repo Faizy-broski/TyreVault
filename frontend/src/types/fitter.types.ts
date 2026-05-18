@@ -49,11 +49,15 @@ export interface FitmentJob {
   tyre_size:         string | null
   quantity:          number
   vehicle_model:     string | null
-  job_status:    JobStatus
-  notes:         string | null
-  earnings_amount: number | null
+  job_status:        JobStatus
+  notes:             string | null
+  fitter_notes:      string | null
+  admin_notes:       string | null
+  accepted_at:       string | null
+  completed_at:      string | null
+  earnings_amount:   number | null
   fitment_centre_id: string
-  created_at:    string
+  created_at:        string
 }
 
 export interface FitterPricingRow {

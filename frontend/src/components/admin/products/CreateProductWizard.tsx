@@ -101,7 +101,7 @@ export default function CreateProductWizard({ brands, collections, categories, w
         collectionId:        values.collectionId        || undefined,
         performanceCategory: values.performanceCategory || undefined,
         seasonType:          values.seasonType          || undefined,
-        galleryImages:       (values.galleryImages ?? []).filter(u => !u.startsWith('blob:')),
+        galleryImages:       values.galleryImages ?? [],
         variants: values.variants.map(v => ({
           ...v,
           loadIndex:       v.loadIndex       || undefined,

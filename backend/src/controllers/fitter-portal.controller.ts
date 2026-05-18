@@ -58,9 +58,15 @@ export async function patchJobStatus(req: Request, res: Response, next: NextFunc
   try {
     const centreId = await resolvecentreId(req, res)
     if (!centreId) return
-    const jobId  = String((req.params as P).jobId)
-    const { status, notes } = req.body
-    const { error } = await S.updateJobStatus(centreId, jobId, status, notes)
+    const jobId = String((req.params as P).jobId)
+    const { status, fitter_notes } = req.body
+
+    const allowed = ['accepted', 'in_progress', 'completed', 'cancelled']
+    if (!allowed.includes(status)) {
+      res.status(400).json({ message: `Invalid status. Allowed: ${allowed.join(', ')}` }); return
+    }
+
+    const { error } = await S.updateJobStatus(centreId, jobId, status, fitter_notes)
     if (error) return next(error)
     res.json({ success: true })
   } catch (err) { next(err) }
