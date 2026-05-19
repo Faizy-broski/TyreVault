@@ -326,8 +326,8 @@ export default function AdminDashboard() {
           <ul className="divide-y divide-zinc-100">
             {centres.length === 0 ? (
               <li className="px-5 py-8 text-center text-sm text-zinc-400">No fitment centres yet.</li>
-            ) : centres.slice(0, 5).map(c => (
-              <li key={c.fitment_id} className="flex items-center justify-between px-5 py-3 hover:bg-zinc-50 transition-colors">
+            ) : centres.slice(0, 5).map((c, i) => (
+              <li key={c.fitment_id ?? i} className="flex items-center justify-between px-5 py-3 hover:bg-zinc-50 transition-colors">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-zinc-900 truncate">{c.business_name}</p>
                   <p className="text-xs text-zinc-500 truncate">{c.partner_id} · {c.profiles?.email}</p>

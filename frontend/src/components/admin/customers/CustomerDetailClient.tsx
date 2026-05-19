@@ -84,7 +84,7 @@ function PaymentDot({ status }: { status: string }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-xs capitalize text-zinc-600">
       <span className={`h-2 w-2 rounded-full ${colMap[status] ?? colMap.unpaid}`} />
-      {status.replace(/_/g, " ")}
+      {(status ?? "unpaid").replace(/_/g, " ")}
     </span>
   );
 }
@@ -103,7 +103,7 @@ function OrderStatusBadge({ status }: { status: string }) {
     <Badge
       className={`h-auto whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${map[status] ?? map.pending}`}
     >
-      {status.replace(/_/g, " ")}
+      {(status ?? "pending").replace(/_/g, " ")}
     </Badge>
   );
 }
