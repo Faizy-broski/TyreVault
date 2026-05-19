@@ -115,7 +115,7 @@ export default function FitmentCentreDetailClient({
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-semibold text-zinc-900">{centre.business_name}</h1>
         <div className="flex items-center gap-2">
           <Button
@@ -136,7 +136,7 @@ export default function FitmentCentreDetailClient({
       </div>
 
       {/* Three-column info layout */}
-      <div className="grid grid-cols-[1fr_1fr_280px] gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {/* Left — Profile */}
         <div className="bg-white rounded-xl border border-zinc-200 p-5 space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -269,7 +269,7 @@ export default function FitmentCentreDetailClient({
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {/* Sales Trend */}
         <div className="bg-white rounded-xl border border-zinc-200 p-4">
           <div className="flex items-start justify-between">
@@ -323,17 +323,19 @@ export default function FitmentCentreDetailClient({
       {/* Tabs */}
       <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
         <Tabs value={activeTab} onValueChange={v => setActiveTab(v as Tab)}>
-          <TabsList className="w-full justify-start rounded-none border-b border-zinc-100 bg-transparent px-0 h-auto">
-            {tabs.map(tab => (
-              <TabsTrigger
-                key={tab.key}
-                value={tab.key}
-                className="px-5 py-3 text-sm font-medium rounded-none data-[state=active]:text-zinc-900 data-[state=active]:border-b-3 data-[state=active]:border-b-primary  text-zinc-500 hover:text-zinc-700"
-              >
-                {tab.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+          <div className="overflow-x-auto border-b border-zinc-100">
+            <TabsList className="w-max min-w-full justify-start rounded-none bg-transparent px-0 h-auto">
+              {tabs.map(tab => (
+                <TabsTrigger
+                  key={tab.key}
+                  value={tab.key}
+                  className="px-4 sm:px-5 py-3 text-sm font-medium rounded-none whitespace-nowrap data-[state=active]:text-zinc-900 data-[state=active]:border-b-3 data-[state=active]:border-b-primary text-zinc-500 hover:text-zinc-700"
+                >
+                  {tab.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
 
           <TabsContent value="orders" className="mt-0">
             <FitmentOrdersTab

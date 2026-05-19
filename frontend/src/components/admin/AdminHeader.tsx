@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Bell, ChevronDown } from 'lucide-react'
+import { Bell, ChevronDown, Menu } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -16,9 +16,10 @@ import { createClient } from '@/lib/supabase/client'
 interface Props {
   userEmail:          string
   notificationCount?: number
+  onMenuToggle?:      () => void
 }
 
-export default function AdminHeader({ userEmail, notificationCount = 0 }: Props) {
+export default function AdminHeader({ userEmail, notificationCount = 0, onMenuToggle }: Props) {
   const router      = useRouter()
   const initials    = userEmail.slice(0, 2).toUpperCase()
   const displayName = userEmail.split('@')[0].split('.').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')
@@ -29,15 +30,19 @@ export default function AdminHeader({ userEmail, notificationCount = 0 }: Props)
   }
 
   return (
-    <header className="h-14 bg-white border-b border-zinc-200 flex items-center justify-end px-6 shrink-0">
-      {/* Centre info */}
-      {/* <div>
-        <p className="text-sm font-semibold text-zinc-900">{centre.business_name}</p>
-        <p className="text-xs text-zinc-500">Partner ID: {centre.partner_id}</p>
-      </div> */}
+    <header className="h-14 bg-white border-b border-zinc-200 flex items-center justify-between px-4 sm:px-6 shrink-0 shadow-sm">
+      {/* Hamburger — mobile only */}
+      <button
+        type="button"
+        onClick={onMenuToggle}
+        className="lg:hidden p-2 rounded-lg text-zinc-500 hover:bg-zinc-100 transition-colors"
+        aria-label="Open menu"
+      >
+        <Menu className="w-5 h-5" />
+      </button>
 
       {/* Right: bell + avatar */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 ml-auto">
         {/* Notification bell */}
         <Button
           variant="ghost"

@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { AlertCircle, X } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle, DialogClose } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import type { ComplianceDoc, ComplianceStatus } from '@/types/admin.types'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
@@ -96,40 +98,39 @@ function EditModal({
           <DialogTitle className="text-base font-semibold text-zinc-900">
             Update {POLICY_LABELS[doc.policy_type] ?? doc.policy_type}
           </DialogTitle>
-          <DialogClose className="text-zinc-400 hover:text-zinc-600 p-1 rounded transition-colors">
-            <X className="w-5 h-5" />
+          <DialogClose asChild>
+            <Button variant="ghost" size="icon-sm" aria-label="Close">
+              <X className="w-5 h-5" />
+            </Button>
           </DialogClose>
         </div>
 
         <div className="px-6 py-5 space-y-3">
           <div>
             <label htmlFor="provider" className="block text-xs font-medium text-zinc-600 mb-1">Provider</label>
-            <input
+            <Input
               id="provider"
               value={form.provider}
               onChange={e => setForm(p => ({ ...p, provider: e.target.value }))}
-              className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
               placeholder="e.g. QBE Insurance"
             />
           </div>
           <div>
             <label htmlFor="policy_number" className="block text-xs font-medium text-zinc-600 mb-1">Policy / Reference Number</label>
-            <input
+            <Input
               id="policy_number"
               value={form.policy_number}
               onChange={e => setForm(p => ({ ...p, policy_number: e.target.value }))}
-              className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
               placeholder="e.g. PLI-2025-88431"
             />
           </div>
           <div>
             <label htmlFor="expiry_date" className="block text-xs font-medium text-zinc-600 mb-1">Expiry Date</label>
-            <input
+            <Input
               id="expiry_date"
               type="date"
               value={form.expiry_date}
               onChange={e => setForm(p => ({ ...p, expiry_date: e.target.value }))}
-              className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
             />
           </div>
           <div>
@@ -150,18 +151,11 @@ function EditModal({
 
         <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-zinc-100">
           <DialogClose asChild>
-            <button type="button" className="px-4 py-2 text-sm font-medium border border-zinc-300 rounded-lg text-zinc-700 hover:bg-zinc-50 transition-colors">
-              Cancel
-            </button>
+            <Button type="button" variant="outline">Cancel</Button>
           </DialogClose>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="px-4 py-2 text-sm font-semibold bg-primary text-zinc-900 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-60"
-          >
+          <Button type="button" onClick={handleSave} disabled={saving}>
             {saving ? 'Saving...' : 'Save'}
-          </button>
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -198,8 +192,8 @@ export default function ComplianceDocTab({ centreId, initialDocs, accessToken }:
         </div>
       )}
 
-      <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white rounded-xl border border-zinc-200 overflow-x-auto">
+        <table className="w-full text-sm min-w-160">
           <thead>
             <tr className="border-b border-zinc-100 bg-zinc-50">
               <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Policy Type</th>
@@ -239,30 +233,32 @@ export default function ComplianceDocTab({ centreId, initialDocs, accessToken }:
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2">
-                        <button
+                        <Button
                           type="button"
+                          size="xs"
                           onClick={() => setEditing(doc)}
-                          className="px-3 py-1 text-xs font-semibold rounded-lg bg-primary text-zinc-900 hover:bg-primary/90 transition-colors"
                         >
                           Update
-                        </button>
+                        </Button>
                         {doc.doc_url ? (
-                          <a
-                            href={doc.doc_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-3 py-1 text-xs font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors"
+                          <Button
+                            size="xs"
+                            asChild
+                            className="bg-green-600 text-white hover:bg-green-700"
                           >
-                            Download
-                          </a>
+                            <a href={doc.doc_url} target="_blank" rel="noopener noreferrer">
+                              Download
+                            </a>
+                          </Button>
                         ) : (
-                          <button
+                          <Button
                             type="button"
+                            size="xs"
                             disabled
-                            className="px-3 py-1 text-xs font-semibold rounded-lg bg-green-600 text-white opacity-40 cursor-not-allowed"
+                            className="bg-green-600 text-white opacity-40"
                           >
                             Download
-                          </button>
+                          </Button>
                         )}
                       </div>
                     </td>

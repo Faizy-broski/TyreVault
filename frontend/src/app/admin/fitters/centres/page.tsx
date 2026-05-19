@@ -1,9 +1,10 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import FitmentCentresClient from '@/components/admin/fitment-centres/FitmentCentresClient'
 import type { AdminFitmentCentreSummary } from '@/types/admin.types'
+import { toastError } from '@/lib/toast'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -12,7 +13,6 @@ export default function AdminFittersCentrePage() {
   const [total, setTotal]     = useState(0)
   const [token, setToken]     = useState('')
   const [loading, setLoading] = useState(true)
-  const [error, setError]     = useState<string | null>(null)
 
   useEffect(() => { document.title = 'Fitment Centres | Tyre Vault' }, [])
 
@@ -37,7 +37,7 @@ export default function AdminFittersCentrePage() {
           setTotal(json.total ?? 0)
         }
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load centres')
+        if (!cancelled) toastError(err instanceof Error ? err.message : 'Failed to load centres')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -48,19 +48,11 @@ export default function AdminFittersCentrePage() {
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="h-8 w-48 bg-zinc-100 rounded animate-pulse mb-6" />
         <div className="space-y-3">
           {[1,2,3].map(i => <div key={i} className="h-16 bg-zinc-100 rounded-xl animate-pulse" />)}
         </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="p-6">
-        <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">{error}</div>
       </div>
     )
   }

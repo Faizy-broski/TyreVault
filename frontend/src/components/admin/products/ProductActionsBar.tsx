@@ -5,7 +5,11 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { MoreVertical, X } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle, DialogClose } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { getAdminToken } from '@/lib/admin-token'
+import { toastSuccess, toastError } from '@/lib/toast'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -52,8 +56,10 @@ function Modal({ title, open, onClose, children, wide }: { title: string; open: 
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 flex-shrink-0">
           <DialogTitle className="text-base font-semibold text-zinc-900">{title}</DialogTitle>
-          <DialogClose className="p-1 text-zinc-400 hover:text-zinc-700 rounded transition-colors">
-            <X className="w-4 h-4" />
+          <DialogClose asChild>
+            <Button variant="ghost" size="icon-sm" aria-label="Close">
+              <X className="w-4 h-4" />
+            </Button>
           </DialogClose>
         </div>
         {children}
@@ -68,7 +74,6 @@ function EditStockModal({ patternId, skus, open, onClose, onSuccess }: {
   patternId: string; skus: SkuStock[]; open: boolean; onClose: () => void; onSuccess?: () => void
 }) {
   const [saving, setSaving] = useState(false)
-  const [error, setError]   = useState('')
 
   const initial: Record<string, Record<string, number>> = {}
   for (const s of skus) {
@@ -86,7 +91,6 @@ function EditStockModal({ patternId, skus, open, onClose, onSuccess }: {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-    setError('')
     try {
       const token = await getAdminToken()
       const updates = Object.entries(stocks).flatMap(([variantId, wh]) =>
@@ -101,10 +105,11 @@ function EditStockModal({ patternId, skus, open, onClose, onSuccess }: {
       ))
       const failed = results.find(r => !r.ok)
       if (failed) throw new Error(`Error ${failed.status}`)
+      toastSuccess('Stock levels updated')
       onSuccess?.()
       onClose()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to update stock')
+      toastError(err instanceof Error ? err.message : 'Failed to update stock')
     } finally {
       setSaving(false)
     }
@@ -114,7 +119,6 @@ function EditStockModal({ patternId, skus, open, onClose, onSuccess }: {
     <Modal title="Edit Stock Levels" open={open} onClose={onClose} wide>
       <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
         <div className="overflow-y-auto flex-1 px-6 py-4 space-y-5">
-          {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
           {skus.map(sku => (
             <div key={sku.product_id}>
               <p className="text-sm font-medium text-zinc-800 mb-2">
@@ -127,13 +131,13 @@ function EditStockModal({ patternId, skus, open, onClose, onSuccess }: {
                   {sku.product_stock.map((ps, i) => (
                     <div key={i} className="flex items-center gap-3">
                       <span className="text-sm text-zinc-600 w-40 truncate">{ps.warehouses?.warehouse_name ?? 'Unknown'}</span>
-                      <input
+                      <Input
                         type="number"
                         min={0}
                         value={stocks[sku.product_id]?.[ps.warehouse_id ?? ''] ?? ps.available_stock}
                         onChange={e => set(sku.product_id, ps.warehouse_id ?? '', Number(e.target.value))}
                         aria-label={`Stock for ${sku.sku} at ${ps.warehouses?.warehouse_name ?? 'warehouse'}`}
-                        className="w-24 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                        className="w-24"
                       />
                     </div>
                   ))}
@@ -144,11 +148,11 @@ function EditStockModal({ patternId, skus, open, onClose, onSuccess }: {
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-zinc-100 flex-shrink-0">
           <DialogClose asChild>
-            <button type="button" className="px-4 py-2 text-sm border border-zinc-300 rounded-lg text-zinc-700 hover:bg-zinc-50 transition-colors">Cancel</button>
+            <Button type="button" variant="outline">Cancel</Button>
           </DialogClose>
-          <button type="submit" disabled={saving} className="px-4 py-2 text-sm font-medium bg-primary text-zinc-900 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50">
+          <Button type="submit" disabled={saving}>
             {saving ? 'Saving…' : 'Save Stock Levels'}
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>
@@ -159,7 +163,6 @@ function EditStockModal({ patternId, skus, open, onClose, onSuccess }: {
 
 function EditPricesModal({ patternId, skus, open, onClose, onSuccess }: { patternId: string; skus: SkuPrice[]; open: boolean; onClose: () => void; onSuccess?: () => void }) {
   const [saving, setSaving] = useState(false)
-  const [error, setError]   = useState('')
 
   const initial: Record<string, Record<string, number>> = {}
   for (const s of skus) {
@@ -178,7 +181,6 @@ function EditPricesModal({ patternId, skus, open, onClose, onSuccess }: { patter
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-    setError('')
     try {
       const token = await getAdminToken()
       const results = await Promise.all(
@@ -195,10 +197,11 @@ function EditPricesModal({ patternId, skus, open, onClose, onSuccess }: { patter
         const body = await failed.json().catch(() => ({}))
         throw new Error(body.error ?? `Error ${failed.status}`)
       }
+      toastSuccess('Prices updated')
       onSuccess?.()
       onClose()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to update prices')
+      toastError(err instanceof Error ? err.message : 'Failed to update prices')
     } finally {
       setSaving(false)
     }
@@ -208,7 +211,6 @@ function EditPricesModal({ patternId, skus, open, onClose, onSuccess }: { patter
     <Modal title="Edit Prices" open={open} onClose={onClose} wide>
       <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
         <div className="overflow-y-auto flex-1 px-6 py-4 space-y-5">
-          {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
           {skus.map(sku => (
             <div key={sku.product_id}>
               <p className="text-sm font-medium text-zinc-800 mb-2">{sku.tyre_size_display}</p>
@@ -223,14 +225,14 @@ function EditPricesModal({ patternId, skus, open, onClose, onSuccess }: { patter
                         <span className="text-sm text-zinc-600 w-32">{group}</span>
                         <div className="relative">
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-sm">$</span>
-                          <input
+                          <Input
                             type="number"
                             min={0}
                             step="0.01"
                             value={prices[sku.product_id]?.[group] ?? pp.price_inc_gst}
                             onChange={e => set(sku.product_id, group, Number(e.target.value))}
                             aria-label={`Price for ${sku.tyre_size_display} — ${group}`}
-                            className="w-28 pl-6 pr-3 py-1.5 rounded-lg border border-zinc-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                            className="w-28 pl-6"
                           />
                         </div>
                       </div>
@@ -243,11 +245,11 @@ function EditPricesModal({ patternId, skus, open, onClose, onSuccess }: { patter
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-zinc-100 flex-shrink-0">
           <DialogClose asChild>
-            <button type="button" className="px-4 py-2 text-sm border border-zinc-300 rounded-lg text-zinc-700 hover:bg-zinc-50 transition-colors">Cancel</button>
+            <Button type="button" variant="outline">Cancel</Button>
           </DialogClose>
-          <button type="submit" disabled={saving} className="px-4 py-2 text-sm font-medium bg-primary text-zinc-900 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50">
+          <Button type="submit" disabled={saving}>
             {saving ? 'Saving…' : 'Save Prices'}
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>
@@ -258,11 +260,9 @@ function EditPricesModal({ patternId, skus, open, onClose, onSuccess }: { patter
 
 function EditProductModal({ patternId, pattern, open, onClose, onSuccess }: { patternId: string; pattern: PatternInfo; open: boolean; onClose: () => void; onSuccess?: () => void }) {
   const [isPending, startTransition] = useTransition()
-  const [error, setError] = useState('')
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    setError('')
     const fd = new FormData(e.currentTarget)
     try {
       const token = await getAdminToken()
@@ -281,10 +281,11 @@ function EditProductModal({ patternId, pattern, open, onClose, onSuccess }: { pa
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error ?? `Error ${res.status}`)
       }
+      toastSuccess('Product updated')
       startTransition(() => onSuccess?.())
       onClose()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to update')
+      toastError(err instanceof Error ? err.message : 'Failed to update')
     }
   }
 
@@ -292,40 +293,57 @@ function EditProductModal({ patternId, pattern, open, onClose, onSuccess }: { pa
     <Modal title="Edit Product" open={open} onClose={onClose}>
       <form onSubmit={handleSubmit}>
         <div className="px-6 py-5 space-y-4">
-          {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
-
           <div>
-            <label htmlFor="patternName" className="block text-sm font-medium text-zinc-700 mb-1">Product Name <span className="text-red-500">*</span></label>
-            <input id="patternName" name="patternName" required defaultValue={pattern.pattern_name}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
+            <label htmlFor="patternName" className="block text-sm font-medium text-zinc-700 mb-1">
+              Product Name <span className="text-red-500">*</span>
+            </label>
+            <Input id="patternName" name="patternName" required defaultValue={pattern.pattern_name} />
           </div>
 
           <div>
             <label htmlFor="patternShortDescription" className="block text-sm font-medium text-zinc-700 mb-1">Short Description</label>
-            <textarea id="patternShortDescription" name="patternShortDescription" rows={3} defaultValue={pattern.pattern_short_description ?? ''}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none" />
+            <Textarea
+              id="patternShortDescription"
+              name="patternShortDescription"
+              rows={3}
+              defaultValue={pattern.pattern_short_description ?? ''}
+              className="resize-none"
+            />
           </div>
 
           <div>
-            <label htmlFor="tags" className="block text-sm font-medium text-zinc-700 mb-1">Tags <span className="text-zinc-400 font-normal">(comma-separated)</span></label>
-            <input id="tags" name="tags" defaultValue={(pattern.tags ?? []).join(', ')}
+            <label htmlFor="tags" className="block text-sm font-medium text-zinc-700 mb-1">
+              Tags <span className="text-zinc-400 font-normal">(comma-separated)</span>
+            </label>
+            <Input
+              id="tags"
+              name="tags"
+              defaultValue={(pattern.tags ?? []).join(', ')}
               placeholder="summer, performance, touring"
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
+            />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label htmlFor="onSale" className="block text-sm font-medium text-zinc-700 mb-1">On Sale</label>
-              <select id="onSale" name="onSale" defaultValue={String(pattern.on_sale)}
-                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary">
+              <select
+                id="onSale"
+                name="onSale"
+                defaultValue={String(pattern.on_sale)}
+                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+              >
                 <option value="true">Yes</option>
                 <option value="false">No</option>
               </select>
             </div>
             <div>
               <label htmlFor="discountable" className="block text-sm font-medium text-zinc-700 mb-1">Discountable</label>
-              <select id="discountable" name="discountable" defaultValue={String(pattern.discountable)}
-                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary">
+              <select
+                id="discountable"
+                name="discountable"
+                defaultValue={String(pattern.discountable)}
+                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+              >
                 <option value="true">Yes</option>
                 <option value="false">No</option>
               </select>
@@ -334,11 +352,11 @@ function EditProductModal({ patternId, pattern, open, onClose, onSuccess }: { pa
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-zinc-100">
           <DialogClose asChild>
-            <button type="button" className="px-4 py-2 text-sm border border-zinc-300 rounded-lg text-zinc-700 hover:bg-zinc-50 transition-colors">Cancel</button>
+            <Button type="button" variant="outline">Cancel</Button>
           </DialogClose>
-          <button type="submit" disabled={isPending} className="px-4 py-2 text-sm font-medium bg-primary text-zinc-900 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50">
+          <Button type="submit" disabled={isPending}>
             {isPending ? 'Saving…' : 'Save'}
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>
@@ -349,8 +367,8 @@ function EditProductModal({ patternId, pattern, open, onClose, onSuccess }: { pa
 
 function ProductHeaderMenu({ patternId, skuStocks, skuPrices, onSuccess }: Props) {
   const router = useRouter()
-  const [open, setOpen]           = useState(false)
-  const [showStock, setShowStock] = useState(false)
+  const [open, setOpen]             = useState(false)
+  const [showStock, setShowStock]   = useState(false)
   const [showPrices, setShowPrices] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -365,9 +383,15 @@ function ProductHeaderMenu({ patternId, skuStocks, skuPrices, onSuccess }: Props
   return (
     <>
       <div ref={ref} className="relative">
-        <button type="button" aria-label="Product options" onClick={() => setOpen(o => !o)} className="p-1 text-zinc-400 hover:text-zinc-700 rounded transition-colors">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Product options"
+          onClick={() => setOpen(o => !o)}
+        >
           <MoreVertical className="w-5 h-5" />
-        </button>
+        </Button>
         {open && (
           <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-lg border border-zinc-200 bg-white shadow-lg py-1">
             {[
@@ -375,8 +399,12 @@ function ProductHeaderMenu({ patternId, skuStocks, skuPrices, onSuccess }: Props
               { label: 'Edit stock levels',    action: () => { setOpen(false); setShowStock(true) } },
               { label: 'Edit prices',          action: () => { setOpen(false); setShowPrices(true) } },
             ].map(item => (
-              <button key={item.label} type="button" onClick={item.action}
-                className="w-full text-left px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors">
+              <button
+                key={item.label}
+                type="button"
+                onClick={item.action}
+                className="w-full text-left px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
+              >
                 {item.label}
               </button>
             ))}
@@ -398,14 +426,12 @@ export function VariantsTableActions({ patternId, skuStocks, skuPrices, onSucces
 
   return (
     <>
-      <button type="button" onClick={() => setShowStock(true)}
-        className="text-sm text-zinc-600 hover:text-zinc-900 border border-zinc-300 rounded-md px-3 py-1.5 hover:bg-zinc-50 transition-colors">
+      <Button type="button" variant="outline" size="sm" onClick={() => setShowStock(true)}>
         + Edit Stock Levels
-      </button>
-      <button type="button" onClick={() => setShowPrices(true)}
-        className="text-sm text-zinc-600 hover:text-zinc-900 border border-zinc-300 rounded-md px-3 py-1.5 hover:bg-zinc-50 transition-colors">
+      </Button>
+      <Button type="button" variant="outline" size="sm" onClick={() => setShowPrices(true)}>
         + Edit Prices
-      </button>
+      </Button>
 
       <EditStockModal  patternId={patternId} skus={skuStocks} open={showStock}  onClose={() => setShowStock(false)}  onSuccess={onSuccess} />
       <EditPricesModal patternId={patternId} skus={skuPrices} open={showPrices} onClose={() => setShowPrices(false)} onSuccess={onSuccess} />
@@ -419,7 +445,6 @@ export function VariantRowMenu({ patternId, variantId, variantName, onDeleted }:
   const [open, setOpen]         = useState(false)
   const [showDel, setShowDel]   = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [delError, setDelError] = useState('')
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -442,10 +467,11 @@ export function VariantRowMenu({ patternId, variantId, variantName, onDeleted }:
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error ?? `Error ${res.status}`)
       }
+      toastSuccess('Variant deleted')
       onDeleted?.()
       setShowDel(false)
     } catch (err: unknown) {
-      setDelError(err instanceof Error ? err.message : 'Failed')
+      toastError(err instanceof Error ? err.message : 'Failed to delete variant')
     } finally {
       setDeleting(false)
     }
@@ -454,18 +480,29 @@ export function VariantRowMenu({ patternId, variantId, variantName, onDeleted }:
   return (
     <>
       <div ref={ref} className="relative">
-        <button type="button" aria-label="Variant actions" onClick={() => setOpen(o => !o)} className="p-1 text-zinc-400 hover:text-zinc-700 rounded transition-colors">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Variant actions"
+          onClick={() => setOpen(o => !o)}
+        >
           <MoreVertical className="w-4 h-4" />
-        </button>
+        </Button>
         {open && (
           <div className="absolute right-0 top-full mt-1 z-50 w-40 rounded-lg border border-zinc-200 bg-white shadow-lg py-1">
-            <Link href={`/admin/products/${patternId}/variants/${variantId}`}
+            <Link
+              href={`/admin/products/${patternId}/variants/${variantId}`}
               className="flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
-              onClick={() => setOpen(false)}>
+              onClick={() => setOpen(false)}
+            >
               Edit Variant
             </Link>
-            <button type="button" onClick={() => { setOpen(false); setShowDel(true) }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
+            <button
+              type="button"
+              onClick={() => { setOpen(false); setShowDel(true) }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+            >
               Delete Variant
             </button>
           </div>
@@ -476,15 +513,18 @@ export function VariantRowMenu({ patternId, variantId, variantName, onDeleted }:
         <DialogContent className="rounded-2xl shadow-xl ring-0 bg-white sm:max-w-sm" showCloseButton={false}>
           <DialogTitle className="text-base font-semibold text-zinc-900">Delete Variant</DialogTitle>
           <p className="text-sm text-zinc-600">Delete <strong>{variantName}</strong>? This cannot be undone.</p>
-          {delError && <p className="text-sm text-red-600">{delError}</p>}
           <div className="flex gap-3 justify-end">
             <DialogClose asChild>
-              <button type="button" className="px-4 py-2 text-sm border border-zinc-300 rounded-lg text-zinc-700 hover:bg-zinc-50 transition-colors">Cancel</button>
+              <Button type="button" variant="outline">Cancel</Button>
             </DialogClose>
-            <button type="button" onClick={handleDelete} disabled={deleting}
-              className="px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors">
+            <Button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
               {deleting ? 'Deleting…' : 'Delete'}
-            </button>
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

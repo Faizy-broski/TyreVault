@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react'
 import Link from 'next/link'
 import type { SupplierMapping } from '@/types/admin.types'
 import ManualMapModal from './ManualMapModal'
+import { toastError } from '@/lib/toast'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -44,7 +45,6 @@ export default function MappingReviewClient({
   const [page, setPage]           = useState(1)
   const [loading, setLoading]     = useState(false)
   const [manualId, setManualId]   = useState<string | null>(null)
-  const [actionError, setActionError] = useState<string | null>(null)
 
   const headers = { Authorization: `Bearer ${accessToken}` }
 
@@ -65,7 +65,6 @@ export default function MappingReviewClient({
   }, [supplierId])
 
   async function approve(mapId: string) {
-    setActionError(null)
     try {
       const res = await fetch(`${API}/api/admin/suppliers/mappings/${mapId}/approve`, {
         method: 'PATCH',
@@ -77,12 +76,11 @@ export default function MappingReviewClient({
       }
       removeRow(mapId)
     } catch (err: unknown) {
-      setActionError(err instanceof Error ? err.message : 'Unknown error')
+      toastError(err instanceof Error ? err.message : 'Failed to approve mapping')
     }
   }
 
   async function reject(mapId: string) {
-    setActionError(null)
     try {
       const res = await fetch(`${API}/api/admin/suppliers/mappings/${mapId}`, {
         method: 'DELETE',
@@ -94,7 +92,7 @@ export default function MappingReviewClient({
       }
       removeRow(mapId)
     } catch (err: unknown) {
-      setActionError(err instanceof Error ? err.message : 'Unknown error')
+      toastError(err instanceof Error ? err.message : 'Failed to reject mapping')
     }
   }
 
@@ -107,9 +105,9 @@ export default function MappingReviewClient({
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-4 sm:p-6 space-y-5">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Link href={`/admin/suppliers/${supplierId}`} className="text-sm text-zinc-400 hover:text-zinc-600">
@@ -121,15 +119,9 @@ export default function MappingReviewClient({
         </div>
       </div>
 
-      {actionError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {actionError}
-        </div>
-      )}
-
       {/* Table */}
       <div className="bg-white rounded-xl border border-zinc-200 overflow-x-auto">
-        <table className="w-full text-sm min-w-[800px]">
+        <table className="w-full text-sm min-w-200">
           <thead>
             <tr className="border-b border-zinc-100 bg-zinc-50">
               <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 w-56">Supplier Data</th>

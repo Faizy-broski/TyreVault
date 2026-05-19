@@ -82,7 +82,7 @@ export default function CategoriesTab({ collections, categories }: Props) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {/* Product Type (application_type) */}
           <div>
             <label className="block text-sm font-medium text-zinc-700 mb-1">Product Type</label>
@@ -175,7 +175,7 @@ export default function CategoriesTab({ collections, categories }: Props) {
 
         {/* TBR-specific fields */}
         {applicationType === 'TBR' && (
-          <div className="mt-4 grid grid-cols-3 gap-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <div className="mt-4 grid grid-cols-1 gap-4 rounded-lg border border-amber-200 bg-amber-50 p-4 sm:grid-cols-3">
             <div>
               <label className="block text-sm font-medium text-zinc-700 mb-1">Position Category</label>
               <select

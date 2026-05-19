@@ -12,6 +12,7 @@ import FulfillmentModal from './FulfillmentModal'
 import MarkShippedModal from './MarkShippedModal'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { toastSuccess, toastError } from '@/lib/toast'
 import {
   Select,
   SelectTrigger,
@@ -222,12 +223,10 @@ function ShipmentCard({ shipment, orderId, onMarkShipped, onMarkDelivered, token
   onMarkDelivered: (id: string) => void
   token: string
 }) {
-  const [delivering, setDelivering]   = useState(false)
-  const [deliverError, setDeliverError] = useState<string | null>(null)
+  const [delivering, setDelivering] = useState(false)
 
   async function handleDeliver() {
     setDelivering(true)
-    setDeliverError(null)
     try {
       const res = await fetch(
         `${API}/api/admin/orders/${orderId}/shipments/${shipment.shipment_id}/delivered`,
@@ -237,9 +236,10 @@ function ShipmentCard({ shipment, orderId, onMarkShipped, onMarkDelivered, token
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error ?? `Failed to mark delivered (${res.status})`)
       }
+      toastSuccess('Shipment marked as delivered')
       onMarkDelivered(shipment.shipment_id)
     } catch (err: unknown) {
-      setDeliverError(err instanceof Error ? err.message : 'Unknown error')
+      toastError(err instanceof Error ? err.message : 'Failed to mark as delivered')
     } finally { setDelivering(false) }
   }
 
@@ -285,9 +285,6 @@ function ShipmentCard({ shipment, orderId, onMarkShipped, onMarkDelivered, token
         </div>
       </div>
       <div className="p-4 space-y-3">
-        {deliverError && (
-          <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{deliverError}</p>
-        )}
         {shipment.order_shipment_items.length > 0 && (
           <div className="rounded-lg border border-zinc-100 divide-y divide-zinc-100">
             {shipment.order_shipment_items.map(item => (
@@ -334,12 +331,10 @@ export default function OrderDetailClient({
 
   const [order, setOrder]             = useState<OrderDetail>(initialOrder)
   const [statusSaving, setStatusSaving] = useState(false)
-  const [statusError, setStatusError]   = useState<string | null>(null)
 
   const [notesValue,   setNotesValue]   = useState(initialOrder.notes ?? '')
   const [notesDirty,   setNotesDirty]   = useState(false)
   const [notesSaving,  setNotesSaving]  = useState(false)
-  const [notesError,   setNotesError]   = useState<string | null>(null)
 
   const modal       = searchParams.get('modal')
   const shipmentIdParam = searchParams.get('shipment')
@@ -353,7 +348,6 @@ export default function OrderDetailClient({
 
   async function patchStatus(patch: { paymentStatus?: string; orderStatus?: string }) {
     setStatusSaving(true)
-    setStatusError(null)
     try {
       const res = await fetch(`${API}/api/admin/orders/${order.order_id}/status`, {
         method:  'PATCH',
@@ -366,8 +360,9 @@ export default function OrderDetailClient({
       }
       if (patch.paymentStatus) setOrder(p => ({ ...p, payment_status: patch.paymentStatus as PaymentStatus }))
       if (patch.orderStatus)   setOrder(p => ({ ...p, order_status:   patch.orderStatus   as OrderStatus }))
+      toastSuccess('Status updated')
     } catch (err: unknown) {
-      setStatusError(err instanceof Error ? err.message : 'Unknown error')
+      toastError(err instanceof Error ? err.message : 'Failed to update status')
     } finally { setStatusSaving(false) }
   }
 
@@ -385,7 +380,6 @@ export default function OrderDetailClient({
 
   async function saveNotes() {
     setNotesSaving(true)
-    setNotesError(null)
     try {
       const res = await fetch(`${API}/api/admin/orders/${order.order_id}/status`, {
         method:  'PATCH',
@@ -398,8 +392,9 @@ export default function OrderDetailClient({
       }
       setOrder(p => ({ ...p, notes: notesValue }))
       setNotesDirty(false)
+      toastSuccess('Notes saved')
     } catch (err: unknown) {
-      setNotesError(err instanceof Error ? err.message : 'Failed to save')
+      toastError(err instanceof Error ? err.message : 'Failed to save notes')
     } finally { setNotesSaving(false) }
   }
 
@@ -432,14 +427,8 @@ export default function OrderDetailClient({
 
   return (
     <div>
-      {statusError && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {statusError}
-        </div>
-      )}
-
       {/* Order header */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2 mb-0.5">
             <h1 className="text-xl font-bold text-zinc-900">#{order.order_number}</h1>
@@ -457,7 +446,7 @@ export default function OrderDetailClient({
           <p className="text-xs text-zinc-500">{fmt(order.created_at)}</p>
         </div>
 
-        <div className="flex items-end gap-4">
+        <div className="flex flex-wrap items-end gap-4">
           <StatusDropdown
             label="Payment Status"
             value={order.payment_status}
@@ -481,9 +470,9 @@ export default function OrderDetailClient({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* ── Main content ────────────────────────────────────────────── */}
-        <div className="col-span-2 space-y-5">
+        <div className="space-y-5 lg:col-span-2">
 
           {/* Order Summary */}
           <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
@@ -583,7 +572,7 @@ export default function OrderDetailClient({
             <div className="p-5">
               {isFitment && order.fitment_job ? (
                 <>
-                  <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div className="grid grid-cols-1 gap-4 mb-4 sm:grid-cols-3">
                     <div>
                       <p className="text-xs text-zinc-400 mb-1">Fitment ID</p>
                       <p className="text-sm font-medium text-zinc-800">{order.fitment_job.task_number}</p>
@@ -604,7 +593,7 @@ export default function OrderDetailClient({
                   <FitmentProgressBar status={order.fitment_job.job_status} />
                 </>
               ) : (
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                   {order.order_shipments.slice(0, 1).map(s => (
                     <div key={s.shipment_id}>
                       <p className="text-xs text-zinc-400 mb-1">Warehouse</p>
@@ -796,14 +785,14 @@ export default function OrderDetailClient({
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold text-zinc-900">Notes</h3>
               {notesDirty && (
-                <button
+                <Button
                   type="button"
+                  size="xs"
                   onClick={saveNotes}
                   disabled={notesSaving}
-                  className="rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-zinc-900 hover:bg-primary/90 disabled:opacity-50"
                 >
                   {notesSaving ? 'Saving…' : 'Save'}
-                </button>
+                </Button>
               )}
             </div>
             <textarea
@@ -813,7 +802,6 @@ export default function OrderDetailClient({
               placeholder="Add internal notes…"
               className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700 resize-none focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
-            {notesError && <p className="mt-1 text-xs text-red-600">{notesError}</p>}
           </div>
         </div>
       </div>

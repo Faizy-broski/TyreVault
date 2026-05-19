@@ -5,6 +5,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import ProductsTable from '@/components/admin/products/ProductsTable'
+import { toastError } from '@/lib/toast'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 
 const API   = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
@@ -37,17 +38,17 @@ export default function AdminProductsPage() {
   const router       = useRouter()
   const pathname     = usePathname()
 
-  const search  = searchParams.get('search')  ?? ''
-  const page    = Number(searchParams.get('page') ?? 1)
-  const sortBy  = (searchParams.get('sortBy') as 'updated_at' | 'created_at') ?? 'updated_at'
-  const brandId = searchParams.get('brandId') ?? ''
-  const status  = searchParams.get('status')  ?? ''
+  const search    = searchParams.get('search')    ?? ''
+  const page      = Number(searchParams.get('page') ?? 1)
+  const sortBy    = searchParams.get('sortBy')    ?? 'updated_at'
+  const sortOrder = (searchParams.get('sortOrder') as 'asc' | 'desc') ?? 'desc'
+  const brandId   = searchParams.get('brandId')   ?? ''
+  const status    = searchParams.get('status')    ?? ''
 
   const [products, setProducts] = useState<Product[]>([])
   const [brands, setBrands]     = useState<Brand[]>([])
   const [count, setCount]       = useState(0)
   const [loading, setLoading]   = useState(true)
-  const [error, setError]       = useState<string | null>(null)
 
   useEffect(() => { document.title = 'Products | Tyre Vault' }, [])
 
@@ -73,12 +74,11 @@ export default function AdminProductsPage() {
     let cancelled = false
     async function load() {
       setLoading(true)
-      setError(null)
       try {
         const { data: { session } } = await createClient().auth.getSession()
         const tok = session?.access_token ?? ''
 
-        const qs = new URLSearchParams({ page: String(page), sortBy })
+        const qs = new URLSearchParams({ page: String(page), sortBy, sortOrder })
         if (search)  qs.set('search',  search)
         if (brandId) qs.set('brandId', brandId)
         if (status)  qs.set('status',  status)
@@ -116,22 +116,31 @@ export default function AdminProductsPage() {
           })))
         }
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load products')
+        if (!cancelled) toastError(err instanceof Error ? err.message : 'Failed to load products')
       } finally {
         if (!cancelled) setLoading(false)
       }
     }
     load()
     return () => { cancelled = true }
-  }, [search, page, sortBy, brandId, status])
+  }, [search, page, sortBy, sortOrder, brandId, status])
 
   const totalPages = Math.ceil(count / LIMIT)
 
   const buildHref = useCallback((extra: Record<string, string>) => {
-    const p = new URLSearchParams({ sortBy, search, page: String(page), brandId, status })
+    const p = new URLSearchParams({ sortBy, sortOrder, search, page: String(page), brandId, status })
     Object.entries(extra).forEach(([k, v]) => v ? p.set(k, v) : p.delete(k))
     return `${pathname}?${p}`
-  }, [sortBy, search, page, brandId, status, pathname])
+  }, [sortBy, sortOrder, search, page, brandId, status, pathname])
+
+  function handleSort(col: string) {
+    if (col === sortBy) {
+      router.push(buildHref({ sortOrder: sortOrder === 'asc' ? 'desc' : 'asc', page: '1' }))
+    } else {
+      const defaultOrder = ['pattern_name', 'brand_name', 'variant_count'].includes(col) ? 'asc' : 'desc'
+      router.push(buildHref({ sortBy: col, sortOrder: defaultOrder, page: '1' }))
+    }
+  }
 
   function onRefresh() {
     // bump page to force re-fetch while staying on current view
@@ -144,7 +153,7 @@ export default function AdminProductsPage() {
         <AdminBreadcrumb crumbs={[{ label: 'Products' }]} />
       </div>
 
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex flex-col gap-3 mb-5 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-semibold text-zinc-900">Products</h1>
         <Link
           href="/admin/products/new"
@@ -157,11 +166,7 @@ export default function AdminProductsPage() {
         </Link>
       </div>
 
-      {error && (
-        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
-      )}
-
-      <div className="rounded-2xl border border-zinc-200 bg-white overflow-hidden">
+      <div className="rounded-2xl border border-zinc-200 bg-white overflow-hidden shadow-sm">
         {/* ── Toolbar ── */}
         <div className="px-4 py-3 border-b border-zinc-200 space-y-2">
           {/* Row 1: status chips + sort + search */}
@@ -174,7 +179,7 @@ export default function AdminProductsPage() {
                   href={buildHref({ status: f.value, page: '1' })}
                   className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                     status === f.value
-                      ? 'bg-zinc-900 text-white'
+                      ? 'bg-primary text-black font-medium'
                       : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900'
                   }`}
                 >
@@ -184,17 +189,6 @@ export default function AdminProductsPage() {
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Sort */}
-              {(['updated_at', 'created_at'] as const).map(key => (
-                <Link key={key} href={buildHref({ sortBy: key, page: '1' })}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors ${
-                    sortBy === key ? 'bg-zinc-100 text-zinc-900 font-medium' : 'text-zinc-500 hover:text-zinc-900'
-                  }`}
-                >
-                  {key === 'updated_at' ? 'Updated' : 'Created'}
-                </Link>
-              ))}
-
               {/* Search */}
               <form onSubmit={e => {
                 e.preventDefault()
@@ -218,7 +212,7 @@ export default function AdminProductsPage() {
               <Link
                 href={buildHref({ brandId: '', page: '1' })}
                 className={`px-2.5 py-0.5 rounded-full text-xs border transition-colors ${
-                  !brandId ? 'bg-zinc-900 text-white border-zinc-900' : 'border-zinc-300 text-zinc-600 hover:border-zinc-500'
+                  !brandId ? 'bg-primary text-black font-medium' : 'border-zinc-300 text-zinc-600 hover:border-zinc-500'
                 }`}
               >
                 All
@@ -246,8 +240,8 @@ export default function AdminProductsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 bg-zinc-50">
-                  {['Product', 'Brand', 'Collection', 'Variants', 'Status', 'Updated', ''].map(h => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-medium text-zinc-500">{h}</th>
+                  {['Name', 'Brand', 'Collection', 'Variants', 'Status', 'Updated', ''].map(h => (
+                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -265,11 +259,19 @@ export default function AdminProductsPage() {
             </table>
           </div>
         ) : (
-          <ProductsTable products={products} onPublishToggle={onRefresh} />
+          <div className="overflow-x-auto">
+            <ProductsTable
+            products={products}
+            onPublishToggle={onRefresh}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            onSort={handleSort}
+          />
+          </div>
         )}
 
         {/* ── Pagination ── */}
-        <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-200 text-sm text-zinc-500">
+        <div className="flex flex-col gap-2 px-4 py-3 border-t border-zinc-200 text-sm text-zinc-500 sm:flex-row sm:items-center sm:justify-between">
           {loading
             ? <div className="h-4 w-36 bg-zinc-100 rounded animate-pulse" />
             : <span>{count === 0 ? '0 results' : `${(page - 1) * LIMIT + 1}–${Math.min(page * LIMIT, count)} of ${count} results`}</span>
@@ -278,10 +280,10 @@ export default function AdminProductsPage() {
             <span>{loading ? '…' : `Page ${page} of ${totalPages || 1}`}</span>
             <div className="flex gap-1">
               {page > 1 && (
-                <Link href={buildHref({ page: String(page - 1) })} className="px-3 py-1 rounded border border-zinc-300 hover:bg-zinc-50">Prev</Link>
+                <Link href={buildHref({ page: String(page - 1) })} className="px-3 py-1.5 rounded-lg border border-zinc-300 hover:bg-white hover:border-zinc-400 transition-colors text-xs font-medium">Prev</Link>
               )}
               {page < totalPages && (
-                <Link href={buildHref({ page: String(page + 1) })} className="px-3 py-1 rounded border border-zinc-300 hover:bg-zinc-50">Next</Link>
+                <Link href={buildHref({ page: String(page + 1) })} className="px-3 py-1.5 rounded-lg border border-zinc-300 hover:bg-white hover:border-zinc-400 transition-colors text-xs font-medium">Next</Link>
               )}
             </div>
           </div>

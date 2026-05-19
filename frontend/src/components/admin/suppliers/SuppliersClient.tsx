@@ -4,8 +4,11 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Plus, Search, X } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle, DialogClose } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import type { Supplier } from '@/types/admin.types'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
+import { toastError } from '@/lib/toast'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -56,7 +59,6 @@ export default function SuppliersClient({ initialSuppliers, accessToken }: Props
   const [showAdd, setShowAdd]     = useState(false)
   const [newName, setNewName]     = useState('')
   const [adding, setAdding]       = useState(false)
-  const [addError, setAddError]   = useState<string | null>(null)
 
   const headers = { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }
 
@@ -77,7 +79,6 @@ export default function SuppliersClient({ initialSuppliers, accessToken }: Props
     e.preventDefault()
     if (!newName.trim()) return
     setAdding(true)
-    setAddError(null)
     try {
       const res = await fetch(`${API}/api/admin/suppliers`, {
         method: 'POST',
@@ -93,7 +94,7 @@ export default function SuppliersClient({ initialSuppliers, accessToken }: Props
       setNewName('')
       setShowAdd(false)
     } catch (err: unknown) {
-      setAddError(err instanceof Error ? err.message : 'Unknown error')
+      toastError(err instanceof Error ? err.message : 'Unknown error')
     } finally { setAdding(false) }
   }
 
@@ -110,49 +111,67 @@ export default function SuppliersClient({ initialSuppliers, accessToken }: Props
           <h1 className="text-xl font-semibold text-zinc-900">Suppliers</h1>
           <p className="text-sm text-zinc-500 mt-0.5">Manage stock suppliers and CSV imports</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowAdd(true)}
-          className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-primary/90 transition-colors"
-        >
+        <Button type="button" onClick={() => setShowAdd(true)}>
           <Plus className="w-4 h-4" />
           Add Supplier
-        </button>
+        </Button>
       </div>
 
-      <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden">
+      <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-sm">
         <div className="flex items-center gap-2 px-5 py-3 border-b border-zinc-100">
           <form onSubmit={handleSearch} className="relative flex-1 max-w-xs">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
-            <input
+            <Input
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search suppliers..."
-              className="pl-8 pr-3 py-1.5 text-xs border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary w-full"
+              className="pl-8 text-xs"
             />
           </form>
           <span className="ml-auto text-xs text-zinc-400">{suppliers.length} suppliers</span>
         </div>
 
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-zinc-100 bg-zinc-50">
-              <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Supplier</th>
-              <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Type</th>
-              <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Stock Access</th>
-              <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">API</th>
-              <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Added</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Supplier</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Type</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Stock Access</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">API</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Added</th>
               <th className="px-5 py-3 w-10" scope="col"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
             {loading ? (
-              <tr><td colSpan={6} className="px-5 py-8 text-center text-sm text-zinc-400">Loading...</td></tr>
+              <>
+                {[1,2,3].map(i => (
+                  <tr key={i}>
+                    <td className="px-5 py-3"><div className="h-4 w-40 bg-zinc-100 rounded animate-pulse mb-1" /><div className="h-3 w-28 bg-zinc-100 rounded animate-pulse" /></td>
+                    <td className="px-5 py-3"><div className="h-5 w-20 bg-zinc-100 rounded-full animate-pulse" /></td>
+                    <td className="px-5 py-3"><div className="h-5 w-24 bg-zinc-100 rounded-full animate-pulse" /></td>
+                    <td className="px-5 py-3"><div className="h-4 w-24 bg-zinc-100 rounded animate-pulse" /></td>
+                    <td className="px-5 py-3"><div className="h-4 w-20 bg-zinc-100 rounded animate-pulse" /></td>
+                    <td className="px-5 py-3" />
+                  </tr>
+                ))}
+              </>
             ) : suppliers.length === 0 ? (
-              <tr><td colSpan={6} className="px-5 py-8 text-center text-sm text-zinc-400">No suppliers yet. Add your first supplier.</td></tr>
+              <tr>
+                <td colSpan={6} className="px-5 py-16 text-center">
+                  <div className="flex flex-col items-center gap-2 mx-auto">
+                    <svg className="w-10 h-10 text-zinc-200" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+                    </svg>
+                    <p className="text-sm font-medium text-zinc-400">No suppliers yet.</p>
+                    <p className="text-xs text-zinc-300">Add your first supplier to get started.</p>
+                  </div>
+                </td>
+              </tr>
             ) : (
               suppliers.map(s => (
-                <tr key={s.supplier_id} className="hover:bg-zinc-50">
+                <tr key={s.supplier_id} className="even:bg-zinc-50/40 hover:bg-amber-50/30 transition-colors duration-150">
                   <td className="px-5 py-3">
                     <p className="font-medium text-zinc-900">{s.supplier_name}</p>
                     <p className="text-xs text-zinc-400">{s.email ?? '—'}</p>
@@ -179,44 +198,37 @@ export default function SuppliersClient({ initialSuppliers, accessToken }: Props
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
-      <Dialog open={showAdd} onOpenChange={o => { if (!o) { setShowAdd(false); setNewName(''); setAddError(null) } }}>
+      <Dialog open={showAdd} onOpenChange={o => { if (!o) { setShowAdd(false); setNewName('') } }}>
         <DialogContent className="p-0 gap-0 rounded-2xl shadow-xl ring-0 bg-white sm:max-w-sm" showCloseButton={false}>
           <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
             <DialogTitle className="text-base font-semibold text-zinc-900">Add Supplier</DialogTitle>
-            <DialogClose className="p-1 text-zinc-400 hover:text-zinc-600 rounded transition-colors">
-              <X className="w-4 h-4" />
+            <DialogClose asChild>
+              <Button variant="ghost" size="icon-sm" aria-label="Close">
+                <X className="w-4 h-4" />
+              </Button>
             </DialogClose>
           </div>
           <form onSubmit={handleAdd}>
             <div className="px-6 py-5 space-y-3">
-              {addError && (
-                <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{addError}</p>
-              )}
               <label htmlFor="supplierName" className="block text-sm font-medium text-zinc-700 mb-1">Supplier Name</label>
-              <input
+              <Input
                 id="supplierName"
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
                 placeholder="Supplier name"
                 autoFocus
-                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
               />
             </div>
             <div className="flex gap-2 justify-end px-6 py-4 border-t border-zinc-100">
               <DialogClose asChild>
-                <button type="button" className="px-3 py-1.5 rounded-lg text-sm text-zinc-600 hover:bg-zinc-100 transition-colors">
-                  Cancel
-                </button>
+                <Button type="button" variant="outline">Cancel</Button>
               </DialogClose>
-              <button
-                type="submit"
-                disabled={adding || !newName.trim()}
-                className="px-3 py-1.5 rounded-lg bg-primary text-sm text-zinc-900 font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
-              >
+              <Button type="submit" disabled={adding || !newName.trim()}>
                 {adding ? 'Adding...' : 'Add'}
-              </button>
+              </Button>
             </div>
           </form>
         </DialogContent>

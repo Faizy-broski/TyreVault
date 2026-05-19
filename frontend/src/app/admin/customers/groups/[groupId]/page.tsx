@@ -1,10 +1,12 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
+import { toastSuccess, toastError } from '@/lib/toast'
+import { Button } from '@/components/ui/button'
 import type { CustomerGroup, CustomerListItem } from '@/types/admin.types'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
@@ -34,17 +36,14 @@ export default function CustomerGroupDetailPage() {
   const [group, setGroup]     = useState<GroupWithMembers | null>(null)
   const [token, setToken]     = useState('')
   const [loading, setLoading] = useState(true)
-  const [error, setError]     = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
   const [removing, setRemoving] = useState<string | null>(null)
-  const [removeError, setRemoveError] = useState<string | null>(null)
 
   const [addSearch, setAddSearch]   = useState('')
   const [addResults, setAddResults] = useState<CustomerListItem[]>([])
   const [addLoading, setAddLoading] = useState(false)
   const [adding, setAdding]         = useState<string | null>(null)
-  const [addError, setAddError]     = useState<string | null>(null)
   const addSearchRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -56,7 +55,6 @@ export default function CustomerGroupDetailPage() {
     let cancelled = false
     async function load() {
       setLoading(true)
-      setError(null)
       try {
         const { data: { session } } = await createClient().auth.getSession()
         const tok = session?.access_token ?? ''
@@ -72,7 +70,7 @@ export default function CustomerGroupDetailPage() {
         const json = await res.json()
         if (!cancelled) setGroup(json.group)
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load group')
+        if (!cancelled) toastError(err instanceof Error ? err.message : 'Failed to load group')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -83,7 +81,6 @@ export default function CustomerGroupDetailPage() {
 
   function handleAddSearchChange(q: string) {
     setAddSearch(q)
-    setAddError(null)
     if (addSearchRef.current) clearTimeout(addSearchRef.current)
     if (!q.trim()) { setAddResults([]); return }
     addSearchRef.current = setTimeout(async () => {
@@ -103,7 +100,6 @@ export default function CustomerGroupDetailPage() {
 
   async function handleAddMember(customerId: string) {
     setAdding(customerId)
-    setAddError(null)
     try {
       const res = await fetch(
         `${API}/api/admin/customers/groups/${groupId}/members/${customerId}`,
@@ -116,17 +112,16 @@ export default function CustomerGroupDetailPage() {
       setAddSearch('')
       setAddResults([])
       setRefreshKey(k => k + 1)
+      toastSuccess('Member added to group')
     } catch (err) {
-      setAddError(err instanceof Error ? err.message : 'Failed to add member')
+      toastError(err instanceof Error ? err.message : 'Failed to add member')
     } finally {
       setAdding(null)
     }
   }
 
   async function handleRemoveMember(customerId: string, name: string) {
-    if (!confirm(`Remove "${name}" from this group?`)) return
     setRemoving(customerId)
-    setRemoveError(null)
     try {
       const res = await fetch(
         `${API}/api/admin/customers/groups/${groupId}/members/${customerId}`,
@@ -139,8 +134,9 @@ export default function CustomerGroupDetailPage() {
       setGroup(g =>
         g ? { ...g, members: g.members.filter(m => m.customer_id !== customerId) } : null,
       )
+      toastSuccess(`${name} removed from group`)
     } catch (err) {
-      setRemoveError(err instanceof Error ? err.message : 'Failed to remove member')
+      toastError(err instanceof Error ? err.message : 'Failed to remove member')
     } finally {
       setRemoving(null)
     }
@@ -148,7 +144,7 @@ export default function CustomerGroupDetailPage() {
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="h-8 w-48 bg-zinc-100 rounded animate-pulse mb-6" />
         <div className="space-y-4">
           {[1,2,3].map(i => <div key={i} className="h-14 bg-zinc-100 rounded-xl animate-pulse" />)}
@@ -157,13 +153,11 @@ export default function CustomerGroupDetailPage() {
     )
   }
 
-  if (error || !group) {
+  if (!group) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <AdminBreadcrumb crumbs={[{ label: 'Customers', href: '/admin/customers' }, { label: 'Group' }]} />
-        <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
-          {error ?? 'Group not found.'}
-        </div>
+        <p className="mt-6 text-sm text-zinc-500">Group not found.</p>
       </div>
     )
   }
@@ -172,7 +166,7 @@ export default function CustomerGroupDetailPage() {
   const currentMemberIds = new Set(members.map(m => m.customer_id))
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       <div className="mb-6">
         <AdminBreadcrumb crumbs={[
           { label: 'Customers', href: '/admin/customers' },
@@ -181,7 +175,7 @@ export default function CustomerGroupDetailPage() {
         ]} />
       </div>
 
-      <div className="mb-6 rounded-xl border border-zinc-200 bg-white p-5">
+      <div className="mb-6 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
         <h1 className="text-lg font-semibold text-zinc-900">{group.group_name}</h1>
         <div className="mt-3 flex items-center border-t border-zinc-100 pt-3">
           <span className="w-32 text-sm text-zinc-500">Members</span>
@@ -189,7 +183,7 @@ export default function CustomerGroupDetailPage() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
         <div className="border-b border-zinc-200 px-5 py-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-zinc-900">Customers</h2>
@@ -229,14 +223,14 @@ export default function CustomerGroupDetailPage() {
                       {already ? (
                         <span className="text-xs text-zinc-400">Already in group</span>
                       ) : (
-                        <button
+                        <Button
                           type="button"
+                          size="xs"
                           disabled={adding === c.customer_id}
                           onClick={() => handleAddMember(c.customer_id)}
-                          className="rounded-full bg-primary px-2.5 py-0.5 text-xs font-medium text-zinc-900 hover:bg-primary/90 disabled:opacity-50"
                         >
                           {adding === c.customer_id ? 'Adding…' : 'Add'}
-                        </button>
+                        </Button>
                       )}
                     </div>
                   )
@@ -244,40 +238,37 @@ export default function CustomerGroupDetailPage() {
               </div>
             )}
 
-            {addError && (
-              <p className="mt-1.5 text-xs text-red-600">{addError}</p>
-            )}
           </div>
         </div>
-
-        {removeError && (
-          <div className="border-b border-zinc-100 bg-red-50 px-5 py-2 text-xs text-red-600">
-            {removeError}
-          </div>
-        )}
 
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-zinc-100 bg-zinc-50">
-              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Email</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Name</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Account</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Created</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Email</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Name</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Account</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Created</th>
               <th className="w-20 px-4 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
             {members.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-sm text-zinc-400">
-                  No customers in this group yet. Search above to add one.
+                <td colSpan={5} className="px-4 py-16 text-center">
+                  <div className="flex flex-col items-center gap-2 mx-auto">
+                    <svg className="w-10 h-10 text-zinc-200" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                    </svg>
+                    <p className="text-sm font-medium text-zinc-400">No customers in this group yet.</p>
+                    <p className="text-xs text-zinc-300">Search above to add members.</p>
+                  </div>
                 </td>
               </tr>
             ) : (
               members.map(member => {
                 const name = [member.first_name, member.last_name].filter(Boolean).join(' ') || member.email
                 return (
-                  <tr key={member.customer_id} className="hover:bg-zinc-50">
+                  <tr key={member.customer_id} className="even:bg-zinc-50/40 hover:bg-amber-50/30 transition-colors duration-150">
                     <td className="px-4 py-3">
                       <Link href={`/admin/customers/${member.customer_id}`} className="text-zinc-800 hover:underline">
                         {member.email}
@@ -289,14 +280,16 @@ export default function CustomerGroupDetailPage() {
                     </td>
                     <td className="px-4 py-3 text-xs text-zinc-500">{fmt(member.created_at)}</td>
                     <td className="px-4 py-3 text-right">
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="xs"
                         disabled={removing === member.customer_id}
                         onClick={() => handleRemoveMember(member.customer_id, name)}
-                        className="rounded px-2 py-1 text-xs text-zinc-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                        className="text-zinc-400 hover:bg-red-50 hover:text-red-600"
                       >
                         {removing === member.customer_id ? 'Removing…' : 'Remove'}
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 )

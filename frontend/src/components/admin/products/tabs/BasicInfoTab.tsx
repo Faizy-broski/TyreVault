@@ -7,6 +7,10 @@ import { CreatableCombobox, slugify } from '@/components/ui/CreatableCombobox'
 import { createClient } from '@/lib/supabase/client'
 import RichTextEditor from '@/components/ui/RichTextEditor'
 import { uploadProductImage, deleteProductImage } from '@/lib/upload-image'
+import { toastError } from '@/lib/toast'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -36,7 +40,6 @@ export default function BasicInfoTab({ autoSlug, brands }: {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const galleryImages = watch('galleryImages') ?? []
   const [uploading,    setUploading]    = useState(false)
-  const [uploadError,  setUploadError]  = useState('')
   const [dragIdx,      setDragIdx]      = useState<number | null>(null)
   const [dragOverIdx,  setDragOverIdx]  = useState<number | null>(null)
 
@@ -67,7 +70,7 @@ export default function BasicInfoTab({ autoSlug, brands }: {
       {/* ── General ─────────────────────────────────────────────────────── */}
       <section>
         <h2 className="text-base font-semibold text-zinc-900 mb-4">General</h2>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {/* Brand */}
           <div>
             <label className="block text-sm font-medium text-zinc-700 mb-1">Brand</label>
@@ -98,11 +101,10 @@ export default function BasicInfoTab({ autoSlug, brands }: {
           {/* Title */}
           <div>
             <label className="block text-sm font-medium text-zinc-700 mb-1">Title</label>
-            <input
+            <Input
               {...register('patternName')}
               onBlur={handleNameBlur}
               placeholder="Michelin Pilot Sport 4"
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
             />
             {errors.patternName && <p className="mt-1 text-xs text-red-600">{errors.patternName.message}</p>}
           </div>
@@ -115,7 +117,7 @@ export default function BasicInfoTab({ autoSlug, brands }: {
               <input
                 {...register('patternSlug')}
                 placeholder={autoSlug || 'product-slug'}
-                className="flex-1 px-3 py-2 text-sm focus:outline-none"
+                className="flex-1 px-3 py-2 text-sm focus:outline-none bg-transparent border-0 shadow-none focus-visible:ring-0"
               />
             </div>
             {errors.patternSlug && <p className="mt-1 text-xs text-red-600">{errors.patternSlug.message}</p>}
@@ -125,11 +127,11 @@ export default function BasicInfoTab({ autoSlug, brands }: {
         {/* Short Description */}
         <div className="mt-4">
           <label className="block text-sm font-medium text-zinc-700 mb-1">Short Description</label>
-          <textarea
+          <Textarea
             {...register('shortDescription')}
             rows={3}
             placeholder="Brief description of tyre product..."
-            className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none placeholder-zinc-400"
+            className="resize-none placeholder-zinc-400"
           />
         </div>
 
@@ -139,11 +141,11 @@ export default function BasicInfoTab({ autoSlug, brands }: {
             Default Country of Origin
             <span className="ml-1 text-xs font-normal text-zinc-400">(pattern-level fallback — overridden per variant)</span>
           </label>
-          <input
+          <Input
             {...register('defaultCountryOfOrigin')}
             placeholder="CN"
             maxLength={3}
-            className="w-24 rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary uppercase"
+            className="w-24 uppercase"
           />
         </div>
 
@@ -160,13 +162,12 @@ export default function BasicInfoTab({ autoSlug, brands }: {
               const files = Array.from(e.target.files ?? [])
               e.target.value = ''
               if (!files.length) return
-              setUploadError('')
               setUploading(true)
               try {
                 const urls = await Promise.all(files.map(f => uploadProductImage(f, 'gallery')))
                 setValue('galleryImages', [...galleryImages, ...urls])
               } catch (err) {
-                setUploadError(err instanceof Error ? err.message : 'Upload failed')
+                toastError(err instanceof Error ? err.message : 'Upload failed')
               } finally {
                 setUploading(false)
               }
@@ -203,10 +204,6 @@ export default function BasicInfoTab({ autoSlug, brands }: {
               </>
             )}
           </div>
-          {uploadError && (
-            <p className="mt-1.5 text-xs text-red-600">{uploadError}</p>
-          )}
-
           {galleryImages.length > 0 && (
             <div className="mt-3">
               <p className="text-xs text-zinc-400 mb-2">
@@ -251,33 +248,35 @@ export default function BasicInfoTab({ autoSlug, brands }: {
                       {/* Hover overlay — set cover + remove */}
                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-1.5 transition-opacity">
                         {!isCover && (
-                          <button
+                          <Button
                             type="button"
                             aria-label="Set as cover"
                             onClick={() => setCover(i)}
                             title="Set as cover"
-                            className="flex items-center gap-1 bg-white/90 hover:bg-white text-zinc-800 text-[11px] font-semibold rounded-md px-2 py-1 transition-colors"
+                            size="xs"
+                            className="bg-white/90 hover:bg-white text-zinc-800"
                           >
                             <svg className="w-3 h-3 text-amber-500" fill="currentColor" viewBox="0 0 24 24">
                               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                             </svg>
                             Set cover
-                          </button>
+                          </Button>
                         )}
-                        <button
+                        <Button
                           type="button"
                           aria-label="Remove image"
                           onClick={async () => {
                             setValue('galleryImages', galleryImages.filter((_, j) => j !== i))
                             await deleteProductImage(src).catch(() => {})
                           }}
-                          className="flex items-center gap-1 bg-red-500 hover:bg-red-600 text-white text-[11px] font-semibold rounded-md px-2 py-1 transition-colors"
+                          size="xs"
+                          className="bg-red-500 hover:bg-red-600 text-white"
                         >
                           <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                           </svg>
                           Remove
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   )
@@ -328,21 +327,19 @@ export default function BasicInfoTab({ autoSlug, brands }: {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className="block text-sm font-medium text-zinc-700 mb-1">SEO Title</label>
-            <input
+            <Input
               {...register('seoTitle')}
               placeholder="Michelin Pilot Sport 4 Tyres — Buy Online"
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-zinc-700 mb-1">SEO Description</label>
-            <input
+            <Input
               {...register('seoDescription')}
               placeholder="Short meta description for search engines"
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
             />
           </div>
         </div>
@@ -350,10 +347,9 @@ export default function BasicInfoTab({ autoSlug, brands }: {
         {/* Tread Image */}
         <div className="mt-4">
           <label className="block text-sm font-medium text-zinc-700 mb-1">Tread Image URL</label>
-          <input
+          <Input
             {...register('treadImage')}
             placeholder="https://cdn.example.com/tread-pattern.jpg"
-            className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
           />
           <p className="mt-1 text-xs text-zinc-400">Close-up tread pattern image shown on product detail page</p>
         </div>
@@ -363,16 +359,17 @@ export default function BasicInfoTab({ autoSlug, brands }: {
       <section>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-semibold text-zinc-900">FAQ List</h2>
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => appendFaq({ question: '', answer: '' })}
-            className="flex items-center gap-1.5 rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
             Add Faq
-          </button>
+          </Button>
         </div>
 
         {faqFields.length === 0 && (
@@ -390,27 +387,28 @@ export default function BasicInfoTab({ autoSlug, brands }: {
                 </svg>
               </div>
               <div className="p-3 space-y-2">
-                <input
+                <Input
                   {...register(`faqList.${index}.question`)}
                   placeholder="Question"
-                  className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                 />
                 <div className="flex gap-2">
-                  <textarea
+                  <Textarea
                     {...register(`faqList.${index}.answer`)}
                     placeholder="Answer"
                     rows={2}
-                    className="flex-1 px-3 py-2 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none"
+                    className="flex-1 resize-none"
                   />
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="icon-sm"
                     onClick={() => removeFaq(index)}
-                    className="self-start p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                    className="self-start text-red-400 hover:text-red-600 hover:bg-red-50"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
                     </svg>
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>

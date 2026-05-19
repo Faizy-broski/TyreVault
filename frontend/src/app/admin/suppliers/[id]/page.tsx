@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import SupplierDetailClient from '@/components/admin/suppliers/SupplierDetailClient'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import type { Supplier } from '@/types/admin.types'
+import { toastError } from '@/lib/toast'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -15,7 +16,6 @@ export default function AdminSupplierDetailPage() {
   const [supplier, setSupplier] = useState<Supplier | null>(null)
   const [token, setToken]       = useState('')
   const [loading, setLoading]   = useState(true)
-  const [error, setError]       = useState<string | null>(null)
 
   useEffect(() => {
     document.title = supplier ? `${supplier.supplier_name} | Tyre Vault` : 'Supplier | Tyre Vault'
@@ -40,7 +40,7 @@ export default function AdminSupplierDetailPage() {
         const data = await res.json()
         if (!cancelled) setSupplier(data)
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load supplier')
+        if (!cancelled) toastError(err instanceof Error ? err.message : 'Failed to load supplier')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -51,7 +51,7 @@ export default function AdminSupplierDetailPage() {
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="h-8 w-48 bg-zinc-100 rounded animate-pulse mb-6" />
         <div className="space-y-4">
           {[1,2,3].map(i => <div key={i} className="h-32 bg-zinc-100 rounded-xl animate-pulse" />)}
@@ -60,19 +60,17 @@ export default function AdminSupplierDetailPage() {
     )
   }
 
-  if (error || !supplier) {
+  if (!supplier) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <AdminBreadcrumb crumbs={[{ label: 'Suppliers', href: '/admin/suppliers' }, { label: 'Supplier' }]} />
-        <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
-          {error ?? 'Supplier not found.'}
-        </div>
+        <p className="mt-6 text-sm text-zinc-500">Supplier not found.</p>
       </div>
     )
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       <div className="mb-6">
         <AdminBreadcrumb crumbs={[
           { label: 'Suppliers', href: '/admin/suppliers' },

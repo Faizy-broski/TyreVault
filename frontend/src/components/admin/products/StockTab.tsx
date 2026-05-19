@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { Button } from '@/components/ui/button'
+import { toastSuccess, toastError } from '@/lib/toast'
 
 type WarehouseRow = {
   warehouse_id: string
@@ -32,8 +34,6 @@ export default function StockTab({ productId, patternId }: Props) {
   const [data, setData] = useState<StockDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null)
 
   // Local editable copies of warehouse available stock
   const [localAvailable, setLocalAvailable] = useState<Record<string, number>>({})
@@ -43,7 +43,6 @@ export default function StockTab({ productId, patternId }: Props) {
 
   const fetchStock = useCallback(async () => {
     setLoading(true)
-    setError(null)
     try {
       const { data: { session } } = await createClient().auth.getSession()
       const tok = session?.access_token ?? ''
@@ -58,7 +57,7 @@ export default function StockTab({ productId, patternId }: Props) {
       setLocalAvailable(initial)
       setDirty(false)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load stock')
+      toastError(e instanceof Error ? e.message : 'Failed to load stock')
     } finally {
       setLoading(false)
     }
@@ -73,7 +72,6 @@ export default function StockTab({ productId, patternId }: Props) {
 
   async function handleSave() {
     setSaving(true)
-    setToast(null)
     const snapshot = { ...localAvailable }
     const allocations = Object.entries(localAvailable).map(([warehouse_id, available]) => ({
       warehouse_id,
@@ -89,14 +87,13 @@ export default function StockTab({ productId, patternId }: Props) {
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       setDirty(false)
-      setToast({ msg: 'Stock updated', ok: true })
+      toastSuccess('Stock updated successfully')
       await fetchStock()
     } catch (e) {
       setLocalAvailable(snapshot)
-      setToast({ msg: e instanceof Error ? e.message : 'Save failed', ok: false })
+      toastError(e instanceof Error ? e.message : 'Failed to save stock')
     } finally {
       setSaving(false)
-      setTimeout(() => setToast(null), 3500)
     }
   }
 
@@ -108,24 +105,8 @@ export default function StockTab({ productId, patternId }: Props) {
     )
   }
 
-  if (error) {
-    return (
-      <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-        {error}
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-6">
-      {toast && (
-        <div className={`rounded-lg px-4 py-2.5 text-sm font-medium ${
-          toast.ok ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
-        }`}>
-          {toast.msg}
-        </div>
-      )}
-
       {/* ── Section 1: Supplier Contributions (read-only) ── */}
       <section>
         <div className="flex items-center justify-between mb-3">
@@ -141,8 +122,8 @@ export default function StockTab({ productId, patternId }: Props) {
             No supplier mappings approved yet
           </p>
         ) : (
-          <div className="rounded-lg border border-zinc-200 overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="rounded-lg border border-zinc-200 overflow-x-auto">
+            <table className="w-full text-sm min-w-64">
               <thead>
                 <tr className="bg-zinc-50 border-b border-zinc-200">
                   <th className="px-4 py-2.5 text-left text-xs font-medium text-zinc-500">Supplier</th>
@@ -168,11 +149,11 @@ export default function StockTab({ productId, patternId }: Props) {
       <section>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-zinc-800">Warehouse Stock Allocation</h3>
-          <button
+          <Button
             type="button"
+            size="xs"
             disabled={!dirty || saving}
             onClick={handleSave}
-            className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-zinc-900 hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             {saving ? (
               <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -181,7 +162,7 @@ export default function StockTab({ productId, patternId }: Props) {
               </svg>
             ) : null}
             Save
-          </button>
+          </Button>
         </div>
 
         {!data?.warehouses.length ? (
@@ -189,8 +170,8 @@ export default function StockTab({ productId, patternId }: Props) {
             No warehouses configured
           </p>
         ) : (
-          <div className="rounded-lg border border-zinc-200 overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="rounded-lg border border-zinc-200 overflow-x-auto">
+            <table className="w-full text-sm min-w-64">
               <thead>
                 <tr className="bg-zinc-50 border-b border-zinc-200">
                   <th className="px-4 py-2.5 text-left text-xs font-medium text-zinc-500">Warehouse</th>
@@ -206,6 +187,7 @@ export default function StockTab({ productId, patternId }: Props) {
                       <input
                         type="number"
                         min={0}
+                        aria-label={`Available stock for ${w.warehouse_name}`}
                         value={localAvailable[w.warehouse_id] ?? w.available}
                         onChange={e => handleAvailableChange(w.warehouse_id, Math.max(0, Number(e.target.value)))}
                         className="w-20 rounded border border-zinc-300 px-2 py-1 text-xs text-right focus:outline-none focus:ring-2 focus:ring-primary/30 tabular-nums"

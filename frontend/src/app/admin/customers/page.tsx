@@ -5,9 +5,11 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
+import { Button } from '@/components/ui/button'
 import CustomerRowMenu from '@/components/admin/customers/CustomerRowMenu'
 import CreateCustomerModal from '@/components/admin/customers/CreateCustomerModal'
 import type { CustomerListItem } from '@/types/admin.types'
+import { toastError } from '@/lib/toast'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -39,7 +41,7 @@ const CUSTOMER_TYPE_STYLES: Record<string, string> = {
 function CustomerTypeBadge({ type }: { type: string | null }) {
   if (!type) return <span className="text-zinc-400 text-xs">—</span>
   return (
-    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize ${CUSTOMER_TYPE_STYLES[type] ?? 'bg-zinc-100 text-zinc-600'}`}>
+    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize w-fit ${CUSTOMER_TYPE_STYLES[type] ?? 'bg-zinc-100 text-zinc-600'}`}>
       {type}
     </span>
   )
@@ -71,12 +73,12 @@ function fmtAUD(n: number) {
 
 function KpiCard({ label, value, sub, icon }: { label: string; value: React.ReactNode; sub: string; icon: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+    <div className="group rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-default">
       <div className="mb-3 flex items-start justify-between">
         <p className="text-sm text-zinc-500">{label}</p>
-        <div className="text-zinc-400">{icon}</div>
+        <div className="p-2.5 rounded-xl bg-zinc-50 text-zinc-400 group-hover:bg-primary/10 group-hover:text-primary transition-all duration-200">{icon}</div>
       </div>
-      <p className="text-3xl font-bold text-zinc-900">{value}</p>
+      <p className="text-3xl font-bold text-zinc-900 tracking-tight">{value}</p>
       <p className="mt-1 text-xs text-zinc-400">{sub}</p>
     </div>
   )
@@ -101,7 +103,6 @@ export default function CustomersPage() {
   const [count, setCount]         = useState(0)
   const [token, setToken]         = useState('')
   const [loading, setLoading]     = useState(true)
-  const [error, setError]         = useState<string | null>(null)
 
   useEffect(() => { document.title = 'Customers | Tyre Vault' }, [])
 
@@ -109,7 +110,6 @@ export default function CustomersPage() {
     let cancelled = false
     async function load() {
       setLoading(true)
-      setError(null)
       try {
         const { data: { session } } = await createClient().auth.getSession()
         const tok = session?.access_token ?? ''
@@ -139,7 +139,7 @@ export default function CustomersPage() {
           setCount(custsData.total ?? 0)
         }
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load customers')
+        if (!cancelled) toastError(err instanceof Error ? err.message : 'Failed to load customers')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -193,23 +193,19 @@ export default function CustomersPage() {
         />
       </div>
 
-      {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
-      )}
-
-      <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+      <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
           <h2 className="text-sm font-semibold text-zinc-900">Customers</h2>
-          <button
+          <Button
             type="button"
+            size="sm"
             onClick={() => router.push(buildHref({ modal: 'create' }))}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-primary text-zinc-900 rounded-lg hover:bg-primary/90 transition-colors"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
             Create Customer
-          </button>
+          </Button>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 border-b border-zinc-100 px-5 py-3">
@@ -223,7 +219,7 @@ export default function CustomersPage() {
               href={buildHref({ accountType: f.value, page: '1' })}
               className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                 (accountType ?? '') === f.value
-                  ? 'bg-zinc-900 text-white'
+                  ? 'bg-primary text-black'
                   : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900'
               }`}
             >
@@ -243,7 +239,7 @@ export default function CustomersPage() {
               href={buildHref({ customerType: f.value, page: '1' })}
               className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                 customerType === f.value
-                  ? 'bg-zinc-900 text-white'
+                  ? 'bg-primary text-black'
                   : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900'
               }`}
             >
@@ -262,7 +258,7 @@ export default function CustomersPage() {
               href={buildHref({ status: f.value, page: '1' })}
               className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                 statusFilter === f.value
-                  ? 'bg-zinc-900 text-white'
+                  ? 'bg-primary text-black'
                   : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900'
               }`}
             >
@@ -288,27 +284,28 @@ export default function CustomersPage() {
               </svg>
               <input name="search" defaultValue={search} placeholder="Search" className="w-44 rounded-lg border border-zinc-300 py-1.5 pl-8 pr-3 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30" />
             </div>
-            <button type="submit" aria-label="Search" className="rounded-md border border-zinc-300 p-1.5 text-zinc-500 hover:bg-zinc-50">
+            <Button type="submit" variant="outline" size="icon-sm" aria-label="Search">
               <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
               </svg>
-            </button>
+            </Button>
           </form>
         </div>
 
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-zinc-100 bg-zinc-50">
-              <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">ID</th>
-              <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Email</th>
-              <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Name</th>
-              <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Account</th>
-              <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Type</th>
-              <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Status</th>
-              <th className="px-5 py-3 text-right text-xs font-medium text-zinc-500">Orders</th>
-              <th className="px-5 py-3 text-right text-xs font-medium text-zinc-500">Total Value</th>
-              <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Last Order</th>
-              <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Created</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">ID</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Email</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Name</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Account & Type</th>
+              {/* <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Type</th> */}
+              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Status</th>
+              <th className="px-5 py-3 text-right text-xs font-semibold text-zinc-500 uppercase tracking-wide">Orders</th>
+              <th className="px-5 py-3 text-right text-xs font-semibold text-zinc-500 uppercase tracking-wide">Total Value</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Last Order</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Created</th>
               <th className="w-8 px-5 py-3"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
@@ -323,15 +320,21 @@ export default function CustomersPage() {
               ))
             ) : customers.length === 0 ? (
               <tr>
-                <td colSpan={11} className="px-5 py-10 text-center text-sm text-zinc-400">
-                  {search ? `No customers matching "${search}"` : 'No customers yet.'}
+                <td colSpan={11} className="px-5 py-16 text-center">
+                  <div className="flex flex-col items-center gap-2 mx-auto">
+                    <svg className="w-10 h-10 text-zinc-200" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                    </svg>
+                    <p className="text-sm font-medium text-zinc-400">{search ? `No customers matching "${search}"` : 'No customers yet.'}</p>
+                    {search && <p className="text-xs text-zinc-300">Try a different search term.</p>}
+                  </div>
                 </td>
               </tr>
             ) : (
               customers.map((customer, idx) => {
                 const displayId = `CUST-${String((page - 1) * LIMIT + idx + 1).padStart(3, '0')}`
                 return (
-                  <tr key={customer.customer_id} className="hover:bg-zinc-50">
+                  <tr key={customer.customer_id} className="even:bg-zinc-50/40 hover:bg-amber-50/30 transition-colors duration-150">
                     <td className="px-5 py-3 font-mono text-xs text-zinc-500">
                       <Link href={`/admin/customers/${customer.customer_id}`} className="text-sm font-medium text-primary hover:underline">{displayId}</Link>
                     </td>
@@ -341,8 +344,8 @@ export default function CustomersPage() {
                         {[customer.first_name, customer.last_name].filter(Boolean).join(' ') || '—'}
                       </Link>
                     </td>
-                    <td className="px-5 py-3"><AccountBadge isGuest={!customer.profile_id} /></td>
-                    <td className="px-5 py-3"><CustomerTypeBadge type={customer.customer_type ?? null} /></td>
+                    <td className="flex flex-col gap-2 px-5 py-3 "><AccountBadge isGuest={!customer.profile_id} /><CustomerTypeBadge type={customer.customer_type ?? null} /></td>
+                    {/* <td className="px-5 py-3"><CustomerTypeBadge type={customer.customer_type ?? null} /></td> */}
                     <td className="px-5 py-3"><AccountStatusBadge status={customer.account_status ?? null} /></td>
                     <td className="px-5 py-3 text-right text-sm text-zinc-700">{customer.order_count ?? 0}</td>
                     <td className="px-5 py-3 text-right text-sm font-medium text-zinc-800">{fmtAUD(customer.total_spent ?? 0)}</td>
@@ -362,6 +365,7 @@ export default function CustomersPage() {
             )}
           </tbody>
         </table>
+        </div>
 
         <div className="flex items-center justify-between border-t border-zinc-100 px-5 py-3 text-xs text-zinc-500">
           <span>{startResult} — {endResult} of {count} results</span>
@@ -369,14 +373,14 @@ export default function CustomersPage() {
             <span>{page} of {totalPages} pages</span>
             <div className="flex gap-1">
               {page > 1 ? (
-                <Link href={buildHref({ page: String(page - 1) })} className="rounded border border-zinc-300 px-2 py-1 hover:bg-white">Prev</Link>
+                <Link href={buildHref({ page: String(page - 1) })} className="rounded-lg border border-zinc-300 px-3 py-1.5 hover:bg-white hover:border-zinc-400 transition-colors text-xs font-medium">Prev</Link>
               ) : (
-                <span className="cursor-not-allowed rounded border border-zinc-200 px-2 py-1 text-zinc-300">Prev</span>
+                <span className="cursor-not-allowed rounded-lg border border-zinc-200 px-3 py-1.5 text-zinc-300 text-xs">Prev</span>
               )}
               {page < totalPages ? (
-                <Link href={buildHref({ page: String(page + 1) })} className="rounded border border-zinc-300 px-2 py-1 hover:bg-white">Next</Link>
+                <Link href={buildHref({ page: String(page + 1) })} className="rounded-lg border border-zinc-300 px-3 py-1.5 hover:bg-white hover:border-zinc-400 transition-colors text-xs font-medium">Next</Link>
               ) : (
-                <span className="cursor-not-allowed rounded border border-zinc-200 px-2 py-1 text-zinc-300">Next</span>
+                <span className="cursor-not-allowed rounded-lg border border-zinc-200 px-3 py-1.5 text-zinc-300 text-xs">Next</span>
               )}
             </div>
           </div>

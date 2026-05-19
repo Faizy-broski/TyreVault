@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Pencil, Trash2, Plus, X, Check } from 'lucide-react'
+import { toastSuccess, toastError } from '@/lib/toast'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -26,7 +27,6 @@ function slugify(s: string) {
 export default function CollectionsPage() {
   const [collections, setCollections] = useState<Collection[]>([])
   const [loading, setLoading]         = useState(true)
-  const [error, setError]             = useState<string | null>(null)
   const [token, setToken]             = useState('')
 
   const [creating, setCreating]       = useState(false)
@@ -51,7 +51,7 @@ export default function CollectionsPage() {
       const res = await fetch(`${API}/api/admin/products/collections`, {
         headers: { Authorization: `Bearer ${tok}` },
       })
-      if (!res.ok) { setError('Failed to load collections'); setLoading(false); return }
+      if (!res.ok) { toastError('Failed to load collections'); setLoading(false); return }
       setCollections(await res.json())
       setLoading(false)
     }
@@ -63,7 +63,6 @@ export default function CollectionsPage() {
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-    setError(null)
     try {
       const res = await fetch(`${API}/api/admin/products/collections`, {
         method: 'POST',
@@ -73,15 +72,15 @@ export default function CollectionsPage() {
       if (!res.ok) throw new Error(await res.json().then((b: { error?: string }) => b.error ?? 'Failed'))
       const created: Collection = await res.json()
       setCollections(prev => [...prev, created].sort((a, b) => a.collection_name.localeCompare(b.collection_name)))
+      toastSuccess('Collection created')
       setCreating(false); setNewName(''); setNewSlug(''); setNewDesc('')
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to create')
+      toastError(err instanceof Error ? err.message : 'Failed to create collection')
     } finally { setSaving(false) }
   }
 
   async function handleEdit(id: string) {
     setEditSaving(true)
-    setError(null)
     try {
       const res = await fetch(`${API}/api/admin/products/collections/${id}`, {
         method: 'PATCH',
@@ -93,23 +92,23 @@ export default function CollectionsPage() {
         ? { ...c, collection_name: editName, collection_slug: editSlug, description: editDesc || null }
         : c
       ))
+      toastSuccess('Collection updated')
       setEditId(null)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to update')
+      toastError(err instanceof Error ? err.message : 'Failed to update collection')
     } finally { setEditSaving(false) }
   }
 
   async function handleDelete(id: string, name: string) {
-    if (!confirm(`Delete collection "${name}"? This will unlink it from all products.`)) return
-    setError(null)
     try {
       const res = await fetch(`${API}/api/admin/products/collections/${id}`, {
         method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) throw new Error(await res.json().then((b: { error?: string }) => b.error ?? 'Failed'))
       setCollections(prev => prev.filter(c => c.collection_id !== id))
+      toastSuccess(`Collection "${name}" deleted`)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to delete')
+      toastError(err instanceof Error ? err.message : 'Failed to delete collection')
     }
   }
 
@@ -119,34 +118,30 @@ export default function CollectionsPage() {
   }
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-4 sm:p-6 space-y-5">
       <AdminBreadcrumb crumbs={[
         { label: 'Products', href: '/admin/products' },
         { label: 'Collections' },
       ]} />
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold text-zinc-900">Collections</h1>
           <p className="text-sm text-zinc-500 mt-0.5">Group products into curated collections</p>
         </div>
-        <Button onClick={() => { setCreating(true); setError(null) }} className="flex items-center gap-1.5 text-sm">
+        <Button onClick={() => setCreating(true)} className="flex items-center gap-1.5 text-sm">
           <Plus className="w-4 h-4" /> New Collection
         </Button>
       </div>
 
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
-      )}
-
-      <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white rounded-2xl border border-zinc-200 overflow-x-auto shadow-sm">
+        <table className="w-full text-sm min-w-128">
           <thead>
             <tr className="border-b border-zinc-100 bg-zinc-50">
-              <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Name</th>
-              <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Slug</th>
-              <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Description</th>
-              <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Status</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Name</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Slug</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Description</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Status</th>
               <th className="px-5 py-3 w-20" />
             </tr>
           </thead>
@@ -166,13 +161,12 @@ export default function CollectionsPage() {
                 <td className="px-5 py-3" />
                 <td className="px-5 py-3">
                   <form onSubmit={handleCreate} className="flex items-center gap-1">
-                    <button type="submit" disabled={!newName || saving} className="p-1.5 rounded text-green-600 hover:bg-green-50 disabled:opacity-40">
+                    <Button type="submit" variant="ghost" size="icon-sm" disabled={!newName || saving} aria-label="Save" className="text-green-600 hover:text-green-700 hover:bg-green-50">
                       <Check className="w-4 h-4" />
-                    </button>
-                    <button type="button" onClick={() => { setCreating(false); setNewName(''); setNewSlug(''); setNewDesc('') }}
-                      className="p-1.5 rounded text-zinc-400 hover:bg-zinc-100">
+                    </Button>
+                    <Button type="button" variant="ghost" size="icon-sm" aria-label="Cancel" onClick={() => { setCreating(false); setNewName(''); setNewSlug(''); setNewDesc('') }}>
                       <X className="w-4 h-4" />
-                    </button>
+                    </Button>
                   </form>
                 </td>
               </tr>
@@ -183,7 +177,7 @@ export default function CollectionsPage() {
               <tr><td colSpan={5} className="px-5 py-8 text-center text-zinc-400">No collections yet.</td></tr>
             ) : (
               collections.map(c => (
-                <tr key={c.collection_id} className="hover:bg-zinc-50">
+                <tr key={c.collection_id} className="even:bg-zinc-50/40 hover:bg-amber-50/30 transition-colors duration-150">
                   {editId === c.collection_id ? (
                     <>
                       <td className="px-5 py-2">
@@ -198,13 +192,12 @@ export default function CollectionsPage() {
                       <td className="px-5 py-2" />
                       <td className="px-5 py-2">
                         <div className="flex items-center gap-1">
-                          <button onClick={() => handleEdit(c.collection_id)} disabled={!editName || editSaving}
-                            className="p-1.5 rounded text-green-600 hover:bg-green-50 disabled:opacity-40">
+                          <Button type="button" variant="ghost" size="icon-sm" aria-label="Save" disabled={!editName || editSaving} onClick={() => handleEdit(c.collection_id)} className="text-green-600 hover:text-green-700 hover:bg-green-50">
                             <Check className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => setEditId(null)} className="p-1.5 rounded text-zinc-400 hover:bg-zinc-100">
+                          </Button>
+                          <Button type="button" variant="ghost" size="icon-sm" aria-label="Cancel edit" onClick={() => setEditId(null)}>
                             <X className="w-4 h-4" />
-                          </button>
+                          </Button>
                         </div>
                       </td>
                     </>
@@ -220,13 +213,12 @@ export default function CollectionsPage() {
                       </td>
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-1">
-                          <button onClick={() => startEdit(c)} className="p-1.5 rounded text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100">
+                          <Button type="button" variant="ghost" size="icon-sm" aria-label="Edit collection" onClick={() => startEdit(c)}>
                             <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          <button onClick={() => handleDelete(c.collection_id, c.collection_name)}
-                            className="p-1.5 rounded text-zinc-400 hover:text-red-600 hover:bg-red-50">
+                          </Button>
+                          <Button type="button" variant="ghost" size="icon-sm" aria-label="Delete collection" onClick={() => handleDelete(c.collection_id, c.collection_name)} className="text-zinc-400 hover:text-red-600 hover:bg-red-50">
                             <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          </Button>
                         </div>
                       </td>
                     </>

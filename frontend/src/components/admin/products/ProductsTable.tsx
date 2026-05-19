@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { MoreVertical, Eye, Plus, Trash2 } from 'lucide-react'
+import { MoreVertical, Eye, Plus, Trash2, Package, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle, DialogClose } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -11,6 +11,7 @@ import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
 } from '@/components/ui/table'
 import { createClient } from '@/lib/supabase/client'
+import { toastSuccess, toastError } from '@/lib/toast'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -52,21 +53,23 @@ function InlinePublishToggle({ productId, initial, onToggled }: {
         body: JSON.stringify({ publish: next }),
       })
       if (!res.ok) throw new Error('Failed')
+      toastSuccess(next ? 'Product published' : 'Product unpublished')
       onToggled()
     } catch {
       setPublished(!next)
+      toastError(next ? 'Failed to publish product' : 'Failed to unpublish product')
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <button
+    <Button
       type="button"
       onClick={toggle}
       disabled={busy}
       title={published ? 'Click to unpublish' : 'Click to publish'}
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors disabled:opacity-50 ${
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 h-auto text-xs font-medium transition-colors disabled:opacity-50 ${
         published
           ? 'bg-green-50 text-green-700 hover:bg-green-100'
           : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
@@ -74,7 +77,7 @@ function InlinePublishToggle({ productId, initial, onToggled }: {
     >
       <span className={`w-1.5 h-1.5 rounded-full ${published ? 'bg-green-500' : 'bg-zinc-400'}`} />
       {published ? 'Published' : 'Draft'}
-    </button>
+    </Button>
   )
 }
 
@@ -85,7 +88,6 @@ function ProductRowMenu({ product }: { product: Product }) {
   const [open, setOpen]         = useState(false)
   const [showDel, setShowDel]   = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [delError, setDelError] = useState('')
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -98,7 +100,6 @@ function ProductRowMenu({ product }: { product: Product }) {
 
   async function handleDelete() {
     setDeleting(true)
-    setDelError('')
     try {
       const { data: { session } } = await createClient().auth.getSession()
       const res = await fetch(`${API}/api/admin/products/${product.id}`, {
@@ -109,10 +110,11 @@ function ProductRowMenu({ product }: { product: Product }) {
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error ?? `Error ${res.status}`)
       }
+      toastSuccess('Product deleted')
       router.refresh()
       setShowDel(false)
     } catch (err: unknown) {
-      setDelError(err instanceof Error ? err.message : 'Failed to delete')
+      toastError(err instanceof Error ? err.message : 'Failed to delete product')
     } finally {
       setDeleting(false)
     }
@@ -121,13 +123,13 @@ function ProductRowMenu({ product }: { product: Product }) {
   return (
     <>
       <div ref={ref} className="relative inline-block">
+      
         <Button
           type="button"
           variant="ghost"
           size="icon-sm"
           aria-label="Product actions"
           onClick={() => setOpen(o => !o)}
-          className="text-zinc-400 hover:text-zinc-700"
         >
           <MoreVertical className="w-4 h-4" />
         </Button>
@@ -179,7 +181,6 @@ function ProductRowMenu({ product }: { product: Product }) {
           <p className="text-sm text-zinc-600">
             Delete <strong>{product.name}</strong>? This will remove all variants and cannot be undone.
           </p>
-          {delError && <p className="text-sm text-red-600">{delError}</p>}
           <div className="flex gap-3 justify-end">
             <DialogClose asChild>
               <Button type="button" variant="outline" className="px-4 py-2 h-auto text-sm border-zinc-300 rounded-lg text-zinc-700 hover:bg-zinc-50">Cancel</Button>
@@ -213,42 +214,100 @@ function relativeDate(iso: string) {
   return new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit' })
 }
 
+// ── Sort header ────────────────────────────────────────────────────────────
+
+function SortHead({ col, label, currentSort, currentOrder, onSort }: {
+  col: string
+  label: string
+  currentSort: string
+  currentOrder: 'asc' | 'desc'
+  onSort: (col: string) => void
+}) {
+  const active = currentSort === col
+  return (
+    <TableHead
+      onClick={() => onSort(col)}
+      className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide cursor-pointer select-none hover:text-zinc-700 transition-colors"
+    >
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {active ? (
+          currentOrder === 'asc'
+            ? <ChevronUp className="w-3 h-3 text-zinc-700" />
+            : <ChevronDown className="w-3 h-3 text-zinc-700" />
+        ) : (
+          <ChevronsUpDown className="w-3 h-3 opacity-30" />
+        )}
+      </span>
+    </TableHead>
+  )
+}
+
 // ── Table ──────────────────────────────────────────────────────────────────
 
 export default function ProductsTable({
   products,
   onPublishToggle,
+  sortBy,
+  sortOrder,
+  onSort,
 }: {
   products: Product[]
   onPublishToggle: () => void
+  sortBy: string
+  sortOrder: 'asc' | 'desc'
+  onSort: (col: string) => void
 }) {
+  const displayed = (() => {
+    if (sortBy === 'variant_count') {
+      return [...products].sort((a, b) =>
+        sortOrder === 'asc' ? a.variantCount - b.variantCount : b.variantCount - a.variantCount
+      )
+    }
+    if (sortBy === 'brand_name') {
+      return [...products].sort((a, b) =>
+        sortOrder === 'asc' ? a.brand.localeCompare(b.brand) : b.brand.localeCompare(a.brand)
+      )
+    }
+    return products
+  })()
   if (products.length === 0) {
     return (
-      <div className="py-16 text-center text-sm text-zinc-400">
-        No products yet.{' '}
-        <Link href="/admin/products/new" className="text-zinc-900 underline">Create your first product</Link>
+      <div className="py-20 text-center">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-zinc-100">
+          <Package className="h-7 w-7 text-zinc-300" />
+        </div>
+        <p className="text-sm font-medium text-zinc-500">No products yet</p>
+        <p className="mt-1 text-xs text-zinc-400">Get started by creating your first product.</p>
+        <Link
+          href="/admin/products/new"
+          className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-zinc-900 hover:bg-primary/90 transition-colors"
+        >
+          <Plus className="h-4 w-4" />
+          Create product
+        </Link>
       </div>
     )
   }
 
   return (
-    <Table className="w-full text-sm">
+    <Table className="w-full text-sm min-w-160">
       <TableHeader>
         <TableRow className="border-b border-zinc-200 bg-zinc-50 hover:bg-zinc-50">
-          <TableHead className="px-4 py-3 text-left font-medium text-zinc-500">Product</TableHead>
-          <TableHead className="px-4 py-3 text-left font-medium text-zinc-500">Brand</TableHead>
-          <TableHead className="px-4 py-3 text-left font-medium text-zinc-500">Collection</TableHead>
-          <TableHead className="px-4 py-3 text-left font-medium text-zinc-500">Variants</TableHead>
-          <TableHead className="px-4 py-3 text-left font-medium text-zinc-500">Status</TableHead>
-          <TableHead className="px-4 py-3 text-left font-medium text-zinc-500">Updated</TableHead>
+          <SortHead col="pattern_name" label="Name"     currentSort={sortBy} currentOrder={sortOrder} onSort={onSort} />
+          <SortHead col="brand_name"   label="Brand"    currentSort={sortBy} currentOrder={sortOrder} onSort={onSort} />
+          <TableHead className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Collection</TableHead>
+          <SortHead col="variant_count" label="Variants" currentSort={sortBy} currentOrder={sortOrder} onSort={onSort} />
+          <SortHead col="show_on_website" label="Status" currentSort={sortBy} currentOrder={sortOrder} onSort={onSort} />
+          <SortHead col="updated_at"   label="Updated"  currentSort={sortBy} currentOrder={sortOrder} onSort={onSort} />
           <TableHead className="px-4 py-3 w-10"><span className="sr-only">Actions</span></TableHead>
         </TableRow>
       </TableHeader>
       <TableBody className="divide-y divide-zinc-100">
-        {products.map(p => (
-          <TableRow key={p.id} className="hover:bg-zinc-50 transition-colors">
+        {displayed.map(p => (
+          <TableRow key={p.id} className="even:bg-zinc-50/40 hover:bg-amber-50/30 transition-colors duration-150">
             <TableCell className="px-4 py-3">
-              <Link href={`/admin/products/${p.id}`} className="font-medium text-zinc-900 hover:text-primary hover:underline">
+              <Link href={`/admin/products/${p.id}`} className="font-medium text-primary hover:underline">
                 {p.name}
               </Link>
             </TableCell>

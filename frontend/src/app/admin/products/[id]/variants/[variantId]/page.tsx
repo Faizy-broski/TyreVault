@@ -1,9 +1,10 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
+import { toastError } from '@/lib/toast'
 import type { Sku, PatternRef, ProductPrice } from '@/types/admin.types'
 import { VariantPricingMenu, VariantDangerZone } from '@/components/admin/products/VariantDetailActions'
 import StockTab from '@/components/admin/products/StockTab'
@@ -15,7 +16,6 @@ export default function VariantDetailPage() {
 
   const [sku, setSku]         = useState<Sku | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError]     = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
   const onRefresh = useCallback(() => setRefreshKey(k => k + 1), [])
@@ -28,7 +28,6 @@ export default function VariantDetailPage() {
     if (!id || !variantId) return
     let cancelled = false
     setLoading(true)
-    setError(null)
     async function load() {
       try {
         const { data: { session } } = await createClient().auth.getSession()
@@ -57,7 +56,7 @@ export default function VariantDetailPage() {
           setSku(skuWithPattern)
         }
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load variant')
+        if (!cancelled) toastError(err instanceof Error ? err.message : 'Failed to load variant')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -68,7 +67,7 @@ export default function VariantDetailPage() {
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="h-8 w-48 bg-zinc-100 rounded animate-pulse mb-6" />
         <div className="space-y-4">
           {[1,2,3].map(i => <div key={i} className="h-32 bg-zinc-100 rounded-xl animate-pulse" />)}
@@ -77,13 +76,11 @@ export default function VariantDetailPage() {
     )
   }
 
-  if (error || !sku) {
+  if (!sku) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <AdminBreadcrumb crumbs={[{ label: 'Products', href: '/admin/products' }, { label: 'Product', href: `/admin/products/${id}` }, { label: 'Variant' }]} />
-        <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
-          {error ?? 'Variant not found.'}
-        </div>
+        <p className="mt-6 text-sm text-zinc-500">Variant not found.</p>
       </div>
     )
   }
@@ -128,7 +125,7 @@ export default function VariantDetailPage() {
   ]
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       <div className="mb-6">
         <AdminBreadcrumb crumbs={[
           { label: 'Products', href: '/admin/products' },
@@ -137,15 +134,15 @@ export default function VariantDetailPage() {
         ]} />
       </div>
 
-      <div className="flex gap-6">
-        <div className="flex-1 space-y-6">
+      <div className="flex flex-col gap-6 lg:flex-row">
+        <div className="flex-1 min-w-0 space-y-6">
           <div className="rounded-xl border border-zinc-200 bg-white p-5">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h1 className="text-lg font-semibold text-zinc-900">{sku.tyre_size_display || sku.sku}</h1>
                 <p className="text-sm text-zinc-500 mt-0.5">{pattern?.brands?.brand_name} · {pattern?.pattern_name}</p>
               </div>
-              <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+              <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium self-start ${
                 sku.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-zinc-100 text-zinc-600'
               }`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${sku.status === 'active' ? 'bg-green-500' : 'bg-zinc-400'}`} />
@@ -153,7 +150,7 @@ export default function VariantDetailPage() {
               </span>
             </div>
 
-            <dl className="grid grid-cols-3 gap-x-6 gap-y-3 text-sm">
+            <dl className="grid grid-cols-1 gap-y-3 text-sm sm:grid-cols-2 sm:gap-x-6 lg:grid-cols-3">
               {specs.map(spec => (
                 <div key={spec.label} className="flex justify-between border-b border-zinc-100 pb-2">
                   <dt className="text-zinc-500">{spec.label}</dt>
@@ -184,7 +181,7 @@ export default function VariantDetailPage() {
           </div>
         </div>
 
-        <div className="w-64 space-y-4">
+        <div className="w-full space-y-4 lg:w-64 lg:shrink-0">
           <div className="rounded-xl border border-zinc-200 bg-white p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-zinc-900">Pricing</h3>

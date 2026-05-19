@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogTitle, DialogClose } from '@/components/ui
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { toastSuccess, toastError, toastWarning } from '@/lib/toast'
 import {
   Select,
   SelectTrigger,
@@ -42,7 +42,6 @@ export default function FulfillmentModal({ orderId, items, unfulfilledQty, token
     Object.fromEntries(fulfillableItems.map(i => [i.order_item_id, unfulfilledQty[i.order_item_id] ?? 0]))
   )
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError]           = useState('')
 
   useEffect(() => {
     const authHeaders = { Authorization: `Bearer ${token}` }
@@ -58,7 +57,7 @@ export default function FulfillmentModal({ orderId, items, unfulfilledQty, token
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!warehouseId) { setError('Please select a location.'); return }
+    if (!warehouseId) { toastWarning('Please select a location'); return }
 
     const selectedItems = items
       .map(i => ({
@@ -68,17 +67,17 @@ export default function FulfillmentModal({ orderId, items, unfulfilledQty, token
       }))
       .filter(i => i.quantity > 0)
 
-    if (selectedItems.length === 0) { setError('Enter at least one item quantity.'); return }
+    if (selectedItems.length === 0) { toastWarning('Enter at least one item quantity'); return }
 
     setSubmitting(true)
-    setError('')
     try {
       const res = await fetch(`${API}/api/admin/orders/${orderId}/fulfillments`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ warehouseId, shippingMethod: shippingMethod || undefined, sendNotification, items: selectedItems }),
       })
-      if (!res.ok) { const j = await res.json(); setError(j.message ?? 'Failed to create fulfillment.'); return }
+      if (!res.ok) { const j = await res.json(); toastError(j.message ?? 'Failed to create fulfillment'); return }
+      toastSuccess('Fulfillment created')
       const { shipment_id } = await res.json()
       const newShipment: OrderShipment = {
         shipment_id,
@@ -229,11 +228,6 @@ export default function FulfillmentModal({ orderId, items, unfulfilledQty, token
               </button>
             </div>
 
-            {error && (
-              <Alert variant="destructive" className="bg-red-50 border-red-200">
-                <AlertDescription className="text-red-600">{error}</AlertDescription>
-              </Alert>
-            )}
           </div>
 
           <div className="flex justify-end gap-3 px-6 py-4 border-t border-zinc-200 shrink-0">

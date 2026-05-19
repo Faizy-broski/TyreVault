@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import MappingReviewClient from '@/components/admin/suppliers/MappingReviewClient'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import type { SupplierMapping, Supplier } from '@/types/admin.types'
+import { toastError } from '@/lib/toast'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -17,7 +18,6 @@ export default function MappingReviewPage() {
   const [total, setTotal]         = useState(0)
   const [token, setToken]         = useState('')
   const [loading, setLoading]     = useState(true)
-  const [error, setError]         = useState<string | null>(null)
 
   useEffect(() => {
     document.title = supplier ? `${supplier.supplier_name} — Mapping Review | Tyre Vault` : 'Mapping Review | Tyre Vault'
@@ -54,7 +54,7 @@ export default function MappingReviewPage() {
           }
         }
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load data')
+        if (!cancelled) toastError(err instanceof Error ? err.message : 'Failed to load data')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -65,7 +65,7 @@ export default function MappingReviewPage() {
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="h-8 w-48 bg-zinc-100 rounded animate-pulse mb-6" />
         <div className="space-y-4">
           {[1,2,3].map(i => <div key={i} className="h-32 bg-zinc-100 rounded-xl animate-pulse" />)}
@@ -76,21 +76,8 @@ export default function MappingReviewPage() {
 
   const supplierName = supplier?.supplier_name ?? id
 
-  if (error) {
-    return (
-      <div className="p-6">
-        <AdminBreadcrumb crumbs={[
-          { label: 'Suppliers', href: '/admin/suppliers' },
-          { label: supplierName, href: `/admin/suppliers/${id}` },
-          { label: 'Review' },
-        ]} />
-        <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">{error}</div>
-      </div>
-    )
-  }
-
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       <div className="mb-6">
         <AdminBreadcrumb crumbs={[
           { label: 'Suppliers', href: '/admin/suppliers' },

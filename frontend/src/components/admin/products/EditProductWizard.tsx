@@ -11,6 +11,8 @@ import CategoriesTab from './tabs/CategoriesTab'
 import EditVariantsTab from './tabs/EditVariantsTab'
 import PricingTab from './tabs/PricingTab'
 import { cn } from '@/lib/utils/cn'
+import { Button } from '@/components/ui/button'
+import { toastSuccess, toastError } from '@/lib/toast'
 
 const TABS = [
   { key: 'basic',      label: 'Basic Info' },
@@ -47,7 +49,6 @@ export default function EditProductWizard({
   const router      = useRouter()
   const [activeTab, setActiveTab] = useState<TabKey>('basic')
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   const methods = useForm<EditProductFormValues>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -62,7 +63,6 @@ export default function EditProductWizard({
 
   async function handleSave(values: EditProductFormValues) {
     setSubmitting(true)
-    setError(null)
     console.group('[EditProductWizard] handleSave')
     console.log('form values:', values)
     try {
@@ -173,6 +173,7 @@ export default function EditProductWizard({
         }
       }
 
+      toastSuccess('Product saved successfully')
       console.log('save complete — navigating to product detail')
       console.groupEnd()
       // refresh first so the router cache is busted before we land on the detail page
@@ -181,20 +182,20 @@ export default function EditProductWizard({
     } catch (err) {
       console.error('[EditProductWizard] save error:', err)
       console.groupEnd()
-      setError(err instanceof Error ? err.message : 'Something went wrong')
+      toastError(err instanceof Error ? err.message : 'Something went wrong')
       setSubmitting(false)
     }
   }
 
   function handleInvalid() {
-    setError('Please fill in all required fields before saving.')
+    toastError('Please fill in all required fields before saving.')
   }
 
   return (
     <FormProvider {...methods}>
       <div className="flex flex-col h-full min-h-screen bg-zinc-50">
         {/* ── Header ──────────────────────────────────────── */}
-        <div className="flex items-center gap-2 px-6 py-4 border-b border-zinc-200 bg-white sticky top-0 z-10">
+        <div className="flex items-center gap-2 px-4 sm:px-6 py-4 border-b border-zinc-200 bg-white sticky top-0 z-10 overflow-x-auto">
           <button
             type="button"
             onClick={() => router.push(`/admin/products/${patternId}`)}
@@ -237,15 +238,8 @@ export default function EditProductWizard({
           </div>
         </div>
 
-        {/* ── Error banner ─────────────────────────────────── */}
-        {error && (
-          <div className="mx-6 mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 border border-red-200">
-            {error}
-          </div>
-        )}
-
         {/* ── Tab content ──────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto px-6 py-6">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6">
           {activeTab === 'basic' && (
             <BasicInfoTab autoSlug={autoSlug} brands={brands} />
           )}
@@ -265,7 +259,7 @@ export default function EditProductWizard({
                     <button
                       type="button"
                       onClick={() => setActiveTab('variants')}
-                      className="underline text-zinc-500 hover:text-zinc-700"
+                      className="underline text-zinc-500 hover:text-zinc-700 bg-transparent p-0 border-0 cursor-pointer"
                     >
                       Variants tab
                     </button>{' '}
@@ -280,46 +274,45 @@ export default function EditProductWizard({
         </div>
 
         {/* ── Footer actions ───────────────────────────────── */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-200 bg-white sticky bottom-0 z-10">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-t border-zinc-200 bg-white sticky bottom-0 z-10">
           <div className="flex gap-2">
             {tabIndex > 0 && (
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 onClick={() => setActiveTab(TABS[tabIndex - 1].key)}
-                className="px-4 py-2 text-sm text-zinc-600 border border-zinc-300 rounded-lg hover:bg-zinc-50 transition-colors"
               >
                 ← Back
-              </button>
+              </Button>
             )}
           </div>
 
           <div className="flex items-center gap-3">
-            <button
+            <Button
               type="button"
+              variant="ghost"
               onClick={() => router.push(`/admin/products/${patternId}`)}
-              className="px-4 py-2 text-sm text-zinc-600 hover:text-zinc-900"
             >
               Cancel
-            </button>
+            </Button>
 
             {activeTab !== 'pricing' ? (
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 onClick={() => setActiveTab(TABS[tabIndex + 1].key)}
-                className="px-4 py-2 rounded-lg bg-zinc-800 text-sm font-medium text-white hover:bg-zinc-700 transition-colors"
               >
                 Next →
-              </button>
+              </Button>
             ) : null}
 
-            <button
+            <Button
               type="button"
               disabled={submitting}
               onClick={methods.handleSubmit(handleSave, handleInvalid)}
-              className="px-5 py-2 rounded-lg bg-primary text-sm font-medium text-zinc-900 hover:bg-primary/90 disabled:opacity-50 transition-colors"
             >
               {submitting ? 'Saving…' : 'Save Changes'}
-            </button>
+            </Button>
           </div>
         </div>
       </div>

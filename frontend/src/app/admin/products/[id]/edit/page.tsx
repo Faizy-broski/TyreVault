@@ -1,10 +1,11 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import EditProductWizard from '@/components/admin/products/EditProductWizard'
 import type { EditProductFormValues } from '@/components/admin/products/schema'
+import { toastError } from '@/lib/toast'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -30,7 +31,6 @@ export default function EditProductPage() {
   const [meta, setMeta]   = useState<Meta>({ brands: [], collections: [], categories: [] })
   const [warehouses, setWarehouses] = useState<{ warehouse_id: string; warehouse_name: string }[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError]     = useState<string | null>(null)
 
   useEffect(() => { document.title = 'Edit Product | Tyre Vault' }, [])
 
@@ -39,7 +39,6 @@ export default function EditProductPage() {
     let cancelled = false
     async function load() {
       setLoading(true)
-      setError(null)
       try {
         const { data: { session } } = await createClient().auth.getSession()
         const tok = session?.access_token ?? ''
@@ -116,7 +115,7 @@ export default function EditProductPage() {
           setWarehouses(Array.isArray(whJson) ? whJson : [])
         }
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load product')
+        if (!cancelled) toastError(err instanceof Error ? err.message : 'Failed to load product')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -134,12 +133,10 @@ export default function EditProductPage() {
     )
   }
 
-  if (error || !initialData) {
+  if (!initialData) {
     return (
-      <div className="p-6">
-        <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
-          {error ?? 'Product not found.'}
-        </div>
+      <div className="p-4 sm:p-6">
+        <p className="mt-6 text-sm text-zinc-500">Product not found.</p>
       </div>
     )
   }

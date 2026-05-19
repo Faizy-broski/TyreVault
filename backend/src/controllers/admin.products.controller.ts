@@ -11,7 +11,8 @@ export async function getProducts(req: Request, res: Response, next: NextFunctio
       status:  String(req.query.status  ?? ''),
       page:    req.query.page  ? Number(req.query.page)  : 1,
       limit:   req.query.limit ? Number(req.query.limit) : 20,
-      sortBy:  (req.query.sortBy as 'updated_at' | 'created_at') ?? 'updated_at',
+      sortBy:  (req.query.sortBy as 'updated_at' | 'created_at' | 'pattern_name' | 'show_on_website' | 'brand_name') ?? 'updated_at',
+      sortOrder: (req.query.sortOrder as 'asc' | 'desc') ?? 'desc',
     })
     res.json(result)
   } catch (err) { next(err) }

@@ -1,10 +1,11 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
+import { toastError } from '@/lib/toast'
 import PublishToggle from '@/components/admin/products/PublishToggle'
 import ProductActionsBar, { VariantsTableActions, VariantRowMenu } from '@/components/admin/products/ProductActionsBar'
 import type { Pattern, SkuListItem } from '@/types/admin.types'
@@ -18,7 +19,6 @@ export default function ProductDetailPage() {
   const [pattern, setPattern]     = useState<Pattern | null>(null)
   const [skus, setSkus]           = useState<SkuListItem[]>([])
   const [loading, setLoading]     = useState(true)
-  const [error, setError]         = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
   const onRefresh = useCallback(() => setRefreshKey(k => k + 1), [])
@@ -35,7 +35,6 @@ export default function ProductDetailPage() {
     let cancelled = false
     async function load() {
       setLoading(true)
-      setError(null)
       try {
         const { data: { session } } = await createClient().auth.getSession()
         const tok = session?.access_token ?? ''
@@ -54,7 +53,7 @@ export default function ProductDetailPage() {
           setSkus((json.skus ?? []) as SkuListItem[])
         }
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load product')
+        if (!cancelled) toastError(err instanceof Error ? err.message : 'Failed to load product')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -65,7 +64,7 @@ export default function ProductDetailPage() {
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="h-8 w-48 bg-zinc-100 rounded animate-pulse mb-6" />
         <div className="space-y-4">
           {[1,2,3].map(i => <div key={i} className="h-32 bg-zinc-100 rounded-xl animate-pulse" />)}
@@ -74,13 +73,11 @@ export default function ProductDetailPage() {
     )
   }
 
-  if (error || !pattern) {
+  if (!pattern) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <AdminBreadcrumb crumbs={[{ label: 'Products', href: '/admin/products' }, { label: 'Product' }]} />
-        <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
-          {error ?? 'Product not found.'}
-        </div>
+        <p className="mt-6 text-sm text-zinc-500">Product not found.</p>
       </div>
     )
   }
@@ -94,7 +91,7 @@ export default function ProductDetailPage() {
     .join(', ') || '—'
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       <div className="mb-6">
         <AdminBreadcrumb crumbs={[
           { label: 'Products', href: '/admin/products' },
@@ -102,13 +99,13 @@ export default function ProductDetailPage() {
         ]} />
       </div>
 
-      <div className="flex gap-6">
-        <div className="flex-1 space-y-6">
+      <div className="flex flex-col gap-6 lg:flex-row">
+        <div className="flex-1 min-w-0 space-y-6">
           {/* ── Overview card ─────────────────────────────────── */}
           <div className="rounded-xl border border-zinc-200 bg-white p-5">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-start sm:justify-between">
               <h1 className="text-lg font-semibold text-zinc-900">{pattern.pattern_name}</h1>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
                   pattern.show_on_website ? 'bg-green-50 text-green-700' : 'bg-zinc-100 text-zinc-600'
                 }`}>
@@ -129,7 +126,7 @@ export default function ProductDetailPage() {
               </div>
             </div>
 
-            <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+            <dl className="grid grid-cols-1 gap-y-3 text-sm sm:grid-cols-2 sm:gap-x-6">
               {[
                 { label: 'Brand',       value: brand },
                 { label: 'Collection',  value: collection },
@@ -165,9 +162,9 @@ export default function ProductDetailPage() {
 
           {/* ── Variants table ─────────────────────────────────── */}
           <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200">
+            <div className="flex flex-col gap-3 px-5 py-4 border-b border-zinc-200 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-sm font-semibold text-zinc-900">Variants</h2>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 <VariantsTableActions patternId={id} skuStocks={skus as any} skuPrices={skus as any} onSuccess={onRefresh} />
                 <Link href={`/admin/products/${id}/variants/new`} className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-zinc-900 hover:bg-primary/90 transition-colors">
@@ -176,6 +173,7 @@ export default function ProductDetailPage() {
               </div>
             </div>
 
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 bg-zinc-50">
@@ -235,11 +233,12 @@ export default function ProductDetailPage() {
                 })}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
 
         {/* ── Right sidebar ────────────────────────────────────── */}
-        <div className="w-64 space-y-4">
+        <div className="w-full space-y-4 lg:w-64 lg:shrink-0">
           <PublishToggle patternId={id} isPublished={pattern.show_on_website ?? false} onSuccess={onRefresh} />
 
           <div className="rounded-xl border border-zinc-200 bg-white p-4">

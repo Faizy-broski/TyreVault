@@ -1,10 +1,11 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import ApplicationReviewClient from './ApplicationReviewClient'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
+import { toastError } from '@/lib/toast'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -14,7 +15,6 @@ export default function ApplicationDetailPage() {
   const [application, setApplication] = useState<Record<string, unknown> | null>(null)
   const [token, setToken]             = useState('')
   const [loading, setLoading]         = useState(true)
-  const [error, setError]             = useState<string | null>(null)
 
   useEffect(() => {
     const name = application?.full_name as string | undefined
@@ -40,7 +40,7 @@ export default function ApplicationDetailPage() {
         const data = await res.json()
         if (!cancelled) setApplication(data)
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load application')
+        if (!cancelled) toastError(err instanceof Error ? err.message : 'Failed to load application')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -51,7 +51,7 @@ export default function ApplicationDetailPage() {
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="h-8 w-48 bg-zinc-100 rounded animate-pulse mb-6" />
         <div className="space-y-4">
           {[1,2,3].map(i => <div key={i} className="h-32 bg-zinc-100 rounded-xl animate-pulse" />)}
@@ -60,17 +60,15 @@ export default function ApplicationDetailPage() {
     )
   }
 
-  if (error || !application) {
+  if (!application) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <AdminBreadcrumb crumbs={[
           { label: 'Fitment Centre', href: '/admin/fitters' },
           { label: 'Applications', href: '/admin/fitters/applications' },
           { label: 'Application' },
         ]} />
-        <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
-          {error ?? 'Application not found.'}
-        </div>
+        <p className="mt-6 text-sm text-zinc-500">Application not found.</p>
       </div>
     )
   }
@@ -78,7 +76,7 @@ export default function ApplicationDetailPage() {
   const appName = (application.full_name as string | undefined) ?? `Application ${id}`
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       <div className="mb-6">
         <AdminBreadcrumb crumbs={[
           { label: 'Fitment Centre', href: '/admin/fitters' },

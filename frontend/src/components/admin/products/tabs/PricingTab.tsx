@@ -152,7 +152,7 @@ export default function PricingTab({ warehouses }: Props) {
 
       {/* Warehouse selector for initial stock */}
       {warehouses.length > 0 && (
-        <div className="mt-4 flex items-center gap-3">
+        <div className="mt-4 flex flex-wrap items-center gap-3">
           <label className="text-sm text-zinc-600">Assign inventory to warehouse:</label>
           <select
             onChange={(e) => {

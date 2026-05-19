@@ -97,7 +97,8 @@ export type ProductListFilters = {
   status?: string
   page?: number
   limit?: number
-  sortBy?: 'updated_at' | 'created_at'
+  sortBy?: 'updated_at' | 'created_at' | 'pattern_name' | 'show_on_website' | 'brand_name' | 'variant_count'
+  sortOrder?: 'asc' | 'desc'
 }
 
 // ============================================================
@@ -106,7 +107,7 @@ export type ProductListFilters = {
 export async function listProducts(filters: ProductListFilters) {
   const {
     search, brandId, status = 'active',
-    page = 1, limit = 20, sortBy = 'updated_at',
+    page = 1, limit = 20, sortBy = 'updated_at', sortOrder = 'desc',
   } = filters
 
   // Fetch at pattern level — each pattern = one "product" in admin
@@ -126,8 +127,17 @@ export async function listProducts(filters: ProductListFilters) {
       collections ( collection_name ),
       skus ( product_id, status )
     `, { count: 'exact' })
-    .order(sortBy, { ascending: false })
-    .range((page - 1) * limit, page * limit - 1)
+
+  // brand_name and variant_count are computed/joined — sort client-side; fall back to updated_at
+  const DB_SORT_COLUMNS = ['updated_at', 'created_at', 'pattern_name', 'show_on_website'] as const
+  type DbSortCol = typeof DB_SORT_COLUMNS[number]
+  const dbSortBy: DbSortCol = (DB_SORT_COLUMNS as readonly string[]).includes(sortBy ?? '')
+    ? (sortBy as DbSortCol)
+    : 'updated_at'
+
+  query = query.order(dbSortBy, { ascending: sortOrder === 'asc' })
+
+  query = query.range((page - 1) * limit, page * limit - 1)
 
   if (search) query = query.ilike('pattern_name', `%${search}%`)
   if (brandId) query = query.eq('brand_id', brandId)

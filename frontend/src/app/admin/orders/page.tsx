@@ -7,6 +7,8 @@ import { createClient } from '@/lib/supabase/client'
 import type { OrderListItem, PaymentStatus, OrderStatus } from '@/types/admin.types'
 import OrderFiltersBar from '@/components/admin/orders/OrderFiltersBar'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
+import { Button } from '@/components/ui/button'
+import { toastError } from '@/lib/toast'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -77,13 +79,15 @@ function addressSnippet(snap: Record<string, string> | null) {
 
 function KpiCard({ title, value, sub, icon }: { title: string; value: string; sub: string; icon: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-5 flex items-start justify-between">
+    <div className="group rounded-2xl border border-zinc-200 bg-white p-5 flex items-start justify-between shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-default">
       <div>
         <p className="text-sm text-zinc-500 mb-2">{title}</p>
-        <p className="text-2xl font-bold text-zinc-900">{value}</p>
+        <p className="text-2xl font-bold text-zinc-900 tracking-tight">{value}</p>
         <p className="text-xs text-zinc-400 mt-1">{sub}</p>
       </div>
-      <span className="text-zinc-400">{icon}</span>
+      <div className="p-2.5 rounded-xl bg-zinc-50 text-zinc-400 group-hover:bg-primary/10 group-hover:text-primary transition-all duration-200 shrink-0">
+        {icon}
+      </div>
     </div>
   )
 }
@@ -104,13 +108,11 @@ export default function OrdersPage() {
   const [total, setTotal]     = useState(0)
   const [stats, setStats]     = useState({ totalOrders: 0, totalRevenue: 0, avgOrderSize: 0, pendingPayment: 0 })
   const [loading, setLoading] = useState(true)
-  const [error, setError]     = useState<string | null>(null)
 
   useEffect(() => { document.title = 'Orders | Tyre Vault' }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
-    setError(null)
     try {
       const { data: { session } } = await createClient().auth.getSession()
       const token = session?.access_token ?? ''
@@ -137,7 +139,7 @@ export default function OrdersPage() {
       setTotal(listJson.total ?? 0)
       setStats(statsJson)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load orders')
+      toastError(err instanceof Error ? err.message : 'Failed to load orders')
     } finally {
       setLoading(false)
     }
@@ -217,16 +219,16 @@ export default function OrdersPage() {
       </div>
 
       {/* Orders table */}
-      <div className="rounded-2xl border border-zinc-200 bg-white overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200">
+      <div className="rounded-2xl border border-zinc-200 bg-white overflow-hidden shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4 border-b border-zinc-200">
           <h2 className="text-sm font-semibold text-zinc-900">Orders</h2>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <OrderFiltersBar
               search={search}
               paymentStatus={paymentStatus}
               fulfillmentStatus={fulfillmentStatus}
             />
-            <form className="flex items-center gap-2 ml-2" onSubmit={e => {
+            <form className="flex items-center gap-2" onSubmit={e => {
               e.preventDefault()
               const fd = new FormData(e.currentTarget)
               const p  = new URLSearchParams(searchParams.toString())
@@ -248,25 +250,21 @@ export default function OrdersPage() {
                   className="pl-8 pr-3 py-1.5 text-xs border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 w-36"
                 />
               </div>
-              <button type="submit" aria-label="Apply filters" className="p-1.5 rounded border border-zinc-200 text-zinc-400 hover:bg-zinc-50">
+              <Button type="submit" variant="outline" size="icon-sm" aria-label="Apply filters">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
                 </svg>
-              </button>
+              </Button>
             </form>
           </div>
         </div>
-
-        {error && (
-          <div className="px-5 py-3 bg-red-50 border-b border-red-100 text-sm text-red-600">{error}</div>
-        )}
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-zinc-100 bg-zinc-50">
                 {['Order #', 'Created ↓', 'Customer', 'Address', 'Delivery Type', 'Payment', 'Fulfillment', 'Items', 'Order Total'].map(h => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-medium text-zinc-500 whitespace-nowrap">{h}</th>
+                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -289,8 +287,14 @@ export default function OrdersPage() {
                 </>
               ) : orders.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-sm text-zinc-400">
-                    {search ? `No orders matching "${search}"` : 'No orders yet.'}
+                  <td colSpan={9} className="px-4 py-16 text-center">
+                    <div className="flex flex-col items-center gap-2 mx-auto">
+                      <svg className="w-10 h-10 text-zinc-200" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+                      </svg>
+                      <p className="text-sm font-medium text-zinc-400">{search ? `No orders matching "${search}"` : 'No orders yet.'}</p>
+                      {search && <p className="text-xs text-zinc-300">Try adjusting your search or filters.</p>}
+                    </div>
                   </td>
                 </tr>
               ) : orders.map(o => {
@@ -298,15 +302,33 @@ export default function OrdersPage() {
                   ? [o.customers.first_name, o.customers.last_name].filter(Boolean).join(' ') || o.customers.email
                   : '—'
                 return (
-                  <tr key={o.order_id} className="hover:bg-zinc-50">
+                  <tr key={o.order_id} className="even:bg-zinc-50/40 hover:bg-amber-50/30 transition-colors duration-150">
                     <td className="px-4 py-3">
                       <Link href={`/admin/orders/${o.order_id}`} className="font-medium text-primary hover:underline">
                         {o.order_number}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-xs text-zinc-500 whitespace-nowrap">
+                    {/* <td className="px-4 py-3 text-xs text-zinc-500">
                       {fmtDateTime(o.created_at)}
-                    </td>
+                    </td> */}
+                    <td className="px-4 py-3 text-xs text-zinc-500">
+  <div className="flex flex-col">
+    <span>
+      {new Date(o.created_at).toLocaleDateString('en-AU', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })}
+    </span>
+
+    <span className="text-zinc-400">
+      {new Date(o.created_at).toLocaleTimeString('en-AU', {
+        hour: '2-digit',
+        minute: '2-digit',
+      })}
+    </span>
+  </div>
+</td>
                     <td className="px-4 py-3">
                       {o.customers ? (
                         <Link href={`/admin/customers/${o.customers.customer_id}`} className="text-primary hover:underline text-xs">
@@ -314,7 +336,7 @@ export default function OrdersPage() {
                         </Link>
                       ) : <span className="text-zinc-400 text-xs">—</span>}
                     </td>
-                    <td className="px-4 py-3 text-xs text-zinc-600 max-w-[160px] truncate">
+                    <td className="px-4 py-3 text-xs text-zinc-600 max-w-40 truncate">
                       {addressSnippet(o.shipping_address_snapshot)}
                     </td>
                     <td className="px-4 py-3">
@@ -348,14 +370,14 @@ export default function OrdersPage() {
             <span>{page} of {totalPages || 1} pages</span>
             <div className="flex gap-1">
               {page > 1 ? (
-                <Link href={buildHref({ page: String(page - 1) })} className="px-2 py-1 rounded border border-zinc-300 hover:bg-white">Prev</Link>
+                <Link href={buildHref({ page: String(page - 1) })} className="px-3 py-1.5 rounded-lg border border-zinc-300 hover:bg-white hover:border-zinc-400 transition-colors text-xs font-medium">Prev</Link>
               ) : (
-                <span className="px-2 py-1 rounded border border-zinc-200 text-zinc-300 cursor-not-allowed">Prev</span>
+                <span className="px-3 py-1.5 rounded-lg border border-zinc-200 text-zinc-300 cursor-not-allowed text-xs">Prev</span>
               )}
               {page < totalPages ? (
-                <Link href={buildHref({ page: String(page + 1) })} className="px-2 py-1 rounded border border-zinc-300 hover:bg-white">Next</Link>
+                <Link href={buildHref({ page: String(page + 1) })} className="px-3 py-1.5 rounded-lg border border-zinc-300 hover:bg-white hover:border-zinc-400 transition-colors text-xs font-medium">Next</Link>
               ) : (
-                <span className="px-2 py-1 rounded border border-zinc-200 text-zinc-300 cursor-not-allowed">Next</span>
+                <span className="px-3 py-1.5 rounded-lg border border-zinc-200 text-zinc-300 cursor-not-allowed text-xs">Next</span>
               )}
             </div>
           </div>
