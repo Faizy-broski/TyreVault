@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import ws from 'ws'
 
 // Service role key — bypasses RLS. Used ONLY in backend.
 // Never expose this key to the frontend.
@@ -13,6 +14,9 @@ export const supabase = createClient(
     db: {
       // Use port 6543 (Supavisor transaction mode) in DATABASE_URL
       schema: 'public',
+    },
+    realtime: {
+      transport: ws,
     },
   }
 )
