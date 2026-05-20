@@ -12,7 +12,8 @@ const typesense = new Typesense.Client({
     },
   ],
   apiKey:                   process.env.NEXT_PUBLIC_TYPESENSE_SEARCH_KEY || '',
-  connectionTimeoutSeconds: 5,
+  connectionTimeoutSeconds: 2,
+  numRetries:               0,
 })
 
 export const SKU_COLLECTION = 'skus'
