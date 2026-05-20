@@ -180,9 +180,9 @@ export default function AdminSidebar({ userEmail, isOpen = false, onClose }: Pro
       )}
     >
       {/* Logo */}
-      <div className="flex items-center justify-between px-4 border-b border-zinc-100">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-200 shadow-sm">
         <Link href="/admin/dashboard">
-          <Image src="/logo.svg" width={200} height={200} alt="Logo" />
+          <Image src="/logo_dark.svg" width={300} height={300} alt="Logo" />
         </Link>
         <Button
           type="button"

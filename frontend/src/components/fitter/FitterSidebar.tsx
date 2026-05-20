@@ -10,9 +10,9 @@ export default function FitterSidebar() {
 
   return (
     <aside className="hidden lg:flex w-44 flex-col bg-white border-r border-zinc-200 h-full shrink-0">
-      <div className="px-4 border-b border-zinc-100">
+      <div className="px-4 py-2 border-b border-zinc-200 shadow-sm">
         <Link href="/fitter/dashboard">
-          <Image src="/logo.svg" width={200} height={200} alt="Logo" />
+          <Image src="/logo_dark.svg" width={300} height={300} alt="Logo" />
         </Link>
       </div>
 
