@@ -14,27 +14,44 @@ const numWithDefault = (def: number) =>
 
 // ── Variant row ────────────────────────────────────────────────────────────
 export const variantSchema = z.object({
-  sku:            z.string().min(1, 'SKU is required'),
+  sku:             z.string().min(1, 'SKU is required'),
   tyreSizeDisplay: z.string().min(1, 'Tyre size is required'),
-  width:          optNum,
-  profile:        optNum,
-  rimSize:        z.preprocess(
+  width:           optNum,
+  profile:         optNum,
+  rimSize:         z.preprocess(
     (v) => (typeof v === 'number' && Number.isNaN(v) ? undefined : v),
     z.number({ message: 'Rim size is required' })
   ),
-  constructionType: z.string().optional(),
-  speedRating:    z.string().optional(),
-  loadIndex:      z.string().optional(),
-  fuelRating:     z.string().optional(),
-  wetGrip:        z.string().optional(),
-  noiseDb:        z.string().optional(),
-  noiseClass:     z.string().optional(),
-  runflat:        z.boolean().default(false),
-  xlReinforced:   z.boolean().default(false),
-  plyRating:      z.string().optional(),
-  loadRange:      z.string().optional(),
-  countryOfOrigin: z.string().optional(),
-  variantImages:  z.array(z.string()).default([]),
+  constructionType:  z.string().optional(),
+  speedRating:      z.string().optional(),
+  loadIndex:        z.string().optional(),
+  loadSpeedRating:  z.string().optional(),
+  fuelRating:      z.string().optional(),
+  wetGrip:         z.string().optional(),
+  noiseDb:         z.string().optional(),
+  noiseClass:      z.string().optional(),
+  runflat:         z.boolean().default(false),
+  xlReinforced:    z.boolean().default(false),
+  plyRating:       z.string().optional(),
+  loadRange:       z.string().optional(),
+  sidewall:        z.enum(['BSW', 'OWL', 'RWL']).optional(),
+  tubeType:        z.enum(['tubeless', 'tube_type']).optional(),
+  manufacturerName: z.string().optional(),
+  countryOfOrigin:  z.string().min(1, 'Country of origin is required'),
+  factoryName:      z.string().optional(),
+  factoryCountry:   z.string().optional(),
+  // Physical specs
+  sectionWidth:    optNum,
+  treadDepth:      optNum,
+  tyreWeight:      optNum,
+  overallDiameter: optNum,
+  maxLoad:         z.string().optional(),
+  maxPressure:     z.string().optional(),
+  // Compliance codes
+  eMark:           z.string().optional(),
+  dotCode:         z.string().optional(),
+  utqg:            z.string().optional(),
+  variantImages:   z.array(z.string()).default([]),
 })
 
 // ── Pricing row (parallel to variant, same index) ─────────────────────────
@@ -70,14 +87,25 @@ export const createProductSchema = z.object({
   tyreSpecSheet:     z.string().optional(),
   faqList:           z.array(faqItemSchema).default([]),
 
+  // Tab 1 extra: SEO + visibility + default country fallback
+  defaultCountryOfOrigin: z.string().optional(),
+  showOnWebsite:     z.boolean().default(false),
+  seoTitle:          z.string().optional(),
+  seoDescription:    z.string().optional(),
+  treadImage:        z.string().optional(),
+
   // Tab 2: Categories
-  discountable:      z.boolean().default(true),
-  applicationType:   z.enum(['PCR', '4x4', 'TBR']).default('PCR'),
-  categoryIds:       z.array(z.string()).default([]),
+  discountable:       z.boolean().default(true),
+  applicationType:    z.enum(['PCR', '4x4', 'TBR']).default('PCR'),
+  categoryIds:        z.array(z.string()).default([]),
   performanceCategory: z.string().transform(v => v || undefined).optional(),
-  seasonType:        z.string().transform(v => v || undefined).optional(),
-  collectionId:      z.string().transform(v => v || undefined).optional(),
-  tags:              z.array(z.string()).default([]),
+  seasonType:         z.string().transform(v => v || undefined).optional(),
+  collectionId:       z.string().transform(v => v || undefined).optional(),
+  tags:               z.array(z.string()).default([]),
+  positionCategory:   z.enum(['steer', 'drive', 'trailer', 'all_position']).optional(),
+  shoulderType:       z.enum(['open_shoulder', 'closed_shoulder', 'block_drive']).optional(),
+  terrainType:        z.string().optional(),
+  warrantyKm:         optNum,
 
   // Tab 3: Variants
   variants: z.array(variantSchema).min(1, 'Add at least one variant'),
@@ -90,3 +118,10 @@ export type CreateProductFormValues = z.infer<typeof createProductSchema>
 export type VariantFormValues      = z.infer<typeof variantSchema>
 export type PricingFormValues      = z.infer<typeof pricingSchema>
 export type FaqItem                = z.infer<typeof faqItemSchema>
+
+// ── Edit product schema — same as create but variants/pricing min(0) ────────
+export const editProductSchema = createProductSchema.extend({
+  variants: z.array(variantSchema).default([]),
+  pricing:  z.array(pricingSchema).default([]),
+})
+export type EditProductFormValues = z.infer<typeof editProductSchema>

@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import CustomerDetailClient from '@/components/admin/customers/CustomerDetailClient'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
+import { toastError } from '@/lib/toast'
 import type {
   Address,
   CustomerDetail,
@@ -49,7 +50,6 @@ export default function CustomerDetailPage() {
   const [state, setState]     = useState<PageState | null>(null)
   const [token, setToken]     = useState('')
   const [loading, setLoading] = useState(true)
-  const [error, setError]     = useState<string | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
@@ -78,14 +78,19 @@ export default function CustomerDetailPage() {
         const detail: CustomerDetail = json.customer
 
         const customer: CustomerListItem = {
-          customer_id: detail.customer_id,
-          email: detail.email,
-          first_name: detail.first_name,
-          last_name: detail.last_name,
-          business_name: detail.business_name,
-          phone: detail.phone,
-          created_at: detail.created_at,
-          profile_id: detail.profile_id,
+          customer_id:       detail.customer_id,
+          email:             detail.email,
+          first_name:        detail.first_name,
+          last_name:         detail.last_name,
+          business_name:     detail.business_name,
+          phone:             detail.phone,
+          created_at:        detail.created_at,
+          profile_id:        detail.profile_id,
+          customer_type:     detail.customer_type    ?? null,
+          account_status:    detail.account_status   ?? null,
+          credit_limit:      detail.credit_limit     ?? null,
+          payment_terms:     detail.payment_terms    ?? null,
+          billing_address_id: detail.billing_address_id ?? null,
         }
 
         const orders: CustomerOrder[] = detail.orders.map(order => ({
@@ -118,7 +123,7 @@ export default function CustomerDetailPage() {
           primaryAddress: addresses[0] ?? null,
         })
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load customer')
+        if (!cancelled) toastError(err instanceof Error ? err.message : 'Failed to load customer')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -129,7 +134,7 @@ export default function CustomerDetailPage() {
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="h-8 w-48 bg-zinc-100 rounded animate-pulse mb-6" />
         <div className="space-y-4">
           {[1,2,3].map(i => <div key={i} className="h-32 bg-zinc-100 rounded-xl animate-pulse" />)}
@@ -138,13 +143,11 @@ export default function CustomerDetailPage() {
     )
   }
 
-  if (error || !state) {
+  if (!state) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <AdminBreadcrumb crumbs={[{ label: 'Customers', href: '/admin/customers' }, { label: 'Customer' }]} />
-        <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
-          {error ?? 'Customer not found.'}
-        </div>
+        <p className="mt-6 text-sm text-zinc-500">Customer not found.</p>
       </div>
     )
   }
@@ -154,7 +157,7 @@ export default function CustomerDetailPage() {
     state.customer.email
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       <div className="mb-6">
         <AdminBreadcrumb crumbs={[
           { label: 'Customers', href: '/admin/customers' },

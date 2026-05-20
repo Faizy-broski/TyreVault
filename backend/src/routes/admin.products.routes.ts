@@ -12,6 +12,10 @@ router.use(requireRole('super_admin'))
 // Form metadata (brands, collections, categories for dropdowns)
 router.get('/meta', ctrl.getFormMeta)
 
+// Brands (quick-create from product form)
+router.post('/brands', ctrl.postBrand)
+
+
 // Collections CRUD
 router.get('/collections',      ctrl.getCollections)
 router.post('/collections',     ctrl.postCollection)
@@ -37,5 +41,9 @@ router.post('/:id/variants',                              ctrl.addVariant)
 router.delete('/:id/variants/:variantId',                 ctrl.deleteVariant)
 router.patch('/:id/variants/:variantId/stock',            ctrl.updateVariantStock)
 router.patch('/:id/variants/:variantId/prices',           ctrl.updateVariantPrices)
+
+// Stock distribution (StockTab)
+router.get('/:id/variants/:variantId/stock-detail',       ctrl.getProductStock)
+router.put('/:id/variants/:variantId/stock-detail',       ctrl.updateProductStock)
 
 export default router

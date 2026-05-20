@@ -6,8 +6,8 @@ import { Dialog, DialogContent, DialogTitle, DialogClose } from '@/components/ui
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import type { OrderShipment } from '@/types/admin.types'
+import { toastSuccess, toastError } from '@/lib/toast'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -24,12 +24,10 @@ export default function MarkShippedModal({ orderId, shipment, token, onClose, on
   const [trackingUri,      setTrackingUri]      = useState('')
   const [sendNotification, setSendNotification] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError]           = useState('')
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSubmitting(true)
-    setError('')
     try {
       const res = await fetch(
         `${API}/api/admin/orders/${orderId}/shipments/${shipment.shipment_id}/shipped`,
@@ -43,7 +41,8 @@ export default function MarkShippedModal({ orderId, shipment, token, onClose, on
           }),
         }
       )
-      if (!res.ok) { const j = await res.json(); setError(j.message ?? 'Failed to mark as shipped.'); return }
+      if (!res.ok) { const j = await res.json(); toastError(j.message ?? 'Failed to mark as shipped'); return }
+      toastSuccess('Shipment marked as shipped')
       onSuccess(shipment.shipment_id, trackingNumber || undefined, trackingUri || undefined)
     } finally { setSubmitting(false) }
   }
@@ -111,11 +110,6 @@ export default function MarkShippedModal({ orderId, shipment, token, onClose, on
               </button>
             </div>
 
-            {error && (
-              <Alert variant="destructive" className="bg-red-50 border-red-200">
-                <AlertDescription className="text-red-600">{error}</AlertDescription>
-              </Alert>
-            )}
           </div>
 
           <div className="flex justify-end gap-3 px-6 py-4 border-t border-zinc-200">

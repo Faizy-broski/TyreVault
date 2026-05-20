@@ -5,6 +5,8 @@ import Link from 'next/link'
 import Papa from 'papaparse'
 import type { Supplier } from '@/types/admin.types'
 import ColumnMapModal from './ColumnMapModal'
+import { Button } from '@/components/ui/button'
+import { toastError } from '@/lib/toast'
 
 interface Props {
   supplier:    Supplier
@@ -33,7 +35,7 @@ export default function SupplierDetailClient({ supplier, accessToken }: Props) {
 
   const processFile = useCallback((file: File) => {
     if (!file.name.endsWith('.csv') && file.type !== 'text/csv') {
-      alert('Please upload a .csv file.')
+      toastError('Please upload a .csv file')
       return
     }
     // Read only first line to extract headers cheaply
@@ -74,9 +76,9 @@ export default function SupplierDetailClient({ supplier, accessToken }: Props) {
     }`
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-4 sm:p-6 space-y-5">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Link href="/admin/suppliers" className="text-sm text-zinc-400 hover:text-zinc-600">
@@ -120,8 +122,8 @@ export default function SupplierDetailClient({ supplier, accessToken }: Props) {
 
       {/* Tabs */}
       <div className="flex border-b border-zinc-200">
-        <button className={tabCls('overview')} onClick={() => setTab('overview')}>Overview</button>
-        <button className={tabCls('import')}   onClick={() => setTab('import')}>CSV Import</button>
+        <Button type="button" variant="ghost" className={tabCls('overview')} onClick={() => setTab('overview')}>Overview</Button>
+        <Button type="button" variant="ghost" className={tabCls('import')}   onClick={() => setTab('import')}>CSV Import</Button>
       </div>
 
       {/* Overview tab */}
@@ -176,6 +178,7 @@ export default function SupplierDetailClient({ supplier, accessToken }: Props) {
             ref={fileInputRef}
             type="file"
             accept=".csv,text/csv"
+            aria-label="Upload CSV file"
             className="hidden"
             onChange={onFileChange}
           />

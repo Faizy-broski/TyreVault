@@ -19,6 +19,13 @@ export type CreateProductPayload = {
   tyreSpecSheet?: string
   faqList?: { question: string; answer: string }[]
 
+  // SEO + Visibility
+  defaultCountryOfOrigin?: string
+  showOnWebsite?: boolean
+  seoTitle?: string
+  seoDescription?: string
+  treadImage?: string
+
   // Categories
   discountable: boolean
   applicationType: 'PCR' | '4x4' | 'TBR'
@@ -27,6 +34,10 @@ export type CreateProductPayload = {
   seasonType?: string
   collectionId?: string
   tags?: string[]
+  positionCategory?: 'steer' | 'drive' | 'trailer' | 'all_position'
+  shoulderType?: 'open_shoulder' | 'closed_shoulder' | 'block_drive'
+  terrainType?: string
+  warrantyKm?: number
 
   // Variants
   variants: VariantPayload[]
@@ -43,6 +54,7 @@ export type VariantPayload = {
   rimSize: number
   constructionType?: string
   loadIndex?: string
+  loadSpeedRating?: string
   speedRating?: string
   fuelRating?: string
   wetGrip?: string
@@ -52,7 +64,21 @@ export type VariantPayload = {
   xlReinforced?: boolean
   plyRating?: string
   loadRange?: string
-  countryOfOrigin?: string
+  sidewall?: 'BSW' | 'OWL' | 'RWL'
+  tubeType?: 'tubeless' | 'tube_type'
+  countryOfOrigin: string
+  manufacturerName?: string
+  factoryName?: string
+  factoryCountry?: string
+  sectionWidth?: number
+  treadDepth?: number
+  tyreWeight?: number
+  overallDiameter?: number
+  maxLoad?: string
+  maxPressure?: string
+  eMark?: string
+  dotCode?: string
+  utqg?: string
   variantImages?: string[]
 }
 
@@ -71,7 +97,8 @@ export type ProductListFilters = {
   status?: string
   page?: number
   limit?: number
-  sortBy?: 'updated_at' | 'created_at'
+  sortBy?: 'updated_at' | 'created_at' | 'pattern_name' | 'show_on_website' | 'brand_name' | 'variant_count'
+  sortOrder?: 'asc' | 'desc'
 }
 
 // ============================================================
@@ -80,7 +107,7 @@ export type ProductListFilters = {
 export async function listProducts(filters: ProductListFilters) {
   const {
     search, brandId, status = 'active',
-    page = 1, limit = 20, sortBy = 'updated_at',
+    page = 1, limit = 20, sortBy = 'updated_at', sortOrder = 'desc',
   } = filters
 
   // Fetch at pattern level — each pattern = one "product" in admin
@@ -100,15 +127,22 @@ export async function listProducts(filters: ProductListFilters) {
       collections ( collection_name ),
       skus ( product_id, status )
     `, { count: 'exact' })
-    .order(sortBy, { ascending: false })
-    .range((page - 1) * limit, page * limit - 1)
 
-  if (search) {
-    query = query.ilike('pattern_name', `%${search}%`)
-  }
-  if (brandId) {
-    query = query.eq('brand_id', brandId)
-  }
+  // brand_name and variant_count are computed/joined — sort client-side; fall back to updated_at
+  const DB_SORT_COLUMNS = ['updated_at', 'created_at', 'pattern_name', 'show_on_website'] as const
+  type DbSortCol = typeof DB_SORT_COLUMNS[number]
+  const dbSortBy: DbSortCol = (DB_SORT_COLUMNS as readonly string[]).includes(sortBy ?? '')
+    ? (sortBy as DbSortCol)
+    : 'updated_at'
+
+  query = query.order(dbSortBy, { ascending: sortOrder === 'asc' })
+
+  query = query.range((page - 1) * limit, page * limit - 1)
+
+  if (search) query = query.ilike('pattern_name', `%${search}%`)
+  if (brandId) query = query.eq('brand_id', brandId)
+  if (status === 'published') query = query.eq('show_on_website', true)
+  if (status === 'draft')     query = query.eq('show_on_website', false)
 
   const { data, error, count } = await query
   if (error) throw error
@@ -181,6 +215,7 @@ export async function createProduct(payload: CreateProductPayload) {
       pattern_slug: payload.patternSlug,
       pattern_short_description: payload.shortDescription,
       gallery_images: payload.galleryImages ?? [],
+      main_image:     payload.galleryImages?.[0] ?? null,
       tyre_overview: payload.tyreOverview,
       features: payload.features,
       warranty_information: payload.warrantyInformation,
@@ -192,8 +227,16 @@ export async function createProduct(payload: CreateProductPayload) {
       season_type: payload.seasonType ?? null,
       collection_id: payload.collectionId ?? null,
       tags: payload.tags ?? [],
+      position_category: payload.positionCategory ?? null,
+      shoulder_type: payload.shoulderType ?? null,
+      terrain_type: payload.terrainType ?? null,
+      warranty_km: payload.warrantyKm ?? null,
+      seo_title: payload.seoTitle ?? null,
+      seo_description: payload.seoDescription ?? null,
+      tread_image: payload.treadImage ?? null,
+      default_country_of_origin: payload.defaultCountryOfOrigin ?? null,
       is_active: true,
-      show_on_website: false, // not public until published
+      show_on_website: payload.showOnWebsite ?? false,
     })
     .select('pattern_id')
     .single()
@@ -231,6 +274,7 @@ export async function createProduct(payload: CreateProductPayload) {
         rim_size: v.rimSize,
         construction_type: v.constructionType ?? null,
         load_index: v.loadIndex ?? null,
+        load_speed_rating: v.loadSpeedRating ?? null,
         speed_rating: v.speedRating ?? null,
         fuel_rating: v.fuelRating ?? null,
         wet_grip: v.wetGrip ?? null,
@@ -240,7 +284,21 @@ export async function createProduct(payload: CreateProductPayload) {
         xl_reinforced: v.xlReinforced ?? false,
         ply_rating: v.plyRating ?? null,
         load_range: v.loadRange ?? null,
-        country_of_origin: v.countryOfOrigin ?? 'Unknown',
+        sidewall: v.sidewall ?? null,
+        tube_type: v.tubeType ?? null,
+        country_of_origin: v.countryOfOrigin,
+        manufacturer_name: v.manufacturerName ?? null,
+        factory_name: v.factoryName ?? null,
+        factory_country: v.factoryCountry ?? null,
+        section_width: v.sectionWidth ?? null,
+        tread_depth: v.treadDepth ?? null,
+        tyre_weight: v.tyreWeight ?? null,
+        overall_diameter: v.overallDiameter ?? null,
+        max_load: v.maxLoad ?? null,
+        max_pressure: v.maxPressure ?? null,
+        e_mark: v.eMark ?? null,
+        dot_code: v.dotCode ?? null,
+        utqg: v.utqg ?? null,
         variant_images: v.variantImages ?? [],
         compare_at_price: p.compareAtPrice ?? null,
         cost_price: p.costPrice ?? null,
@@ -291,12 +349,19 @@ export async function createProduct(payload: CreateProductPayload) {
 // UPDATE PRODUCT (pattern fields only)
 // ============================================================
 export async function updateProduct(patternId: string, payload: Partial<CreateProductPayload>) {
+  console.log('[updateProduct service] patternId:', patternId)
+  console.log('[updateProduct service] payload keys:', Object.keys(payload))
+
   const updates: Record<string, unknown> = {}
 
+  if (payload.brandId !== undefined) updates.brand_id = payload.brandId
   if (payload.patternName !== undefined) updates.pattern_name = payload.patternName
   if (payload.patternSlug !== undefined) updates.pattern_slug = payload.patternSlug
   if (payload.shortDescription !== undefined) updates.pattern_short_description = payload.shortDescription
-  if (payload.galleryImages !== undefined) updates.gallery_images = payload.galleryImages
+  if (payload.galleryImages !== undefined) {
+    updates.gallery_images = payload.galleryImages
+    updates.main_image     = payload.galleryImages[0] ?? null
+  }
   if (payload.tyreOverview !== undefined) updates.tyre_overview = payload.tyreOverview
   if (payload.features !== undefined) updates.features = payload.features
   if (payload.warrantyInformation !== undefined) updates.warranty_information = payload.warrantyInformation
@@ -308,17 +373,35 @@ export async function updateProduct(patternId: string, payload: Partial<CreatePr
   if (payload.seasonType !== undefined) updates.season_type = payload.seasonType
   if (payload.collectionId !== undefined) updates.collection_id = payload.collectionId
   if (payload.tags !== undefined) updates.tags = payload.tags
+  if (payload.positionCategory !== undefined) updates.position_category = payload.positionCategory
+  if (payload.shoulderType !== undefined) updates.shoulder_type = payload.shoulderType
+  if (payload.terrainType !== undefined) updates.terrain_type = payload.terrainType
+  if (payload.warrantyKm !== undefined) updates.warranty_km = payload.warrantyKm
+  if (payload.showOnWebsite !== undefined) updates.show_on_website = payload.showOnWebsite
+  if (payload.seoTitle !== undefined) updates.seo_title = payload.seoTitle
+  if (payload.seoDescription !== undefined) updates.seo_description = payload.seoDescription
+  if (payload.treadImage !== undefined) updates.tread_image = payload.treadImage
+  if (payload.defaultCountryOfOrigin !== undefined) updates.default_country_of_origin = payload.defaultCountryOfOrigin
 
-  const { error } = await supabase.from('patterns').update(updates).eq('pattern_id', patternId)
+  console.log('[updateProduct service] supabase updates object:', updates)
+  const { error, data } = await supabase
+    .from('patterns')
+    .update(updates)
+    .eq('pattern_id', patternId)
+    .select('pattern_id, pattern_name, brand_id')
+  console.log('[updateProduct service] supabase result — error:', error, 'data:', data)
+  console.log('[updateProduct service] brand_id in updates:', updates.brand_id, '| returned brand_id:', data?.[0]?.brand_id)
   if (error) throw error
 
   // Update categories if provided
   if (payload.categoryIds !== undefined) {
+    console.log('[updateProduct service] updating categories:', payload.categoryIds)
     await supabase.from('pattern_categories').delete().eq('pattern_id', patternId)
     if (payload.categoryIds.length > 0) {
-      await supabase.from('pattern_categories').insert(
+      const { error: catErr } = await supabase.from('pattern_categories').insert(
         payload.categoryIds.map(cid => ({ pattern_id: patternId, category_id: cid }))
       )
+      console.log('[updateProduct service] categories insert error:', catErr)
     }
   }
 
@@ -372,13 +455,33 @@ export async function addVariant(patternId: string, variant: VariantPayload, pri
     width: variant.width ?? null,
     profile: variant.profile ?? null,
     rim_size: variant.rimSize,
+    construction_type: variant.constructionType ?? null,
     load_index: variant.loadIndex ?? null,
+    load_speed_rating: variant.loadSpeedRating ?? null,
     speed_rating: variant.speedRating ?? null,
     fuel_rating: variant.fuelRating ?? null,
     wet_grip: variant.wetGrip ?? null,
     noise_db: variant.noiseDb ?? null,
+    noise_class: variant.noiseClass ?? null,
     runflat: variant.runflat,
-    country_of_origin: variant.countryOfOrigin ?? 'Unknown',
+    xl_reinforced: variant.xlReinforced ?? false,
+    ply_rating: variant.plyRating ?? null,
+    load_range: variant.loadRange ?? null,
+    sidewall: variant.sidewall ?? null,
+    tube_type: variant.tubeType ?? null,
+    country_of_origin: variant.countryOfOrigin,
+    manufacturer_name: variant.manufacturerName ?? null,
+    factory_name: variant.factoryName ?? null,
+    factory_country: variant.factoryCountry ?? null,
+    section_width: variant.sectionWidth ?? null,
+    tread_depth: variant.treadDepth ?? null,
+    tyre_weight: variant.tyreWeight ?? null,
+    overall_diameter: variant.overallDiameter ?? null,
+    max_load: variant.maxLoad ?? null,
+    max_pressure: variant.maxPressure ?? null,
+    e_mark: variant.eMark ?? null,
+    dot_code: variant.dotCode ?? null,
+    utqg: variant.utqg ?? null,
     compare_at_price: pricing.compareAtPrice ?? null,
     cost_price: pricing.costPrice ?? null,
     low_stock_alert: pricing.lowStockAlert ?? 10,
@@ -507,8 +610,103 @@ export async function updateVariantPrices(
 }
 
 // ============================================================
-// BRAND helpers (for dropdowns)
+// PRODUCT STOCK — per-warehouse + supplier breakdown
 // ============================================================
+export async function getProductStock(productId: string) {
+  // Warehouse stock
+  const { data: warehouseRows, error: wErr } = await supabase
+    .from('product_stock')
+    .select(`
+      warehouse_id,
+      available_stock,
+      reserved_stock,
+      warehouses ( warehouse_name )
+    `)
+    .eq('product_id', productId)
+
+  if (wErr) throw wErr
+
+  // Supplier contributions: join supplier_product_map → supplier_product_stock → suppliers
+  const { data: supplierRows } = await supabase
+    .from('supplier_product_map')
+    .select(`
+      map_id,
+      suppliers ( supplier_id, supplier_name ),
+      supplier_product_stock ( stock_qty )
+    `)
+    .eq('product_id', productId)
+    .eq('is_verified', true)
+
+  const warehouses = (warehouseRows ?? []).map(r => ({
+    warehouse_id: r.warehouse_id,
+    warehouse_name: (r.warehouses as unknown as { warehouse_name: string } | null)?.warehouse_name ?? 'Unknown',
+    available: r.available_stock,
+    reserved: r.reserved_stock,
+  }))
+
+  const supplierContributions = (supplierRows ?? []).map(r => {
+    const stockRows = Array.isArray(r.supplier_product_stock)
+      ? (r.supplier_product_stock as { stock_qty: number }[])
+      : []
+    const stock = stockRows.reduce((sum, s) => sum + (s.stock_qty ?? 0), 0)
+    const sup = r.suppliers as unknown as { supplier_id: string; supplier_name: string } | null
+    return { supplier_id: sup?.supplier_id ?? '', supplier_name: sup?.supplier_name ?? '', stock }
+  })
+
+  const totalSupplierStock = supplierContributions.reduce((s, r) => s + r.stock, 0)
+
+  const suppliers = supplierContributions.map(r => ({
+    ...r,
+    percentage: totalSupplierStock > 0 ? Math.round((r.stock / totalSupplierStock) * 100) : 0,
+  }))
+
+  return { warehouses, suppliers, total_supplier_stock: totalSupplierStock }
+}
+
+export async function updateProductStock(
+  productId: string,
+  allocations: { warehouse_id: string; available: number }[]
+) {
+  for (const alloc of allocations) {
+    const { error } = await supabase.from('product_stock').upsert(
+      {
+        product_id: productId,
+        warehouse_id: alloc.warehouse_id,
+        available_stock: alloc.available,
+      },
+      { onConflict: 'product_id,warehouse_id' }
+    )
+    if (error) throw error
+  }
+
+  // Recompute total_available_stock on the SKU
+  const { data: stockRows } = await supabase
+    .from('product_stock')
+    .select('available_stock')
+    .eq('product_id', productId)
+
+  const total = (stockRows ?? []).reduce((s, r) => s + (r.available_stock ?? 0), 0)
+  await supabase.from('skus').update({ total_available_stock: total }).eq('product_id', productId)
+
+  await redis?.del(`stock:${productId}`)
+  await catalogueSyncQueue?.add('upsert_sku', { type: 'upsert_sku', product_id: productId })
+}
+
+// ============================================================
+// BRAND helpers (for dropdowns + creation)
+// ============================================================
+export async function createBrand(payload: { brand_name: string; brand_slug: string; brand_logo?: string }) {
+  await redis?.del('admin:brands')
+  const { data, error } = await supabase.from('brands').insert({
+    brand_name: payload.brand_name,
+    brand_slug: payload.brand_slug,
+    brand_logo: payload.brand_logo ?? null,
+    is_active:  true,
+  }).select('brand_id, brand_name, brand_slug').single()
+  if (error) throw error
+  return data
+}
+
 export async function listBrands() {
   const cached = await redis?.get<{ brand_id: string; brand_name: string }[]>('admin:brands')
   if (cached) return cached

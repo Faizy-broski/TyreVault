@@ -3,8 +3,33 @@ export type TyreType  = 'car' | '4x4' | 'run_flat'
 export type RimRange  = '13_15' | '16_18' | '19_21' | '22_plus'
 export type EarningStatus = 'pending' | 'paid'
 
+export interface FitterProfile {
+  fitment_centre_id: string
+  business_name:     string
+  contact_name:      string | null
+  email:             string | null
+  contact_phone:     string | null
+  business_number:   string | null
+  partner_id:        string
+  approved_status:   string | null
+}
+
+export interface WorkingHour {
+  day:        string
+  is_closed:  boolean
+  open_time:  string
+  close_time: string
+}
+
+export interface FitterServices {
+  services_offered:         string[]
+  wheel_alignment_price:    number | null
+  mobile_fitting_available: boolean
+  opening_hours:            WorkingHour[] | null
+}
+
 export interface FitmentCentre {
-  fitment_id:    string
+  fitment_centre_id: string
   business_name: string
   partner_id:        string
   contact_phone:     string | null
@@ -24,16 +49,20 @@ export interface FitmentJob {
   tyre_size:         string | null
   quantity:          number
   vehicle_model:     string | null
-  job_status:    JobStatus
-  notes:         string | null
-  earnings_amount: number | null
-  fitment_id:    string
-  created_at:    string
+  job_status:        JobStatus
+  notes:             string | null
+  fitter_notes:      string | null
+  admin_notes:       string | null
+  accepted_at:       string | null
+  completed_at:      string | null
+  earnings_amount:   number | null
+  fitment_centre_id: string
+  created_at:        string
 }
 
 export interface FitterPricingRow {
   id:           string
-  fitment_id:   string
+  fitment_centre_id: string
   tyre_type:         TyreType
   rim_range:         RimRange
   per_tyre:          number | null
@@ -44,7 +73,7 @@ export interface FitterPricingRow {
 
 export interface FitterEarning {
   id:          string
-  fitment_id:  string
+  fitment_centre_id: string
   job_id:            string | null
   customer_name:     string | null
   amount:            number

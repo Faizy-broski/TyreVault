@@ -1,15 +1,15 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle, DialogClose } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import type { CustomerListItem } from '@/types/admin.types'
+import type { CustomerListItem, CustomerType, AccountStatus } from '@/types/admin.types'
 import { BACKEND_API_URL, createBackendHeaders, readBackendError } from '@/lib/backend-api'
+import { toastSuccess, toastError } from '@/lib/toast'
 
 type Props = {
   accessToken: string
@@ -29,21 +29,18 @@ const FIELDS = [
 export default function EditCustomerModal({ accessToken, customer, onClose, onSuccess }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
 
   const defaults: Record<string, string> = {
     email:     customer.email            ?? '',
     firstName: customer.first_name       ?? '',
     lastName:  customer.last_name        ?? '',
-    company:   customer.business_name    ?? '',
+    company:   customer.business_name      ?? '',
     phone:     customer.phone            ?? '',
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    setError(null)
     const fd = new FormData(e.currentTarget)
-
     try {
       const res = await fetch(
         `${BACKEND_API_URL}/api/admin/customers/${customer.customer_id}`,
@@ -53,21 +50,24 @@ export default function EditCustomerModal({ accessToken, customer, onClose, onSu
             'Content-Type': 'application/json',
           }),
           body: JSON.stringify({
-            email:     fd.get('email'),
-            firstName: fd.get('firstName'),
-            lastName:  fd.get('lastName'),
-            company:   fd.get('company'),
-            phone:     fd.get('phone'),
+            email:         fd.get('email'),
+            firstName:     fd.get('firstName'),
+            lastName:      fd.get('lastName'),
+            company:       fd.get('company'),
+            phone:         fd.get('phone'),
+            customerType:  fd.get('customerType'),
+            accountStatus: fd.get('accountStatus'),
           }),
         }
       )
       if (!res.ok) {
         throw new Error(await readBackendError(res, 'Update failed'))
       }
+      toastSuccess('Customer updated')
       startTransition(() => router.refresh())
       onSuccess ? onSuccess() : onClose()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      toastError(err instanceof Error ? err.message : 'Failed to update customer')
     }
   }
 
@@ -88,11 +88,6 @@ export default function EditCustomerModal({ accessToken, customer, onClose, onSu
 
         <form onSubmit={handleSubmit}>
           <div className="px-6 py-5 space-y-4">
-            {error && (
-              <Alert variant="destructive" className="bg-red-50 border-red-200">
-                <AlertDescription className="text-red-600">{error}</AlertDescription>
-              </Alert>
-            )}
             {FIELDS.map(field => (
               <div key={field.name}>
                 <Label htmlFor={field.name} className="block text-sm font-medium text-zinc-700 mb-1">
@@ -107,6 +102,35 @@ export default function EditCustomerModal({ accessToken, customer, onClose, onSu
                 />
               </div>
             ))}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="customerType" className="block text-sm font-medium text-zinc-700 mb-1">Customer Type</Label>
+                <select
+                  id="customerType"
+                  name="customerType"
+                  defaultValue={customer.customer_type ?? 'retail'}
+                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                >
+                  {(['retail', 'wholesale', 'fleet', 'trade'] as CustomerType[]).map(t => (
+                    <option key={t} value={t} className="capitalize">{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="accountStatus" className="block text-sm font-medium text-zinc-700 mb-1">Account Status</Label>
+                <select
+                  id="accountStatus"
+                  name="accountStatus"
+                  defaultValue={customer.account_status ?? 'active'}
+                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                >
+                  {(['active', 'paused', 'blocked'] as AccountStatus[]).map(s => (
+                    <option key={s} value={s} className="capitalize">{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-zinc-100">

@@ -2,7 +2,10 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Search, Loader2, X } from 'lucide-react'
+import { toastError } from '@/lib/toast'
 import { Dialog, DialogContent, DialogTitle, DialogClose } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -26,7 +29,6 @@ export default function ManualMapModal({ mapId, accessToken, onClose, onMapped }
   const [results, setResults]     = useState<ProductResult[]>([])
   const [searching, setSearching] = useState(false)
   const [saving, setSaving]       = useState(false)
-  const [error, setError]         = useState<string | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const search = useCallback(async (q: string) => {
@@ -53,7 +55,6 @@ export default function ManualMapModal({ mapId, accessToken, onClose, onMapped }
 
   async function handleSelect(productId: string) {
     setSaving(true)
-    setError(null)
     try {
       const res = await fetch(`${API}/api/admin/suppliers/mappings/${mapId}/manual`, {
         method:  'PATCH',
@@ -66,7 +67,7 @@ export default function ManualMapModal({ mapId, accessToken, onClose, onMapped }
       }
       onMapped()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to map')
+      toastError(err instanceof Error ? err.message : 'Failed to map product')
       setSaving(false)
     }
   }
@@ -76,8 +77,10 @@ export default function ManualMapModal({ mapId, accessToken, onClose, onMapped }
       <DialogContent className="p-0 gap-0 rounded-2xl shadow-xl ring-0 bg-white sm:max-w-md" showCloseButton={false}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
           <DialogTitle className="text-base font-semibold text-zinc-900">Manual Map</DialogTitle>
-          <DialogClose className="text-zinc-400 hover:text-zinc-600 p-1 rounded transition-colors">
-            <X className="w-5 h-5" />
+          <DialogClose asChild>
+            <Button variant="ghost" size="icon-sm" aria-label="Close">
+              <X className="w-5 h-5" />
+            </Button>
           </DialogClose>
         </div>
 
@@ -88,13 +91,13 @@ export default function ManualMapModal({ mapId, accessToken, onClose, onMapped }
 
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
-            <input
+            <Input
               autoFocus
               value={query}
               onChange={e => setQuery(e.target.value)}
               placeholder="e.g. 245/45R17 Michelin Pilot Sport"
               aria-label="Search products"
-              className="w-full pl-9 pr-9 py-2 text-sm border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+              className="pl-9 pr-9"
             />
             {searching && (
               <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 animate-spin" />
@@ -127,9 +130,6 @@ export default function ManualMapModal({ mapId, accessToken, onClose, onMapped }
             ))}
           </div>
 
-          {error && (
-            <p className="text-xs text-red-600">{error}</p>
-          )}
         </div>
       </DialogContent>
     </Dialog>

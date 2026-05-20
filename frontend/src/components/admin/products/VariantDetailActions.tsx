@@ -4,7 +4,10 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { MoreVertical, X } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle, DialogClose } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { getAdminToken } from '@/lib/admin-token'
+import { toastSuccess, toastError } from '@/lib/toast'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -17,8 +20,10 @@ function Modal({ title, open, onClose, children }: { title: string; open: boolea
       <DialogContent className="p-0 gap-0 rounded-2xl shadow-xl ring-0 bg-white sm:max-w-lg flex flex-col max-h-[90vh]" showCloseButton={false}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 shrink-0">
           <DialogTitle className="text-base font-semibold text-zinc-900">{title}</DialogTitle>
-          <DialogClose className="p-1 text-zinc-400 hover:text-zinc-700 rounded transition-colors">
-            <X className="w-4 h-4" />
+          <DialogClose asChild>
+            <Button variant="ghost" size="icon-sm" aria-label="Close">
+              <X className="w-4 h-4" />
+            </Button>
           </DialogClose>
         </div>
         {children}
@@ -42,7 +47,6 @@ export function VariantStockActions({
 }) {
   const [open, setOpen]   = useState(false)
   const [saving, setSaving] = useState(false)
-  const [error, setError]   = useState('')
 
   const initial: Record<string, number> = {}
   for (const s of stocks) initial[s.warehouse_id] = s.available_stock
@@ -51,7 +55,6 @@ export function VariantStockActions({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-    setError('')
     try {
       const token = await getAdminToken()
       const results = await Promise.all(
@@ -65,10 +68,11 @@ export function VariantStockActions({
       )
       const failed = results.find(r => !r.ok)
       if (failed) throw new Error(`Error ${failed.status}`)
+      toastSuccess('Stock updated')
       onSuccess?.()
       setOpen(false)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to update stock')
+      toastError(err instanceof Error ? err.message : 'Failed to update stock')
     } finally {
       setSaving(false)
     }
@@ -76,31 +80,26 @@ export function VariantStockActions({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="text-sm text-zinc-600 hover:text-zinc-900 border border-zinc-300 rounded-md px-3 py-1.5 hover:bg-zinc-50 transition-colors"
-      >
+      <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
         Edit Stock
-      </button>
+      </Button>
 
       <Modal title="Edit Stock Levels" open={open} onClose={() => setOpen(false)}>
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
           <div className="overflow-y-auto flex-1 px-6 py-4 space-y-3">
-            {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
             {stocks.length === 0 ? (
               <p className="text-sm text-zinc-400 italic">No warehouse locations configured.</p>
             ) : (
               stocks.map(s => (
                 <div key={s.warehouse_id} className="flex items-center gap-3">
                   <span className="text-sm text-zinc-600 flex-1">{s.warehouse_name}</span>
-                  <input
+                  <Input
                     type="number"
                     min={0}
                     value={values[s.warehouse_id] ?? s.available_stock}
                     onChange={e => setValues(prev => ({ ...prev, [s.warehouse_id]: Number(e.target.value) }))}
                     aria-label={`Stock at ${s.warehouse_name}`}
-                    className="w-24 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                    className="w-24"
                   />
                 </div>
               ))
@@ -108,11 +107,11 @@ export function VariantStockActions({
           </div>
           <div className="flex justify-end gap-3 px-6 py-4 border-t border-zinc-100 shrink-0">
             <DialogClose asChild>
-              <button type="button" className="px-4 py-2 text-sm border border-zinc-300 rounded-lg text-zinc-700 hover:bg-zinc-50 transition-colors">Cancel</button>
+              <Button type="button" variant="outline">Cancel</Button>
             </DialogClose>
-            <button type="submit" disabled={saving} className="px-4 py-2 text-sm font-medium bg-primary text-zinc-900 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50">
+            <Button type="submit" disabled={saving}>
               {saving ? 'Saving…' : 'Save'}
-            </button>
+            </Button>
           </div>
         </form>
       </Modal>
@@ -136,7 +135,6 @@ export function VariantPricingMenu({
   const [open, setOpen]         = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [saving, setSaving]     = useState(false)
-  const [error, setError]       = useState('')
   const ref = useRef<HTMLDivElement>(null)
 
   const initial: Record<string, number> = {}
@@ -154,7 +152,6 @@ export function VariantPricingMenu({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-    setError('')
     try {
       const token = await getAdminToken()
       const res = await fetch(`${API}/api/admin/products/${patternId}/variants/${variantId}/prices`, {
@@ -166,10 +163,11 @@ export function VariantPricingMenu({
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error ?? `Error ${res.status}`)
       }
+      toastSuccess('Prices updated')
       onSuccess?.()
       setShowEdit(false)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to update prices')
+      toastError(err instanceof Error ? err.message : 'Failed to update prices')
     } finally {
       setSaving(false)
     }
@@ -178,14 +176,15 @@ export function VariantPricingMenu({
   return (
     <>
       <div ref={ref} className="relative">
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon-sm"
           aria-label="Pricing options"
           onClick={() => setOpen(o => !o)}
-          className="p-0.5 text-zinc-400 hover:text-zinc-700 rounded transition-colors"
         >
           <MoreVertical className="w-4 h-4" />
-        </button>
+        </Button>
         {open && (
           <div className="absolute right-0 top-full mt-1 z-50 w-40 rounded-lg border border-zinc-200 bg-white shadow-lg py-1">
             <button
@@ -202,7 +201,6 @@ export function VariantPricingMenu({
       <Modal title="Edit Prices" open={showEdit} onClose={() => setShowEdit(false)}>
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
           <div className="overflow-y-auto flex-1 px-6 py-4 space-y-3">
-            {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
             {prices.length === 0 ? (
               <p className="text-sm text-zinc-400 italic">No prices configured.</p>
             ) : (
@@ -211,14 +209,14 @@ export function VariantPricingMenu({
                   <span className="text-sm text-zinc-600 w-32">{p.group_name}</span>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-sm">$</span>
-                    <input
+                    <Input
                       type="number"
                       min={0}
                       step="0.01"
                       value={values[p.group_name] ?? p.price_inc_gst}
                       onChange={e => setValues(prev => ({ ...prev, [p.group_name]: Number(e.target.value) }))}
                       aria-label={`Price for ${p.group_name}`}
-                      className="w-28 pl-6 pr-3 py-1.5 rounded-lg border border-zinc-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                      className="w-28 pl-6"
                     />
                   </div>
                 </div>
@@ -227,11 +225,11 @@ export function VariantPricingMenu({
           </div>
           <div className="flex justify-end gap-3 px-6 py-4 border-t border-zinc-100 shrink-0">
             <DialogClose asChild>
-              <button type="button" className="px-4 py-2 text-sm border border-zinc-300 rounded-lg text-zinc-700 hover:bg-zinc-50 transition-colors">Cancel</button>
+              <Button type="button" variant="outline">Cancel</Button>
             </DialogClose>
-            <button type="submit" disabled={saving} className="px-4 py-2 text-sm font-medium bg-primary text-zinc-900 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50">
+            <Button type="submit" disabled={saving}>
               {saving ? 'Saving…' : 'Save Prices'}
-            </button>
+            </Button>
           </div>
         </form>
       </Modal>
@@ -253,11 +251,9 @@ export function VariantDangerZone({
   const router = useRouter()
   const [showDel, setShowDel]   = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [error, setError]       = useState('')
 
   async function handleDelete() {
     setDeleting(true)
-    setError('')
     try {
       const token = await getAdminToken()
       const res = await fetch(`${API}/api/admin/products/${patternId}/variants/${variantId}`, {
@@ -268,22 +264,24 @@ export function VariantDangerZone({
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error ?? `Error ${res.status}`)
       }
+      toastSuccess('Variant deleted')
       router.push(`/admin/products/${patternId}`)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to delete')
+      toastError(err instanceof Error ? err.message : 'Failed to delete variant')
       setDeleting(false)
     }
   }
 
   return (
     <>
-      <button
+      <Button
         type="button"
+        variant="outline"
+        className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
         onClick={() => setShowDel(true)}
-        className="w-full rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
       >
         Delete Variant
-      </button>
+      </Button>
 
       <Dialog open={showDel} onOpenChange={o => { if (!o) setShowDel(false) }}>
         <DialogContent className="rounded-2xl shadow-xl ring-0 bg-white sm:max-w-sm" showCloseButton={false}>
@@ -291,21 +289,18 @@ export function VariantDangerZone({
           <p className="text-sm text-zinc-600">
             Delete <strong>{variantName}</strong>? This cannot be undone.
           </p>
-          {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex gap-3 justify-end">
             <DialogClose asChild>
-              <button type="button" className="px-4 py-2 text-sm border border-zinc-300 rounded-lg text-zinc-700 hover:bg-zinc-50 transition-colors">
-                Cancel
-              </button>
+              <Button type="button" variant="outline">Cancel</Button>
             </DialogClose>
-            <button
+            <Button
               type="button"
               onClick={handleDelete}
               disabled={deleting}
-              className="px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+              className="bg-red-600 text-white hover:bg-red-700"
             >
               {deleting ? 'Deleting…' : 'Delete'}
-            </button>
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

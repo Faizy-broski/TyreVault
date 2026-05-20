@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
@@ -16,6 +16,7 @@ import type {
   PaymentSummary,
 } from '@/types/admin.types'
 import type { FitterPricingRow } from '@/types/fitter.types'
+import { toastError } from '@/lib/toast'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -44,7 +45,6 @@ export default function FitmentCentreDetailPage() {
   const [complianceDocs, setComplianceDocs]         = useState<ComplianceDoc[]>([])
   const [token, setToken]                           = useState('')
   const [loading, setLoading]                       = useState(true)
-  const [error, setError]                           = useState<string | null>(null)
 
   useEffect(() => {
     document.title = centre ? `${centre.business_name} | Tyre Vault` : 'Fitment Centre | Tyre Vault'
@@ -95,7 +95,7 @@ export default function FitmentCentreDetailPage() {
           setComplianceDocs(complianceJson ?? [])
         }
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load fitment centre')
+        if (!cancelled) toastError(err instanceof Error ? err.message : 'Failed to load fitment centre')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -106,7 +106,7 @@ export default function FitmentCentreDetailPage() {
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="h-8 w-48 bg-zinc-100 rounded animate-pulse mb-6" />
         <div className="space-y-4">
           {[1,2,3,4].map(i => <div key={i} className="h-32 bg-zinc-100 rounded-xl animate-pulse" />)}
@@ -115,19 +115,17 @@ export default function FitmentCentreDetailPage() {
     )
   }
 
-  if (error || !centre) {
+  if (!centre) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <AdminBreadcrumb crumbs={[{ label: 'Fitment Centre', href: '/admin/fitters' }, { label: 'Centre' }]} />
-        <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
-          {error ?? 'Fitment centre not found.'}
-        </div>
+        <p className="mt-6 text-sm text-zinc-500">Fitment centre not found.</p>
       </div>
     )
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       <div className="mb-6">
         <AdminBreadcrumb crumbs={[
           { label: 'Fitment Centre', href: '/admin/fitters' },

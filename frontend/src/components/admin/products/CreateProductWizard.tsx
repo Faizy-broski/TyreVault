@@ -12,6 +12,8 @@ import CategoriesTab from './tabs/CategoriesTab'
 import VariantsTab from './tabs/VariantsTab'
 import PricingTab from './tabs/PricingTab'
 import { cn } from '@/lib/utils/cn'
+import { Button } from '@/components/ui/button'
+import { toastSuccess, toastError } from '@/lib/toast'
 
 const TABS = [
   { key: 'basic',      label: 'Basic Info' },
@@ -34,7 +36,6 @@ export default function CreateProductWizard({ brands, collections, categories, w
   const [activeTab, setActiveTab] = useState<TabKey>('basic')
   const [completedTabs, setCompletedTabs] = useState<Set<TabKey>>(new Set())
   const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   const methods = useForm<CreateProductFormValues>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -81,7 +82,7 @@ export default function CreateProductWizard({ brands, collections, categories, w
     if (errs.patternSlug)  msgs.push('Slug is required')
     if (errs.variants)     msgs.push(typeof errs.variants.message === 'string' ? errs.variants.message : 'Check variant fields (SKU, tyre size, rim size required)')
     if (errs.pricing)      msgs.push('Fill in Price (inc. GST) for each variant')
-    setError(msgs.length ? msgs.join(' · ') : 'Please fill in all required fields before publishing')
+    toastError(msgs.length ? msgs.join(' · ') : 'Please fill in all required fields before publishing')
     // Switch to the first tab that has errors so the user can see them
     if (errs.brandId || errs.patternName || errs.patternSlug) setActiveTab('basic')
     else if (errs.variants) setActiveTab('variants')
@@ -90,7 +91,6 @@ export default function CreateProductWizard({ brands, collections, categories, w
 
   async function handlePublish(values: CreateProductFormValues) {
     setSubmitting(true)
-    setError(null)
     try {
       const supabase = createClient()
       const { data: { session } } = await supabase.auth.getSession()
@@ -101,7 +101,7 @@ export default function CreateProductWizard({ brands, collections, categories, w
         collectionId:        values.collectionId        || undefined,
         performanceCategory: values.performanceCategory || undefined,
         seasonType:          values.seasonType          || undefined,
-        galleryImages:       (values.galleryImages ?? []).filter(u => !u.startsWith('blob:')),
+        galleryImages:       values.galleryImages ?? [],
         variants: values.variants.map(v => ({
           ...v,
           loadIndex:       v.loadIndex       || undefined,
@@ -125,10 +125,11 @@ export default function CreateProductWizard({ brands, collections, categories, w
         throw new Error(body.error ?? body.message ?? 'Failed to create product')
       }
       const { patternId } = await res.json()
+      toastSuccess('Product created successfully')
       router.push(`/admin/products/${patternId}`)
       router.refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong')
+      toastError(err instanceof Error ? err.message : 'Something went wrong')
       setSubmitting(false)
     }
   }
@@ -139,7 +140,7 @@ export default function CreateProductWizard({ brands, collections, categories, w
     <FormProvider {...methods}>
       <div className="flex flex-col h-full">
         {/* Wizard header */}
-        <div className="flex items-center gap-2 px-6 py-4 border-b border-zinc-200 bg-white">
+        <div className="flex items-center gap-2 px-4 sm:px-6 py-4 border-b border-zinc-200 bg-white overflow-x-auto">
           {/* Close / esc */}
           <button
             type="button"
@@ -187,52 +188,39 @@ export default function CreateProductWizard({ brands, collections, categories, w
           ))}
         </div>
 
-        {/* Error banner */}
-        {error && (
-          <div className="mx-6 mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 border border-red-200">
-            {error}
-          </div>
-        )}
-
         {/* Tab content */}
-        <div className="flex-1 overflow-y-auto px-6 py-6">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6">
           {activeTab === 'basic'      && <BasicInfoTab autoSlug={autoSlug} brands={brands} />}
-          {activeTab === 'categories' && <CategoriesTab brands={brands} collections={collections} categories={categories} />}
+          {activeTab === 'categories' && <CategoriesTab collections={collections} categories={categories} />}
           {activeTab === 'variants'   && <VariantsTab />}
           {activeTab === 'pricing'    && <PricingTab warehouses={warehouses} />}
         </div>
 
         {/* Footer actions */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-zinc-200 bg-white">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="px-4 py-2 text-sm text-zinc-600 hover:text-zinc-900"
-          >
+        <div className="flex items-center justify-end gap-3 px-4 sm:px-6 py-4 border-t border-zinc-200 bg-white">
+          <Button type="button" variant="ghost" onClick={() => router.back()}>
             Cancel
-          </button>
+          </Button>
 
           {activeTab !== 'pricing' ? (
-            <button
+            <Button
               type="button"
               onClick={() => {
                 markTabComplete(activeTab)
                 const next = TABS[tabIndex + 1]
                 if (next) setActiveTab(next.key)
               }}
-              className="px-4 py-2 rounded-lg bg-primary text-sm font-medium text-zinc-900 hover:bg-primary/90 transition-colors"
             >
               Save & Continue
-            </button>
+            </Button>
           ) : (
-            <button
+            <Button
               type="button"
               disabled={submitting}
               onClick={methods.handleSubmit(handlePublish, handleInvalid)}
-              className="px-5 py-2 rounded-lg bg-primary text-sm font-medium text-zinc-900 hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {submitting ? 'Publishing…' : 'Publish'}
-            </button>
+            </Button>
           )}
         </div>
       </div>

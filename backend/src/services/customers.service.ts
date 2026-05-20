@@ -25,21 +25,25 @@ export async function getCustomerStats() {
 export async function listCustomers(opts: {
   search?: string
   accountType?: 'guest' | 'registered'
+  customerType?: string
+  status?: string
   page?: number
 }) {
-  const { search = '', accountType, page = 1 } = opts
+  const { search = '', accountType, customerType, status, page = 1 } = opts
   const from = (page - 1) * PAGE_SIZE
   const to   = from + PAGE_SIZE - 1
 
   let query = supabaseAdmin
     .from('customers')
-    .select('customer_id, email, first_name, last_name, business_name, phone, created_at, profile_id', { count: 'exact' })
+    .select('customer_id, email, first_name, last_name, business_name, phone, created_at, profile_id, customer_type, account_status', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(from, to)
 
   if (search)       query = query.or(`email.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%`)
   if (accountType === 'guest')      query = query.is('profile_id', null)
   if (accountType === 'registered') query = query.not('profile_id', 'is', null)
+  if (customerType) query = (query as any).eq('customer_type', customerType)
+  if (status)       query = (query as any).eq('account_status', status)
 
   const { data, error, count } = await query
 
@@ -53,6 +57,7 @@ export async function listCustomers(opts: {
     .select('customer_id, total_amount, order_number, created_at')
     .in('customer_id', customerIds)
     .order('created_at', { ascending: false })
+    .limit(2000)
 
   if (ordersError || !orderRows?.length) {
     return { data, error: ordersError, count }
@@ -104,7 +109,7 @@ export async function getCustomer(customerId: string) {
   const [customerRes, ordersRes, groupsRes, addressesRes] = await Promise.all([
     supabase
       .from('customers')
-      .select('customer_id, email, first_name, last_name, business_name, phone, created_at, profile_id')
+      .select('customer_id, email, first_name, last_name, business_name, phone, created_at, profile_id, customer_type, account_status, credit_limit, payment_terms, billing_address_id')
       .eq('customer_id', customerId)
       .single(),
 
@@ -112,8 +117,8 @@ export async function getCustomer(customerId: string) {
       .from('orders')
       .select(`
         order_id, order_number, created_at,
-        payment_status, order_status, total_amount,
-        order_type,
+        payment_status, fulfillment_status, total_amount,
+        delivery_method,
         order_items ( product_id )
       `)
       .eq('customer_id', customerId)
@@ -127,7 +132,7 @@ export async function getCustomer(customerId: string) {
 
     supabase
       .from('addresses')
-      .select('address_id, address_name, address_line_1, address_line_2, suburb, postcode, country, state, company, phone')
+      .select('address_id, address_name, address_line1, address_line2, city, postal_code, country, state, company, phone')
       .eq('customer_id', customerId)
       .order('created_at', { ascending: true }),
   ])
@@ -160,14 +165,18 @@ export async function createCustomer(payload: {
   lastName?: string
   company?: string
   phone?: string
+  customerType?: string
+  accountStatus?: string
 }) {
   return supabaseAdmin.from('customers').insert({
-    email:         payload.email,
-    first_name:    payload.firstName ?? null,
-    last_name:     payload.lastName  ?? null,
-    business_name: payload.company   ?? null,
-    phone:         payload.phone     ?? null,
-    profile_id: null,
+    email:          payload.email,
+    first_name:     payload.firstName    ?? null,
+    last_name:      payload.lastName     ?? null,
+    business_name:  payload.company      ?? null,
+    phone:          payload.phone        ?? null,
+    customer_type:  payload.customerType ?? 'retail',
+    account_status: payload.accountStatus ?? 'active',
+    profile_id:     null,
   }).select('customer_id').single()
 }
 
@@ -177,13 +186,21 @@ export async function updateCustomer(customerId: string, patch: {
   lastName?: string
   company?: string
   phone?: string
+  customerType?: string
+  accountStatus?: string
+  creditLimit?: number | null
+  paymentTerms?: string | null
 }) {
   return supabaseAdmin.from('customers').update({
-    ...(patch.email     !== undefined && { email:         patch.email }),
-    ...(patch.firstName !== undefined && { first_name:    patch.firstName }),
-    ...(patch.lastName  !== undefined && { last_name:     patch.lastName }),
-    ...(patch.company   !== undefined && { business_name: patch.company }),
-    ...(patch.phone     !== undefined && { phone:         patch.phone }),
+    ...(patch.email         !== undefined && { email:          patch.email }),
+    ...(patch.firstName     !== undefined && { first_name:     patch.firstName }),
+    ...(patch.lastName      !== undefined && { last_name:      patch.lastName }),
+    ...(patch.company       !== undefined && { business_name:  patch.company }),
+    ...(patch.phone         !== undefined && { phone:          patch.phone }),
+    ...(patch.customerType  !== undefined && { customer_type:  patch.customerType }),
+    ...(patch.accountStatus !== undefined && { account_status: patch.accountStatus }),
+    ...(patch.creditLimit   !== undefined && { credit_limit:   patch.creditLimit }),
+    ...(patch.paymentTerms  !== undefined && { payment_terms:  patch.paymentTerms }),
   }).eq('customer_id', customerId)
 }
 
@@ -205,23 +222,16 @@ export async function createAddress(customerId: string, payload: {
   phone?: string
 }) {
   return supabaseAdmin.from('addresses').insert({
-    customer_id:    customerId,
-    owner_type:     'customer',
-    owner_id:       customerId,
-    address_name:   payload.addressName,
-    // original NOT NULL column + spec-compliance alias both required
-    address_line1:  payload.addressLine1,
-    address_line_1: payload.addressLine1,
-    address_line2:  payload.addressLine2 ?? null,
-    address_line_2: payload.addressLine2 ?? null,
-    city:           payload.city         ?? null,
-    suburb:         payload.city         ?? null,
-    postal_code:    payload.postalCode   ?? null,
-    postcode:       payload.postalCode   ?? null,
-    country:        payload.country      ?? null,
-    state:          payload.state        ?? null,
-    company:        payload.company      ?? null,
-    phone:          payload.phone        ?? null,
+    customer_id:  customerId,
+    address_name: payload.addressName,
+    address_line1: payload.addressLine1,
+    address_line2: payload.addressLine2 ?? null,
+    city:          payload.city         ?? null,
+    postal_code:   payload.postalCode   ?? null,
+    country:       payload.country      ?? null,
+    state:         payload.state        ?? null,
+    company:       payload.company      ?? null,
+    phone:         payload.phone        ?? null,
   }).select('address_id').single()
 }
 
@@ -277,7 +287,7 @@ export async function getCustomerGroup(groupId: string) {
       .from('customer_group_members')
       .select(`
         customers (
-          customer_id, email, first_name, last_name, business_name, phone, created_at, profile_id
+          customer_id, email, first_name, last_name, business_name, phone, created_at, profile_id, customer_type, account_status
         )
       `)
       .eq('group_id', groupId)
