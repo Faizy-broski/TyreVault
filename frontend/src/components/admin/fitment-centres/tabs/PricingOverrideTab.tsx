@@ -6,6 +6,7 @@ import { TYRE_TYPES, RIM_RANGES, emptyPricingMatrix } from '@/types/fitter.types
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { toastSuccess, toastError } from '@/lib/toast'
 import {
   Table,
   TableHeader,
@@ -63,8 +64,6 @@ export default function PricingOverrideTab({ centreId, initialRows, accessToken 
   })
   const [editing, setEditing] = useState(false)
   const [saving, setSaving]   = useState(false)
-  const [saved, setSaved]     = useState(false)
-  const [error, setError]     = useState('')
 
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }
 
@@ -80,11 +79,10 @@ export default function PricingOverrideTab({ centreId, initialRows, accessToken 
         [rimRange]: { ...prev[tyreType][rimRange], [field]: value },
       },
     }))
-    setSaved(false)
   }
 
   async function handleSave() {
-    setSaving(true); setError('')
+    setSaving(true)
     const rows = TYRE_TYPES.flatMap(t =>
       RIM_RANGES.map(r => {
         const cell = matrix[t.key][r.key]
@@ -103,8 +101,8 @@ export default function PricingOverrideTab({ centreId, initialRows, accessToken 
         `${API}/api/admin/fitment-centres/${centreId}/pricing`,
         { method: 'PUT', headers, body: JSON.stringify({ rows }) }
       )
-      if (!res.ok) { setError('Failed to save pricing.'); return }
-      setSaved(true)
+      if (!res.ok) { toastError('Failed to save pricing'); return }
+      toastSuccess('Pricing saved')
       setEditing(false)
     } finally { setSaving(false) }
   }
@@ -121,7 +119,6 @@ export default function PricingOverrideTab({ centreId, initialRows, accessToken 
         [rimRange]: { per_tyre: '', per_pair: '', per_set_of_4: '', callout_fee: '' },
       },
     }))
-    setSaved(false)
   }
 
   return (
@@ -143,7 +140,7 @@ export default function PricingOverrideTab({ centreId, initialRows, accessToken 
               disabled={saving}
               className="px-3 py-1.5 h-auto text-xs font-semibold rounded-lg bg-yellow-400 text-zinc-900 hover:bg-yellow-500 disabled:opacity-60"
             >
-              {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Pricing'}
+              {saving ? 'Saving...' : 'Save Pricing'}
             </Button>
           </div>
         ) : (
@@ -165,17 +162,6 @@ export default function PricingOverrideTab({ centreId, initialRows, accessToken 
           </p>
         </AlertDescription>
       </Alert>
-
-      {error && (
-        <Alert variant="destructive" className="bg-red-50 border-red-200">
-          <AlertDescription className="text-xs text-red-700">{error}</AlertDescription>
-        </Alert>
-      )}
-      {saved && !editing && (
-        <Alert className="bg-green-50 border-green-200">
-          <AlertDescription className="text-xs text-green-700">Pricing saved successfully.</AlertDescription>
-        </Alert>
-      )}
 
       {/* Accordion sections */}
       <div className="space-y-3">
@@ -199,6 +185,7 @@ export default function PricingOverrideTab({ centreId, initialRows, accessToken 
 
             {expanded[tyreType.key] && (
               <div className="px-5 pb-5 border-t border-zinc-100">
+                <div className="overflow-x-auto">
                 <Table className="w-full text-sm">
                   <TableHeader>
                     <TableRow className="border-b border-zinc-100 hover:bg-transparent">
@@ -251,6 +238,7 @@ export default function PricingOverrideTab({ centreId, initialRows, accessToken 
                     })}
                   </TableBody>
                 </Table>
+                </div>
               </div>
             )}
           </div>

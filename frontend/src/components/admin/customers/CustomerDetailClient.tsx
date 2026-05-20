@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { MapPin, Pencil, Plus, Trash2, Truck } from "lucide-react";
@@ -30,6 +30,7 @@ import {
   createBackendHeaders,
   readBackendError,
 } from "@/lib/backend-api";
+import { toastSuccess, toastError } from "@/lib/toast";
 
 function fmtDate(d: string) {
   return new Date(d).toLocaleDateString("en-AU", {
@@ -84,7 +85,7 @@ function PaymentDot({ status }: { status: string }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-xs capitalize text-zinc-600">
       <span className={`h-2 w-2 rounded-full ${colMap[status] ?? colMap.unpaid}`} />
-      {status.replace(/_/g, " ")}
+      {(status ?? "unpaid").replace(/_/g, " ")}
     </span>
   );
 }
@@ -103,7 +104,7 @@ function OrderStatusBadge({ status }: { status: string }) {
     <Badge
       className={`h-auto whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${map[status] ?? map.pending}`}
     >
-      {status.replace(/_/g, " ")}
+      {(status ?? "pending").replace(/_/g, " ")}
     </Badge>
   );
 }
@@ -171,9 +172,50 @@ export default function CustomerDetailClient({
   function closeModal() { router.replace(pathname) }
 
   const [addressPendingId, setAddressPendingId] = useState<string | null>(null);
-  const [addressError, setAddressError] = useState<string | null>(null);
   const [paymentFilter, setPaymentFilter] = useState<string | null>(null);
   const [fulfilFilter, setFulfilFilter] = useState<string | null>(null);
+  const [removingGroupId, setRemovingGroupId] = useState<string | null>(null);
+  const [localGroups, setLocalGroups] = useState(groups);
+
+  const [groupSearch, setGroupSearch]     = useState('');
+  const [groupResults, setGroupResults]   = useState<CustomerGroup[]>([]);
+  const [groupSearching, setGroupSearching] = useState(false);
+  const [addingGroupId, setAddingGroupId] = useState<string | null>(null);
+  const groupSearchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function handleGroupSearchChange(q: string) {
+    setGroupSearch(q);
+    if (groupSearchRef.current) clearTimeout(groupSearchRef.current);
+    if (!q.trim()) { setGroupResults([]); return; }
+    groupSearchRef.current = setTimeout(async () => {
+      setGroupSearching(true);
+      try {
+        const res = await fetch(
+          `${BACKEND_API_URL}/api/admin/customers/groups/list?search=${encodeURIComponent(q)}&page=1`,
+          { headers: createBackendHeaders(accessToken) },
+        );
+        const json = await res.json();
+        setGroupResults((json.data ?? []).slice(0, 5));
+      } finally { setGroupSearching(false); }
+    }, 300);
+  }
+
+  async function handleAddToGroup(group: CustomerGroup) {
+    setAddingGroupId(group.group_id);
+    try {
+      const res = await fetch(
+        `${BACKEND_API_URL}/api/admin/customers/${customer.customer_id}/groups/${group.group_id}`,
+        { method: 'PUT', headers: createBackendHeaders(accessToken) },
+      );
+      if (!res.ok) throw new Error(await readBackendError(res, 'Failed to add to group'));
+      setLocalGroups(prev => prev.some(g => g.group_id === group.group_id) ? prev : [...prev, group]);
+      setGroupSearch('');
+      setGroupResults([]);
+      toastSuccess(`Added to "${group.group_name}"`)
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : 'Failed to add to group');
+    } finally { setAddingGroupId(null); }
+  }
 
   const fullName =
     [customer.first_name, customer.last_name].filter(Boolean).join(" ") || "—";
@@ -187,21 +229,36 @@ export default function CustomerDetailClient({
 
   const addressDisplay = primaryAddress
     ? [
-        primaryAddress.address_line_1,
-        primaryAddress.address_line_2,
-        primaryAddress.suburb,
+        primaryAddress.address_line1,
+        primaryAddress.address_line2,
+        primaryAddress.city,
         primaryAddress.state,
-        primaryAddress.postcode,
+        primaryAddress.postal_code,
         primaryAddress.country,
       ]
         .filter(Boolean)
         .join(", ")
     : "—";
 
+  async function handleRemoveFromGroup(groupId: string, groupName: string) {
+    setRemovingGroupId(groupId);
+    try {
+      const res = await fetch(
+        `${BACKEND_API_URL}/api/admin/customers/${customer.customer_id}/groups/${groupId}`,
+        { method: 'DELETE', headers: createBackendHeaders(accessToken) },
+      );
+      if (!res.ok) throw new Error(await readBackendError(res, 'Failed to remove from group'));
+      setLocalGroups(gs => gs.filter(g => g.group_id !== groupId));
+      toastSuccess(`Removed from "${groupName}"`)
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : 'Failed to remove from group')
+    } finally {
+      setRemovingGroupId(null);
+    }
+  }
+
   async function handleDeleteAddress(addressId: string) {
     setAddressPendingId(addressId);
-    setAddressError(null);
-
     try {
       const res = await fetch(
         `${BACKEND_API_URL}/api/admin/customers/${customer.customer_id}/addresses/${addressId}`,
@@ -210,16 +267,13 @@ export default function CustomerDetailClient({
           headers: createBackendHeaders(accessToken),
         },
       );
-
       if (!res.ok) {
         throw new Error(await readBackendError(res, "Failed to delete address"));
       }
-
+      toastSuccess("Address deleted");
       onRefresh?.();
     } catch (err: unknown) {
-      setAddressError(
-        err instanceof Error ? err.message : "Failed to delete address",
-      );
+      toastError(err instanceof Error ? err.message : "Failed to delete address");
     } finally {
       setAddressPendingId(null);
     }
@@ -245,7 +299,7 @@ export default function CustomerDetailClient({
         />
       )}
 
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold text-primary">{fullName}</h1>
           <AccountBadge isGuest={isGuest} />
@@ -272,10 +326,10 @@ export default function CustomerDetailClient({
         </div>
       </div>
 
-      <div className="flex gap-6">
+      <div className="flex flex-col gap-6 lg:flex-row">
         <div className="min-w-0 flex-1 space-y-5">
           <div className="divide-y divide-zinc-100 rounded-xl border border-zinc-200 bg-white">
-            <div className="grid grid-cols-3 divide-x divide-zinc-100">
+            <div className="grid grid-cols-1 divide-y divide-zinc-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
               <div className="px-5 py-4">
                 <p className="mb-1 text-xs text-zinc-400">Customer ID</p>
                 <p className="font-mono text-sm font-medium text-zinc-800">
@@ -292,7 +346,7 @@ export default function CustomerDetailClient({
               </div>
             </div>
 
-            <div className="grid grid-cols-3 divide-x divide-zinc-100">
+            <div className="grid grid-cols-1 divide-y divide-zinc-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
               <div className="px-5 py-4">
                 <p className="mb-1 text-xs text-zinc-400">Member Since</p>
                 <p className="text-sm text-zinc-800">{fmtDate(customer.created_at)}</p>
@@ -302,8 +356,35 @@ export default function CustomerDetailClient({
                 <p className="text-sm text-zinc-800">{customer.phone || "—"}</p>
               </div>
               <div className="px-5 py-4">
-                <p className="mb-1 text-xs text-zinc-400">Account Status</p>
+                <p className="mb-1 text-xs text-zinc-400">Auth Status</p>
                 <AccountBadge isGuest={isGuest} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 divide-y divide-zinc-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+              <div className="px-5 py-4">
+                <p className="mb-1 text-xs text-zinc-400">Customer Type</p>
+                {customer.customer_type ? (
+                  <span className="inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium capitalize text-blue-700">
+                    {customer.customer_type}
+                  </span>
+                ) : <p className="text-sm text-zinc-400">—</p>}
+              </div>
+              <div className="px-5 py-4">
+                <p className="mb-1 text-xs text-zinc-400">Account Status</p>
+                {customer.account_status ? (
+                  <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
+                    customer.account_status === 'active'  ? 'bg-green-50 text-green-700' :
+                    customer.account_status === 'paused'  ? 'bg-amber-50 text-amber-700' :
+                    'bg-red-50 text-red-700'
+                  }`}>
+                    {customer.account_status}
+                  </span>
+                ) : <p className="text-sm text-zinc-400">—</p>}
+              </div>
+              <div className="px-5 py-4">
+                <p className="mb-1 text-xs text-zinc-400">Business</p>
+                <p className="text-sm text-zinc-800">{customer.business_name || "—"}</p>
               </div>
             </div>
 
@@ -314,9 +395,9 @@ export default function CustomerDetailClient({
           </div>
 
           <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
-            <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-4">
+            <div className="flex flex-col gap-3 border-b border-zinc-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-sm font-semibold text-zinc-900">Orders</h2>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {(["unpaid", "paid", "partially_paid", "refunded"] as const).map(
                   (status) => (
                     <Button
@@ -327,7 +408,7 @@ export default function CustomerDetailClient({
                       }
                       className={`inline-flex h-auto items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${
                         paymentFilter === status
-                          ? "border-zinc-800 bg-zinc-800 text-white"
+                          ? " bg-primary text-black"
                           : "border-zinc-300 bg-white text-zinc-600 hover:border-zinc-500"
                       }`}
                     >
@@ -345,7 +426,7 @@ export default function CustomerDetailClient({
                     }
                     className={`inline-flex h-auto items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize ${
                       fulfilFilter === status
-                        ? "border-zinc-800 bg-zinc-800 text-white"
+                        ? " bg-primary text-black"
                         : "border-zinc-300 bg-white text-zinc-600 hover:border-zinc-500"
                     }`}
                   >
@@ -402,7 +483,7 @@ export default function CustomerDetailClient({
                         <TableCell className="px-4 py-3">
                           <DeliveryTypeCell
                             orderType={order.order_type}
-                            fitmentId={order.fitment_id}
+                            fitmentId={order.fitment_id ?? null}
                           />
                         </TableCell>
                         <TableCell className="whitespace-nowrap px-4 py-3 text-xs text-zinc-500">
@@ -438,48 +519,111 @@ export default function CustomerDetailClient({
             </div>
           </div>
 
-          {groups.length > 0 && (
-            <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
-              <div className="border-b border-zinc-200 px-5 py-4">
+          <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+            <div className="border-b border-zinc-200 px-5 py-4">
+              <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-semibold text-zinc-900">
                   Customer Groups
+                  {localGroups.length > 0 && (
+                    <span className="ml-1.5 font-normal text-zinc-400">({localGroups.length})</span>
+                  )}
                 </h2>
               </div>
-              <Table className="w-full text-sm">
-                <TableHeader>
-                  <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50">
-                    <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500">
-                      Group Name
-                    </TableHead>
-                    <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500">
-                      Members
-                    </TableHead>
-                    <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500">
-                      Created
-                    </TableHead>
+              <div className="relative">
+                <div className="relative max-w-xs">
+                  <svg className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                  </svg>
+                  <input
+                    value={groupSearch}
+                    onChange={e => handleGroupSearchChange(e.target.value)}
+                    placeholder="Search groups to add…"
+                    className="w-full rounded-lg border border-zinc-300 py-1.5 pl-8 pr-3 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                  {groupSearching && (
+                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                      <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-zinc-300 border-t-primary" />
+                    </div>
+                  )}
+                </div>
+                {groupResults.length > 0 && (
+                  <div className="absolute z-10 mt-1 w-full max-w-xs rounded-lg border border-zinc-200 bg-white shadow-lg">
+                    {groupResults.map(g => {
+                      const already = localGroups.some(lg => lg.group_id === g.group_id);
+                      return (
+                        <div key={g.group_id} className="flex items-center justify-between px-3 py-2 hover:bg-zinc-50 first:rounded-t-lg last:rounded-b-lg">
+                          <div>
+                            <p className="text-sm font-medium text-zinc-800">{g.group_name}</p>
+                            <p className="text-xs text-zinc-400">{g.customer_count} member{g.customer_count !== 1 ? 's' : ''}</p>
+                          </div>
+                          {already ? (
+                            <span className="text-xs text-zinc-400">Already in group</span>
+                          ) : (
+                            <Button
+                              type="button"
+                              size="xs"
+                              disabled={addingGroupId === g.group_id}
+                              onClick={() => handleAddToGroup(g)}
+                            >
+                              {addingGroupId === g.group_id ? 'Adding…' : 'Add'}
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+            <Table className="w-full text-sm">
+              <TableHeader>
+                <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50">
+                  <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Group Name</TableHead>
+                  <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Members</TableHead>
+                  <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Created</TableHead>
+                  <TableHead className="w-20 px-4 py-3" />
+                </TableRow>
+              </TableHeader>
+              <TableBody className="divide-y divide-zinc-100">
+                {localGroups.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="px-4 py-8 text-center text-sm text-zinc-400">
+                      Not in any group.
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody className="divide-y divide-zinc-100">
-                  {groups.map((group) => (
+                ) : (
+                  localGroups.map((group) => (
                     <TableRow key={group.group_id} className="hover:bg-zinc-50">
                       <TableCell className="px-4 py-3 font-medium text-zinc-800">
-                        {group.group_name}
+                        <Link href={`/admin/customers/groups/${group.group_id}`} className="hover:underline">
+                          {group.group_name}
+                        </Link>
                       </TableCell>
-                      <TableCell className="px-4 py-3 text-zinc-600">
-                        {group.customer_count}
-                      </TableCell>
-                      <TableCell className="px-4 py-3 text-xs text-zinc-500">
-                        {fmtDate(group.created_at)}
+                      <TableCell className="px-4 py-3 text-zinc-600">{group.customer_count}</TableCell>
+                      <TableCell className="px-4 py-3 text-xs text-zinc-500">{fmtDate(group.created_at)}</TableCell>
+                      <TableCell className="px-4 py-3 text-right">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="xs"
+                          disabled={removingGroupId === group.group_id}
+                          onClick={() => handleRemoveFromGroup(group.group_id, group.group_name)}
+                          className="text-zinc-400 hover:bg-red-50 hover:text-red-600"
+                        >
+                          {removingGroupId === group.group_id ? 'Removing…' : 'Remove'}
+                        </Button>
                       </TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  ))
+                )}
+              </TableBody>
+            </Table>
             </div>
-          )}
+          </div>
         </div>
 
-        <div className="w-64 flex-shrink-0 space-y-4">
+        <div className="w-full flex-shrink-0 space-y-4 lg:w-64">
           <div className="rounded-xl border border-zinc-200 bg-white p-5">
             <h3 className="mb-4 text-sm font-semibold text-zinc-900">Orders</h3>
             <div className="space-y-3">
@@ -512,6 +656,28 @@ export default function CustomerDetailClient({
             </div>
           </div>
 
+          {(customer.credit_limit != null || customer.payment_terms) && (
+            <div className="rounded-xl border border-zinc-200 bg-white p-5">
+              <h3 className="mb-4 text-sm font-semibold text-zinc-900">Account Terms</h3>
+              <div className="space-y-3">
+                {customer.credit_limit != null && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-zinc-500">Credit Limit</span>
+                    <span className="text-sm font-semibold text-zinc-900">
+                      {fmtMoney(customer.credit_limit)}
+                    </span>
+                  </div>
+                )}
+                {customer.payment_terms && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-zinc-500">Payment Terms</span>
+                    <span className="text-sm text-zinc-700">{customer.payment_terms}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="rounded-xl border border-zinc-200 bg-white p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h3 className="text-sm font-semibold text-zinc-900">
@@ -532,12 +698,6 @@ export default function CustomerDetailClient({
               </Button>
             </div>
 
-            {addressError && (
-              <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
-                {addressError}
-              </p>
-            )}
-
             {addresses.length === 0 ? (
               <p className="py-2 text-center text-xs text-zinc-400">
                 No addresses on file.
@@ -553,18 +713,20 @@ export default function CustomerDetailClient({
                       <p className="text-xs font-medium text-zinc-700">
                         {address.address_name}
                       </p>
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="icon-sm"
                         onClick={() => handleDeleteAddress(address.address_id)}
                         disabled={addressPendingId === address.address_id}
-                        className="text-zinc-400 transition-colors hover:text-red-600 disabled:opacity-50"
                         aria-label={`Delete ${address.address_name} address`}
+                        className="text-zinc-400 hover:text-red-600 hover:bg-red-50"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      </Button>
                     </div>
                     <p className="mt-0.5 text-xs text-zinc-500">
-                      {[address.address_line_1, address.suburb, address.state]
+                      {[address.address_line1, address.city, address.state]
                         .filter(Boolean)
                         .join(", ")}
                     </p>

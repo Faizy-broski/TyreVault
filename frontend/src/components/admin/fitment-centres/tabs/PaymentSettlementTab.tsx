@@ -125,7 +125,7 @@ function BankDetailsSection({
         <h3 className="text-sm font-semibold text-zinc-900">Bank Account Details</h3>
       </div>
 
-      <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+      <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
         {field('account_holder', 'Account Holder', 'e.g. TyreMax Premium Fitting Pty Ltd')}
         {field('bank_name',      'Bank',           'e.g. Commonwealth Bank of Australia')}
         {field('bsb',            'BSB',            'e.g. 062-000')}
@@ -209,7 +209,7 @@ export default function PaymentSettlementTab({
   return (
     <div className="p-5 space-y-5">
       {/* KPI cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label="Total Paid (This Year)"
           value={fmtAUD(summary?.totalPaidThisYear ?? 0)}
@@ -253,7 +253,7 @@ export default function PaymentSettlementTab({
 
       {/* Payment History */}
       <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-5 py-4 border-b border-zinc-100">
           <h3 className="text-sm font-semibold text-zinc-900">Payment History</h3>
           <div className="flex items-center gap-2">
             {(['in_progress', 'completed'] as const).map(s => (
@@ -274,6 +274,7 @@ export default function PaymentSettlementTab({
           </div>
         </div>
 
+        <div className="overflow-x-auto">
         <Table className="w-full text-sm">
           <TableHeader>
             <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50">
@@ -337,6 +338,7 @@ export default function PaymentSettlementTab({
           </TableBody>
         </Table>
 
+        </div>
         <div className="flex items-center justify-between px-5 py-3 border-t border-zinc-100 text-xs text-zinc-500">
           <span>{history.length} of {total} records</span>
           <div className="flex gap-1">

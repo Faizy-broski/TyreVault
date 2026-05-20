@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
+import { toastError } from '@/lib/toast'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -25,7 +26,6 @@ export default function FitterApplicationsPage() {
   const [applications, setApplications] = useState<Application[]>([])
   const [total, setTotal]               = useState(0)
   const [loading, setLoading]           = useState(true)
-  const [error, setError]               = useState<string | null>(null)
 
   useEffect(() => { document.title = 'Fitter Applications | Tyre Vault' }, [])
 
@@ -49,7 +49,7 @@ export default function FitterApplicationsPage() {
           setTotal(json.total ?? 0)
         }
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load applications')
+        if (!cancelled) toastError(err instanceof Error ? err.message : 'Failed to load applications')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -71,7 +71,7 @@ export default function FitterApplicationsPage() {
         </p>
       </div>
 
-      <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden">
+      <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-sm">
         <div className="px-5 py-4 border-b border-zinc-100 flex flex-wrap items-center justify-between gap-2">
           <span className="text-sm text-zinc-500">{total} application{total !== 1 ? 's' : ''} total</span>
           <div className="flex gap-2">
@@ -83,26 +83,22 @@ export default function FitterApplicationsPage() {
           </div>
         </div>
 
-        {error && (
-          <div className="px-6 py-4 text-sm text-red-600 bg-red-50">{error}</div>
-        )}
-
         {loading && (
           <div className="space-y-2 p-4">
             {[1,2,3].map(i => <div key={i} className="h-12 bg-zinc-100 rounded animate-pulse" />)}
           </div>
         )}
 
-        {!loading && !error && (
+        {!loading && (
           <div className="overflow-x-auto">
             <table className="w-full text-sm min-w-[520px]">
               <thead>
                 <tr className="border-b border-zinc-100">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wide">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wide">Email</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wide">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wide">Submitted</th>
-                  <th className="px-6 py-3 w-20 text-left text-xs font-medium text-zinc-500 uppercase tracking-wide">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Email</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Submitted</th>
+                  <th className="px-6 py-3 w-20 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
@@ -112,7 +108,7 @@ export default function FitterApplicationsPage() {
                   </tr>
                 ) : (
                   applications.map(app => (
-                    <tr key={app.id} className="hover:bg-zinc-50 transition-colors">
+                    <tr key={app.id} className="even:bg-zinc-50/40 hover:bg-amber-50/30 transition-colors duration-150">
                       <td className="px-6 py-4 font-medium text-zinc-900">{app.full_name}</td>
                       <td className="px-6 py-4 text-zinc-600">{app.email}</td>
                       <td className="px-6 py-4">

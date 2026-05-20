@@ -1,21 +1,21 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
-import type { Sku, PatternRef, ProductStock, ProductPrice } from '@/types/admin.types'
-import { VariantStockActions, VariantPricingMenu, VariantDangerZone } from '@/components/admin/products/VariantDetailActions'
+import { toastError } from '@/lib/toast'
+import type { Sku, PatternRef, ProductPrice } from '@/types/admin.types'
+import { VariantPricingMenu, VariantDangerZone } from '@/components/admin/products/VariantDetailActions'
+import StockTab from '@/components/admin/products/StockTab'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 export default function VariantDetailPage() {
   const { id, variantId } = useParams<{ id: string; variantId: string }>()
 
-  const [sku, setSku]               = useState<Sku | null>(null)
-  const [warehouses, setWarehouses] = useState<{ warehouse_id: string; warehouse_name: string }[]>([])
-  const [loading, setLoading]       = useState(true)
-  const [error, setError]           = useState<string | null>(null)
+  const [sku, setSku]         = useState<Sku | null>(null)
+  const [loading, setLoading] = useState(true)
   const [refreshKey, setRefreshKey] = useState(0)
 
   const onRefresh = useCallback(() => setRefreshKey(k => k + 1), [])
@@ -28,17 +28,13 @@ export default function VariantDetailPage() {
     if (!id || !variantId) return
     let cancelled = false
     setLoading(true)
-    setError(null)
     async function load() {
       try {
         const { data: { session } } = await createClient().auth.getSession()
         const tok = session?.access_token ?? ''
         const headers = { Authorization: `Bearer ${tok}` }
 
-        const [res, whRes] = await Promise.all([
-          fetch(`${API}/api/admin/products/${id}`, { headers }),
-          fetch(`${API}/api/admin/orders/warehouses`, { headers }),
-        ])
+        const res = await fetch(`${API}/api/admin/products/${id}`, { headers })
         if (!res.ok) {
           const body = await res.json().catch(() => ({}))
           throw new Error(body.error ?? `API returned ${res.status}`)
@@ -56,13 +52,11 @@ export default function VariantDetailPage() {
             brands:       json.pattern.brands ?? null,
           } : null,
         }
-        const whData = whRes.ok ? await whRes.json().catch(() => []) : []
         if (!cancelled) {
           setSku(skuWithPattern)
-          setWarehouses(Array.isArray(whData) ? whData : [])
         }
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load variant')
+        if (!cancelled) toastError(err instanceof Error ? err.message : 'Failed to load variant')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -73,7 +67,7 @@ export default function VariantDetailPage() {
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="h-8 w-48 bg-zinc-100 rounded animate-pulse mb-6" />
         <div className="space-y-4">
           {[1,2,3].map(i => <div key={i} className="h-32 bg-zinc-100 rounded-xl animate-pulse" />)}
@@ -82,41 +76,56 @@ export default function VariantDetailPage() {
     )
   }
 
-  if (error || !sku) {
+  if (!sku) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <AdminBreadcrumb crumbs={[{ label: 'Products', href: '/admin/products' }, { label: 'Product', href: `/admin/products/${id}` }, { label: 'Variant' }]} />
-        <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
-          {error ?? 'Variant not found.'}
-        </div>
+        <p className="mt-6 text-sm text-zinc-500">Variant not found.</p>
       </div>
     )
   }
 
   const pattern = sku.patterns as PatternRef | null
   const prices  = (Array.isArray(sku.product_prices) ? sku.product_prices : []) as ProductPrice[]
-  const stocks  = (Array.isArray(sku.product_stock)  ? sku.product_stock  : []) as (ProductStock & { warehouse_id?: string })[]
   const images: string[] = Array.isArray(sku.variant_images) ? sku.variant_images as string[] : []
 
+  const n = (v: string | number | null | undefined) => v != null ? String(v) : '—'
   const specs = [
-    { label: 'SKU',           value: sku.sku },
-    { label: 'Width (mm)',    value: sku.width    != null ? String(sku.width)    : '—' },
-    { label: 'Aspect Ratio',  value: sku.profile  != null ? String(sku.profile)  : '—' },
-    { label: 'Rim Size (in)', value: sku.rim_size != null ? String(sku.rim_size) : '—' },
-    { label: 'Speed Rating',  value: sku.speed_rating  || '—' },
-    { label: 'Load Index',    value: sku.load_index    || '—' },
-    { label: 'Fuel Rating',   value: sku.fuel_rating   || '—' },
-    { label: 'Wet',           value: sku.wet_grip      || '—' },
-    { label: 'Noise',         value: sku.noise_db      || '—' },
-    { label: 'Run Flat',      value: sku.runflat ? 'Yes' : 'No' },
-    { label: 'XL Reinforced', value: sku.xl_reinforced ? 'Yes' : 'No' },
-    { label: 'Ply Rating',    value: sku.ply_rating    || '—' },
-    { label: 'Load Range',    value: sku.load_range    || '—' },
-    { label: 'Origin',        value: sku.country_of_origin || '—' },
+    { label: 'SKU',              value: sku.sku },
+    { label: 'Width (mm)',       value: n(sku.width) },
+    { label: 'Aspect Ratio',     value: n(sku.profile) },
+    { label: 'Rim Size (in)',    value: n(sku.rim_size) },
+    { label: 'Construction',     value: sku.construction_type || '—' },
+    { label: 'Speed Rating',     value: sku.speed_rating  || '—' },
+    { label: 'Load Index',       value: sku.load_index    || '—' },
+    { label: 'Load/Speed Rating',value: sku.load_speed_rating || '—' },
+    { label: 'Fuel Rating',      value: sku.fuel_rating   || '—' },
+    { label: 'Wet Grip',         value: sku.wet_grip      || '—' },
+    { label: 'Noise (dB)',       value: sku.noise_db      || '—' },
+    { label: 'Noise Class',      value: sku.noise_class   || '—' },
+    { label: 'Run Flat',         value: sku.runflat ? 'Yes' : 'No' },
+    { label: 'XL Reinforced',    value: sku.xl_reinforced ? 'Yes' : 'No' },
+    { label: 'Ply Rating',       value: sku.ply_rating    || '—' },
+    { label: 'Load Range',       value: sku.load_range    || '—' },
+    { label: 'Sidewall',         value: sku.sidewall      || '—' },
+    { label: 'Tube Type',        value: sku.tube_type     || '—' },
+    { label: 'Country of Origin',value: sku.country_of_origin || '—' },
+    { label: 'Manufacturer',     value: sku.manufacturer_name || '—' },
+    { label: 'Factory Name',     value: sku.factory_name    || '—' },
+    { label: 'Factory Country',  value: sku.factory_country || '—' },
+    { label: 'Section Width',    value: n(sku.section_width) },
+    { label: 'Tread Depth (mm)', value: n(sku.tread_depth) },
+    { label: 'Tyre Weight (kg)', value: n(sku.tyre_weight) },
+    { label: 'Overall Dia (mm)', value: n(sku.overall_diameter) },
+    { label: 'Max Load',         value: sku.max_load     || '—' },
+    { label: 'Max Pressure',     value: sku.max_pressure || '—' },
+    { label: 'E-Mark',           value: sku.e_mark   || '—' },
+    { label: 'DOT Code',         value: sku.dot_code || '—' },
+    { label: 'UTQG',             value: sku.utqg     || '—' },
   ]
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       <div className="mb-6">
         <AdminBreadcrumb crumbs={[
           { label: 'Products', href: '/admin/products' },
@@ -125,15 +134,15 @@ export default function VariantDetailPage() {
         ]} />
       </div>
 
-      <div className="flex gap-6">
-        <div className="flex-1 space-y-6">
+      <div className="flex flex-col gap-6 lg:flex-row">
+        <div className="flex-1 min-w-0 space-y-6">
           <div className="rounded-xl border border-zinc-200 bg-white p-5">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h1 className="text-lg font-semibold text-zinc-900">{sku.tyre_size_display || sku.sku}</h1>
                 <p className="text-sm text-zinc-500 mt-0.5">{pattern?.brands?.brand_name} · {pattern?.pattern_name}</p>
               </div>
-              <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+              <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium self-start ${
                 sku.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-zinc-100 text-zinc-600'
               }`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${sku.status === 'active' ? 'bg-green-500' : 'bg-zinc-400'}`} />
@@ -141,7 +150,7 @@ export default function VariantDetailPage() {
               </span>
             </div>
 
-            <dl className="grid grid-cols-3 gap-x-6 gap-y-3 text-sm">
+            <dl className="grid grid-cols-1 gap-y-3 text-sm sm:grid-cols-2 sm:gap-x-6 lg:grid-cols-3">
               {specs.map(spec => (
                 <div key={spec.label} className="flex justify-between border-b border-zinc-100 pb-2">
                   <dt className="text-zinc-500">{spec.label}</dt>
@@ -166,57 +175,13 @@ export default function VariantDetailPage() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200">
-              <h2 className="text-sm font-semibold text-zinc-900">Inventory</h2>
-              <VariantStockActions
-                patternId={id}
-                variantId={variantId}
-                onSuccess={onRefresh}
-                stocks={warehouses.map(wh => {
-                  const existing = stocks.find(
-                    s => ((s as unknown as { warehouse_id?: string }).warehouse_id ?? s.warehouses?.warehouse_id) === wh.warehouse_id
-                  )
-                  return {
-                    warehouse_id:    wh.warehouse_id,
-                    warehouse_name:  wh.warehouse_name,
-                    available_stock: existing?.available_stock ?? 0,
-                  }
-                })}
-              />
-            </div>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-zinc-100 bg-zinc-50">
-                  <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Location</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Available</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Reserved</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100">
-                {stocks.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-sm text-zinc-400">No inventory locations configured.</td>
-                  </tr>
-                ) : stocks.map((s, i) => {
-                  const avail    = s.available_stock ?? 0
-                  const reserved = s.reserved_stock  ?? 0
-                  return (
-                    <tr key={i} className="hover:bg-zinc-50">
-                      <td className="px-4 py-3 font-medium text-zinc-800">{s.warehouses?.warehouse_name ?? '—'}</td>
-                      <td className="px-4 py-3"><span className={avail === 0 ? 'text-red-600' : 'text-zinc-700'}>{avail}</span></td>
-                      <td className="px-4 py-3 text-zinc-500">{reserved}</td>
-                      <td className="px-4 py-3 text-zinc-700">{avail + reserved}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+          <div className="rounded-xl border border-zinc-200 bg-white p-5">
+            <h2 className="text-sm font-semibold text-zinc-900 mb-4">Stock</h2>
+            <StockTab productId={variantId} patternId={id} />
           </div>
         </div>
 
-        <div className="w-64 space-y-4">
+        <div className="w-full space-y-4 lg:w-64 lg:shrink-0">
           <div className="rounded-xl border border-zinc-200 bg-white p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-zinc-900">Pricing</h3>

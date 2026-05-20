@@ -1,14 +1,15 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle, DialogClose } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { BACKEND_API_URL, createBackendHeaders, readBackendError } from '@/lib/backend-api'
+import { toastSuccess, toastError } from '@/lib/toast'
+import type { CustomerType } from '@/types/admin.types'
 
 interface Props {
   accessToken: string
@@ -26,11 +27,9 @@ const FIELDS = [
 export default function CreateCustomerModal({ accessToken, onClose }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    setError(null)
     const fd = new FormData(e.currentTarget)
     try {
       const res = await fetch(`${BACKEND_API_URL}/api/admin/customers`, {
@@ -39,20 +38,22 @@ export default function CreateCustomerModal({ accessToken, onClose }: Props) {
           'Content-Type': 'application/json',
         }),
         body: JSON.stringify({
-          email:     fd.get('email'),
-          firstName: fd.get('firstName'),
-          lastName:  fd.get('lastName'),
-          company:   fd.get('company') || undefined,
-          phone:     fd.get('phone')   || undefined,
+          email:        fd.get('email'),
+          firstName:    fd.get('firstName'),
+          lastName:     fd.get('lastName'),
+          company:      fd.get('company')      || undefined,
+          phone:        fd.get('phone')        || undefined,
+          customerType: fd.get('customerType') || undefined,
         }),
       })
       if (!res.ok) {
         throw new Error(await readBackendError(res))
       }
+      toastSuccess('Customer created')
       startTransition(() => router.refresh())
       onClose()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
+      toastError(err instanceof Error ? err.message : 'Failed to create customer')
     }
   }
 
@@ -70,11 +71,6 @@ export default function CreateCustomerModal({ accessToken, onClose }: Props) {
 
         <form onSubmit={handleSubmit}>
           <div className="px-6 py-5 space-y-4">
-            {error && (
-              <Alert variant="destructive" className="bg-red-50 border-red-200 text-red-700">
-                <AlertDescription className="text-red-600">{error}</AlertDescription>
-              </Alert>
-            )}
             {FIELDS.map(f => (
               <div key={f.name}>
                 <Label htmlFor={f.name} className="block text-sm font-medium text-zinc-700 mb-1">
@@ -90,6 +86,20 @@ export default function CreateCustomerModal({ accessToken, onClose }: Props) {
                 />
               </div>
             ))}
+
+            <div>
+              <Label htmlFor="customerType" className="block text-sm font-medium text-zinc-700 mb-1">Customer Type</Label>
+              <select
+                id="customerType"
+                name="customerType"
+                defaultValue="retail"
+                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+              >
+                {(['retail', 'wholesale', 'fleet', 'trade'] as CustomerType[]).map(t => (
+                  <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-zinc-100">

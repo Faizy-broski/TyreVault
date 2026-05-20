@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { createClient } from '@/lib/supabase/client'
+import { toastError } from '@/lib/toast'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -67,7 +68,6 @@ export default function AdminDashboard() {
   const [recentCustomers, setRecentCustomers] = useState<CustomerRow[]>([])
   const [centres,       setCentres]       = useState<CentreRow[]>([])
   const [loading,       setLoading]       = useState(true)
-  const [error,         setError]         = useState<string | null>(null)
 
   useEffect(() => { document.title = 'Dashboard | Tyre Vault' }, [])
 
@@ -108,7 +108,7 @@ export default function AdminDashboard() {
           setCentres(centresData.data ?? centresData)
         }
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load dashboard')
+        if (!cancelled) toastError(err instanceof Error ? err.message : 'Failed to load dashboard')
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -154,25 +154,21 @@ export default function AdminDashboard() {
         </span>
       </div>
 
-      {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
-      )}
-
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {kpis.map(({ label, value, sub, icon: Icon, color, bg }) => (
-          <div key={label} className="rounded-2xl border border-zinc-200 bg-white p-5">
-            <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl ${bg} mb-4`}>
+          <div key={label} className="group rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-default">
+            <div className={`inline-flex items-center justify-center w-10 h-10 rounded-xl ${bg} mb-4 group-hover:scale-110 transition-transform duration-200`}>
               <Icon className={`w-5 h-5 ${color}`} />
             </div>
-            <p className="text-2xl font-bold text-zinc-900 leading-none">{value}</p>
-            <p className="text-xs text-zinc-500 mt-1.5">{label}</p>
+            <p className="text-2xl font-bold text-zinc-900 leading-none tracking-tight">{value}</p>
+            <p className="text-xs text-zinc-500 mt-1.5 font-medium">{label}</p>
             <p className="text-xs text-zinc-400 mt-0.5">{sub}</p>
           </div>
         ))}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-        <div className="xl:col-span-2 rounded-2xl border border-zinc-200 bg-white overflow-hidden">
+        <div className="xl:col-span-2 rounded-2xl border border-zinc-200 bg-white overflow-hidden shadow-sm">
           <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
             <div className="flex items-center gap-2">
               <ShoppingCart className="w-4 h-4 text-zinc-400" />
@@ -186,21 +182,26 @@ export default function AdminDashboard() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 bg-zinc-50">
-                  <th className="px-5 py-2.5 text-left text-xs font-medium text-zinc-500 whitespace-nowrap">Order</th>
-                  <th className="px-5 py-2.5 text-left text-xs font-medium text-zinc-500 whitespace-nowrap">Customer</th>
-                  <th className="px-5 py-2.5 text-left text-xs font-medium text-zinc-500 whitespace-nowrap">Amount</th>
-                  <th className="px-5 py-2.5 text-left text-xs font-medium text-zinc-500 whitespace-nowrap">Payment</th>
-                  <th className="px-5 py-2.5 text-left text-xs font-medium text-zinc-500 whitespace-nowrap">Status</th>
-                  <th className="px-5 py-2.5 text-left text-xs font-medium text-zinc-500 whitespace-nowrap">Date</th>
+                  <th className="px-5 py-2.5 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide whitespace-nowrap">Order</th>
+                  <th className="px-5 py-2.5 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide whitespace-nowrap">Customer</th>
+                  <th className="px-5 py-2.5 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide whitespace-nowrap">Amount</th>
+                  <th className="px-5 py-2.5 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide whitespace-nowrap">Payment</th>
+                  <th className="px-5 py-2.5 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide whitespace-nowrap">Status</th>
+                  <th className="px-5 py-2.5 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide whitespace-nowrap">Date</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
                 {recentOrders.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-5 py-8 text-center text-sm text-zinc-400">No orders yet.</td>
+                    <td colSpan={6} className="px-5 py-12 text-center">
+                      <div className="flex flex-col items-center gap-2">
+                        <ShoppingCart className="w-8 h-8 text-zinc-200" />
+                        <p className="text-sm text-zinc-400">No orders yet.</p>
+                      </div>
+                    </td>
                   </tr>
                 ) : recentOrders.map(o => (
-                  <tr key={o.order_id} className="hover:bg-zinc-50 transition-colors">
+                  <tr key={o.order_id} className="even:bg-zinc-50/40 hover:bg-amber-50/30 transition-colors duration-150">
                     <td className="px-5 py-3">
                       <Link href={`/admin/orders/${o.order_id}`} className="font-mono text-xs font-semibold text-primary hover:text-primary/80">
                         {o.order_number}
@@ -233,7 +234,7 @@ export default function AdminDashboard() {
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+          <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
             <div className="flex items-center gap-2 mb-4">
               <TrendingUp className="w-4 h-4 text-zinc-400" />
               <h2 className="text-sm font-semibold text-zinc-900">Order Breakdown</h2>
@@ -251,8 +252,8 @@ export default function AdminDashboard() {
                       </div>
                       <span className="text-xs font-medium text-zinc-900">{count}</span>
                     </div>
-                    <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full ${dot}`} style={{ width: `${pct}%` } as React.CSSProperties} />
+                    <div className="h-2 bg-zinc-100 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full ${dot} transition-all duration-700`} style={{ width: `${pct}%` } as React.CSSProperties} />
                     </div>
                   </div>
                 )
@@ -264,7 +265,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-amber-100/60 p-4 shadow-sm">
             <div className="flex items-center gap-2 mb-1">
               <Clock className="w-4 h-4 text-amber-600" />
               <p className="text-sm font-semibold text-amber-800">Pending Payments</p>
@@ -279,7 +280,7 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <div className="rounded-2xl border border-zinc-200 bg-white overflow-hidden">
+        <div className="rounded-2xl border border-zinc-200 bg-white overflow-hidden shadow-sm">
           <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-zinc-400" />
@@ -291,11 +292,19 @@ export default function AdminDashboard() {
           </div>
           <ul className="divide-y divide-zinc-100">
             {recentCustomers.length === 0 ? (
-              <li className="px-5 py-8 text-center text-sm text-zinc-400">No customers yet.</li>
-            ) : recentCustomers.map(c => (
-              <li key={c.customer_id} className="flex items-center justify-between px-5 py-3 hover:bg-zinc-50 transition-colors">
+              <li className="px-5 py-12 text-center">
+                <div className="flex flex-col items-center gap-2">
+                  <Users className="w-8 h-8 text-zinc-200" />
+                  <p className="text-sm text-zinc-400">No customers yet.</p>
+                </div>
+              </li>
+            ) : recentCustomers.map(c => {
+              const AVATAR_COLORS = ['bg-blue-100 text-blue-700','bg-purple-100 text-purple-700','bg-green-100 text-green-700','bg-amber-100 text-amber-700','bg-rose-100 text-rose-700']
+              const avatarCls = AVATAR_COLORS[c.email.charCodeAt(0) % AVATAR_COLORS.length]
+              return (
+              <li key={c.customer_id} className="flex items-center justify-between px-5 py-3 hover:bg-zinc-50/80 transition-colors duration-150">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center text-xs font-semibold text-zinc-600 shrink-0">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${avatarCls}`}>
                     {(c.first_name?.[0] ?? c.email[0]).toUpperCase()}
                   </div>
                   <div className="min-w-0">
@@ -309,11 +318,12 @@ export default function AdminDashboard() {
                   View →
                 </Link>
               </li>
-            ))}
+              )
+            })}
           </ul>
         </div>
 
-        <div className="rounded-2xl border border-zinc-200 bg-white overflow-hidden">
+        <div className="rounded-2xl border border-zinc-200 bg-white overflow-hidden shadow-sm">
           <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
             <div className="flex items-center gap-2">
               <Wrench className="w-4 h-4 text-zinc-400" />
@@ -325,9 +335,14 @@ export default function AdminDashboard() {
           </div>
           <ul className="divide-y divide-zinc-100">
             {centres.length === 0 ? (
-              <li className="px-5 py-8 text-center text-sm text-zinc-400">No fitment centres yet.</li>
-            ) : centres.slice(0, 5).map(c => (
-              <li key={c.fitment_id} className="flex items-center justify-between px-5 py-3 hover:bg-zinc-50 transition-colors">
+              <li className="px-5 py-12 text-center">
+                <div className="flex flex-col items-center gap-2">
+                  <Wrench className="w-8 h-8 text-zinc-200" />
+                  <p className="text-sm text-zinc-400">No fitment centres yet.</p>
+                </div>
+              </li>
+            ) : centres.slice(0, 5).map((c, i) => (
+              <li key={c.fitment_id ?? i} className="flex items-center justify-between px-5 py-3 hover:bg-zinc-50/80 transition-colors duration-150">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-zinc-900 truncate">{c.business_name}</p>
                   <p className="text-xs text-zinc-500 truncate">{c.partner_id} · {c.profiles?.email}</p>

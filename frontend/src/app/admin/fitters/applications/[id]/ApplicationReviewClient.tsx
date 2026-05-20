@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { toastSuccess, toastError } from '@/lib/toast'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -70,14 +70,12 @@ export default function ApplicationReviewClient({ application: initial, accessTo
   const [app, setApp]         = useState(initial)
   const [notes, setNotes]     = useState(String(initial.admin_notes ?? ''))
   const [loading, setLoading] = useState<'approve' | 'reject' | null>(null)
-  const [error, setError]     = useState('')
 
   const status = String(app.status ?? 'pending')
   const isDone = status === 'approved' || status === 'rejected'
 
   async function decide(action: 'approve' | 'reject') {
     setLoading(action)
-    setError('')
     try {
       const res = await fetch(`${API}/api/fitter/applications/${app.id}`, {
         method: 'PATCH',
@@ -91,9 +89,10 @@ export default function ApplicationReviewClient({ application: initial, accessTo
         }),
       })
       if (!res.ok) throw new Error(await res.text())
+      toastSuccess(action === 'approve' ? 'Application approved' : 'Application rejected')
       setApp({ ...app, status: action === 'approve' ? 'approved' : 'rejected', admin_notes: notes })
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Action failed')
+      toastError(err instanceof Error ? err.message : 'Action failed')
     } finally {
       setLoading(null)
     }
@@ -106,7 +105,7 @@ export default function ApplicationReviewClient({ application: initial, accessTo
       {/* Back */}
 
 
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-zinc-900">{String(app.full_name ?? '')}</h1>
           <p className="text-sm text-zinc-500 mt-0.5">{String(app.email ?? '')}</p>
@@ -121,7 +120,7 @@ export default function ApplicationReviewClient({ application: initial, accessTo
         {/* Contact */}
         <div className="bg-white rounded-xl border border-zinc-200 p-5">
           <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-4">Contact Details</p>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Contact Person"   value={app.contact_person} />
             <Field label="Contact Email"    value={app.contact_email} />
             <Field label="Mobile Number"    value={app.mobile_number} />
@@ -173,7 +172,6 @@ export default function ApplicationReviewClient({ application: initial, accessTo
               rows={3}
               className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none mb-4"
             />
-            {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
             <div className="flex gap-3">
               <button
                 onClick={() => decide('approve')}

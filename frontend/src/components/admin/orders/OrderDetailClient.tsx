@@ -12,6 +12,7 @@ import FulfillmentModal from './FulfillmentModal'
 import MarkShippedModal from './MarkShippedModal'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { toastSuccess, toastError } from '@/lib/toast'
 import {
   Select,
   SelectTrigger,
@@ -171,8 +172,15 @@ function FitmentProgressBar({ status }: { status: string | undefined }) {
 
 // ── Unfulfilled items ──────────────────────────────────────────────────────
 
-function UnfulfilledItems({ items, onFulfill }: { items: OrderItem[]; onFulfill: () => void }) {
-  if (items.length === 0) return null
+function UnfulfilledItems({
+  items, unfulfilledQty, onFulfill,
+}: {
+  items: OrderItem[]
+  unfulfilledQty: Record<string, number>
+  onFulfill: () => void
+}) {
+  const unfulfilled = items.filter(i => (unfulfilledQty[i.order_item_id] ?? 0) > 0)
+  if (unfulfilled.length === 0) return null
   return (
     <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
       <div className="flex items-center justify-between mb-3">
@@ -188,17 +196,17 @@ function UnfulfilledItems({ items, onFulfill }: { items: OrderItem[]; onFulfill:
       <Table className="w-full text-sm">
         <TableHeader>
           <TableRow className="border-b border-amber-200 hover:bg-transparent">
-            {['SKU', 'Size', 'Qty'].map(h => (
+            {['SKU', 'Size', 'Unfulfilled'].map(h => (
               <TableHead key={h} className="pb-2 text-left text-xs font-medium text-amber-700 h-auto px-0 py-2">{h}</TableHead>
             ))}
           </TableRow>
         </TableHeader>
         <TableBody className="divide-y divide-amber-100">
-          {items.map(item => (
+          {unfulfilled.map(item => (
             <TableRow key={item.order_item_id} className="hover:bg-transparent border-amber-100">
               <TableCell className="py-2 font-mono text-xs text-zinc-600 px-0">{item.skus?.sku ?? '—'}</TableCell>
               <TableCell className="py-2 text-zinc-700 text-xs px-0">{item.skus?.tyre_size_display ?? '—'}</TableCell>
-              <TableCell className="py-2 text-zinc-600 px-0">{item.quantity}</TableCell>
+              <TableCell className="py-2 text-zinc-600 px-0">{unfulfilledQty[item.order_item_id] ?? 0}</TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -215,12 +223,10 @@ function ShipmentCard({ shipment, orderId, onMarkShipped, onMarkDelivered, token
   onMarkDelivered: (id: string) => void
   token: string
 }) {
-  const [delivering, setDelivering]   = useState(false)
-  const [deliverError, setDeliverError] = useState<string | null>(null)
+  const [delivering, setDelivering] = useState(false)
 
   async function handleDeliver() {
     setDelivering(true)
-    setDeliverError(null)
     try {
       const res = await fetch(
         `${API}/api/admin/orders/${orderId}/shipments/${shipment.shipment_id}/delivered`,
@@ -230,9 +236,10 @@ function ShipmentCard({ shipment, orderId, onMarkShipped, onMarkDelivered, token
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error ?? `Failed to mark delivered (${res.status})`)
       }
+      toastSuccess('Shipment marked as delivered')
       onMarkDelivered(shipment.shipment_id)
     } catch (err: unknown) {
-      setDeliverError(err instanceof Error ? err.message : 'Unknown error')
+      toastError(err instanceof Error ? err.message : 'Failed to mark as delivered')
     } finally { setDelivering(false) }
   }
 
@@ -277,13 +284,31 @@ function ShipmentCard({ shipment, orderId, onMarkShipped, onMarkDelivered, token
           )}
         </div>
       </div>
-      <div className="p-4 space-y-2">
-        {deliverError && (
-          <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{deliverError}</p>
+      <div className="p-4 space-y-3">
+        {shipment.order_shipment_items.length > 0 && (
+          <div className="rounded-lg border border-zinc-100 divide-y divide-zinc-100">
+            {shipment.order_shipment_items.map(item => (
+              <div key={item.id || item.order_item_id} className="flex items-center justify-between px-3 py-2">
+                <div>
+                  <p className="text-xs font-medium text-zinc-800">{item.skus?.tyre_size_display ?? '—'}</p>
+                  {item.skus?.sku && <p className="text-xs text-zinc-400 font-mono">{item.skus.sku}</p>}
+                </div>
+                <span className="text-xs text-zinc-500">{item.quantity}×</span>
+              </div>
+            ))}
+          </div>
         )}
         {(shipment.tracking_number || shipment.shipped_at) && (
           <div className="flex gap-6 text-xs text-zinc-500">
-            {shipment.tracking_number && <span>Tracking: <span className="font-mono text-zinc-700">{shipment.tracking_number}</span></span>}
+            {shipment.tracking_number && (
+              <span>
+                Tracking:{' '}
+                {shipment.tracking_uri
+                  ? <a href={shipment.tracking_uri} target="_blank" rel="noopener noreferrer" className="font-mono text-primary hover:underline">{shipment.tracking_number}</a>
+                  : <span className="font-mono text-zinc-700">{shipment.tracking_number}</span>
+                }
+              </span>
+            )}
             {shipment.shipped_at && <span>Shipped {fmtDate(shipment.shipped_at)}</span>}
             {shipment.delivered_at && <span>Delivered {fmtDate(shipment.delivered_at)}</span>}
           </div>
@@ -306,7 +331,10 @@ export default function OrderDetailClient({
 
   const [order, setOrder]             = useState<OrderDetail>(initialOrder)
   const [statusSaving, setStatusSaving] = useState(false)
-  const [statusError, setStatusError]   = useState<string | null>(null)
+
+  const [notesValue,   setNotesValue]   = useState(initialOrder.notes ?? '')
+  const [notesDirty,   setNotesDirty]   = useState(false)
+  const [notesSaving,  setNotesSaving]  = useState(false)
 
   const modal       = searchParams.get('modal')
   const shipmentIdParam = searchParams.get('shipment')
@@ -320,7 +348,6 @@ export default function OrderDetailClient({
 
   async function patchStatus(patch: { paymentStatus?: string; orderStatus?: string }) {
     setStatusSaving(true)
-    setStatusError(null)
     try {
       const res = await fetch(`${API}/api/admin/orders/${order.order_id}/status`, {
         method:  'PATCH',
@@ -333,8 +360,9 @@ export default function OrderDetailClient({
       }
       if (patch.paymentStatus) setOrder(p => ({ ...p, payment_status: patch.paymentStatus as PaymentStatus }))
       if (patch.orderStatus)   setOrder(p => ({ ...p, order_status:   patch.orderStatus   as OrderStatus }))
+      toastSuccess('Status updated')
     } catch (err: unknown) {
-      setStatusError(err instanceof Error ? err.message : 'Unknown error')
+      toastError(err instanceof Error ? err.message : 'Failed to update status')
     } finally { setStatusSaving(false) }
   }
 
@@ -350,6 +378,41 @@ export default function OrderDetailClient({
     }))
   }
 
+  async function saveNotes() {
+    setNotesSaving(true)
+    try {
+      const res = await fetch(`${API}/api/admin/orders/${order.order_id}/status`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body:    JSON.stringify({ notes: notesValue }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? 'Failed to save notes')
+      }
+      setOrder(p => ({ ...p, notes: notesValue }))
+      setNotesDirty(false)
+      toastSuccess('Notes saved')
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : 'Failed to save notes')
+    } finally { setNotesSaving(false) }
+  }
+
+  // Compute unfulfilled qty per order_item_id
+  const fulfilledQtyMap = new Map<string, number>()
+  for (const shipment of order.order_shipments) {
+    if (shipment.status === 'cancelled') continue
+    for (const si of shipment.order_shipment_items) {
+      fulfilledQtyMap.set(si.order_item_id, (fulfilledQtyMap.get(si.order_item_id) ?? 0) + si.quantity)
+    }
+  }
+  const unfulfilledQty: Record<string, number> = Object.fromEntries(
+    order.order_items.map(item => [
+      item.order_item_id,
+      Math.max(0, item.quantity - (fulfilledQtyMap.get(item.order_item_id) ?? 0)),
+    ])
+  )
+
   const c       = order.customers
   const addr    = order.shipping_address_snapshot
   const billing = order.billing_address_snapshot
@@ -364,14 +427,8 @@ export default function OrderDetailClient({
 
   return (
     <div>
-      {statusError && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {statusError}
-        </div>
-      )}
-
       {/* Order header */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2 mb-0.5">
             <h1 className="text-xl font-bold text-zinc-900">#{order.order_number}</h1>
@@ -389,7 +446,7 @@ export default function OrderDetailClient({
           <p className="text-xs text-zinc-500">{fmt(order.created_at)}</p>
         </div>
 
-        <div className="flex items-end gap-4">
+        <div className="flex flex-wrap items-end gap-4">
           <StatusDropdown
             label="Payment Status"
             value={order.payment_status}
@@ -413,9 +470,9 @@ export default function OrderDetailClient({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* ── Main content ────────────────────────────────────────────── */}
-        <div className="col-span-2 space-y-5">
+        <div className="space-y-5 lg:col-span-2">
 
           {/* Order Summary */}
           <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
@@ -491,7 +548,11 @@ export default function OrderDetailClient({
           </div>
 
           {/* Unfulfilled items */}
-          <UnfulfilledItems items={order.order_items} onFulfill={() => router.push(`${pathname}?modal=fulfill`)} />
+          <UnfulfilledItems
+            items={order.order_items}
+            unfulfilledQty={unfulfilledQty}
+            onFulfill={() => router.push(`${pathname}?modal=fulfill`)}
+          />
 
           {/* Delivery Type section */}
           <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
@@ -511,7 +572,7 @@ export default function OrderDetailClient({
             <div className="p-5">
               {isFitment && order.fitment_job ? (
                 <>
-                  <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div className="grid grid-cols-1 gap-4 mb-4 sm:grid-cols-3">
                     <div>
                       <p className="text-xs text-zinc-400 mb-1">Fitment ID</p>
                       <p className="text-sm font-medium text-zinc-800">{order.fitment_job.task_number}</p>
@@ -532,7 +593,7 @@ export default function OrderDetailClient({
                   <FitmentProgressBar status={order.fitment_job.job_status} />
                 </>
               ) : (
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                   {order.order_shipments.slice(0, 1).map(s => (
                     <div key={s.shipment_id}>
                       <p className="text-xs text-zinc-400 mb-1">Warehouse</p>
@@ -720,12 +781,28 @@ export default function OrderDetailClient({
           )}
 
           {/* Notes */}
-          {order.notes && (
-            <div className="rounded-xl border border-zinc-200 bg-white p-4">
-              <h3 className="text-sm font-semibold text-zinc-900 mb-2">Notes</h3>
-              <p className="text-xs text-zinc-700 whitespace-pre-wrap">{order.notes}</p>
+          <div className="rounded-xl border border-zinc-200 bg-white p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-zinc-900">Notes</h3>
+              {notesDirty && (
+                <Button
+                  type="button"
+                  size="xs"
+                  onClick={saveNotes}
+                  disabled={notesSaving}
+                >
+                  {notesSaving ? 'Saving…' : 'Save'}
+                </Button>
+              )}
             </div>
-          )}
+            <textarea
+              value={notesValue}
+              onChange={e => { setNotesValue(e.target.value); setNotesDirty(true) }}
+              rows={3}
+              placeholder="Add internal notes…"
+              className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700 resize-none focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
         </div>
       </div>
 
@@ -734,6 +811,7 @@ export default function OrderDetailClient({
         <FulfillmentModal
           orderId={order.order_id}
           items={order.order_items}
+          unfulfilledQty={unfulfilledQty}
           token={accessToken}
           onClose={closeModal}
           onSuccess={newShipment => {

@@ -9,7 +9,7 @@ async function resolvecentreId(req: Request, res: Response): Promise<string | nu
 
   const { data, error } = await S.getCentreByUser(userId)
   if (error || !data) { res.status(404).json({ message: 'Fitment centre not found' }); return null }
-  return (data as any).fitment_id
+  return (data as any).fitment_centre_id
 }
 
 export async function getCentre(req: Request, res: Response, next: NextFunction) {
@@ -43,13 +43,30 @@ export async function getJobs(req: Request, res: Response, next: NextFunction) {
   } catch (err) { next(err) }
 }
 
+export async function getJobDetail(req: Request, res: Response, next: NextFunction) {
+  try {
+    const centreId = await resolvecentreId(req, res)
+    if (!centreId) return
+    const jobId = String((req.params as P).jobId)
+    const { data, error } = await S.getJob(centreId, jobId)
+    if (error || !data) return res.status(404).json({ message: 'Job not found' })
+    res.json(data)
+  } catch (err) { next(err) }
+}
+
 export async function patchJobStatus(req: Request, res: Response, next: NextFunction) {
   try {
     const centreId = await resolvecentreId(req, res)
     if (!centreId) return
-    const jobId  = String((req.params as P).jobId)
-    const { status, notes } = req.body
-    const { error } = await S.updateJobStatus(centreId, jobId, status, notes)
+    const jobId = String((req.params as P).jobId)
+    const { status, fitter_notes } = req.body
+
+    const allowed = ['accepted', 'in_progress', 'completed', 'cancelled']
+    if (!allowed.includes(status)) {
+      res.status(400).json({ message: `Invalid status. Allowed: ${allowed.join(', ')}` }); return
+    }
+
+    const { error } = await S.updateJobStatus(centreId, jobId, status, fitter_notes)
     if (error) return next(error)
     res.json({ success: true })
   } catch (err) { next(err) }
@@ -90,6 +107,53 @@ export async function getEarningsHistory(req: Request, res: Response, next: Next
     const { data, error, count } = result as unknown as { data: unknown[]; error: unknown; count: number | null }
     if (error) return next(error)
     res.json({ data: data ?? [], total: count ?? 0 })
+  } catch (err) { next(err) }
+}
+
+export async function getProfile(req: Request, res: Response, next: NextFunction) {
+  try {
+    const centreId = await resolvecentreId(req, res)
+    if (!centreId) return
+    const { data, error } = await S.getProfile(centreId)
+    if (error || !data) return res.status(404).json({ message: 'Profile not found' })
+    res.json(data)
+  } catch (err) { next(err) }
+}
+
+export async function putProfile(req: Request, res: Response, next: NextFunction) {
+  try {
+    const centreId = await resolvecentreId(req, res)
+    if (!centreId) return
+    const { business_name, contact_name, email, contact_phone, business_number } = req.body
+    const { error } = await S.updateProfile(centreId, { business_name, contact_name, email, contact_phone, business_number })
+    if (error) return next(error)
+    res.json({ success: true })
+  } catch (err) { next(err) }
+}
+
+export async function getServices(req: Request, res: Response, next: NextFunction) {
+  try {
+    const centreId = await resolvecentreId(req, res)
+    if (!centreId) return
+    const { data, error } = await S.getServices(centreId)
+    if (error || !data) return res.status(404).json({ message: 'Services not found' })
+    res.json(data)
+  } catch (err) { next(err) }
+}
+
+export async function putServices(req: Request, res: Response, next: NextFunction) {
+  try {
+    const centreId = await resolvecentreId(req, res)
+    if (!centreId) return
+    const { services_offered, wheel_alignment_price, mobile_fitting_available, opening_hours } = req.body
+    const { error } = await S.updateServices(centreId, {
+      services_offered:        services_offered ?? [],
+      wheel_alignment_price:   wheel_alignment_price ?? null,
+      mobile_fitting_available: !!mobile_fitting_available,
+      opening_hours:           opening_hours ?? [],
+    })
+    if (error) return next(error)
+    res.json({ success: true })
   } catch (err) { next(err) }
 }
 

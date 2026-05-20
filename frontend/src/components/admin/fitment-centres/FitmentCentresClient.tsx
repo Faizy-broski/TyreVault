@@ -17,6 +17,7 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
+import { toastError } from "@/lib/toast";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 const PAGE_LIMIT = 20;
@@ -54,7 +55,6 @@ export default function FitmentCentresClient({
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const totalPages = Math.ceil(total / PAGE_LIMIT);
   const headers = { Authorization: `Bearer ${accessToken}` };
@@ -65,7 +65,6 @@ export default function FitmentCentresClient({
     page?: number;
   }) {
     setLoading(true);
-    setFetchError(null);
     const qs = new URLSearchParams();
     if (opts.search) qs.set("search", opts.search);
     if (opts.status) qs.set("status", opts.status);
@@ -82,7 +81,7 @@ export default function FitmentCentresClient({
       setCentres(json.data ?? []);
       setTotal(json.total ?? 0);
     } catch (err: unknown) {
-      setFetchError(err instanceof Error ? err.message : "Unknown error");
+      toastError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setLoading(false);
     }
@@ -134,7 +133,7 @@ export default function FitmentCentresClient({
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden">
+      <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-sm">
         {/* Filters */}
         <div className="flex items-center gap-2 px-5 py-3 border-b border-zinc-100">
           {(["active", "hold"] as const).map((s) => (
@@ -165,40 +164,48 @@ export default function FitmentCentresClient({
           </form>
         </div>
 
-        {fetchError && (
-          <div className="px-5 py-3 text-sm text-red-600 bg-red-50 border-b border-red-100">
-            {fetchError}
-          </div>
-        )}
-
+        <div className="overflow-x-auto">
         <Table className="w-full text-sm">
           <TableHeader>
             <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50">
-              <TableHead className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Centre</TableHead>
-              <TableHead className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Partner ID</TableHead>
-              <TableHead className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Contact</TableHead>
-              <TableHead className="px-5 py-3 text-left text-xs font-medium text-zinc-500">ABN</TableHead>
-              <TableHead className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Status</TableHead>
-              <TableHead className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Joined</TableHead>
+              <TableHead className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Centre</TableHead>
+              <TableHead className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Partner ID</TableHead>
+              <TableHead className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Contact</TableHead>
+              <TableHead className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">ABN</TableHead>
+              <TableHead className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Status</TableHead>
+              <TableHead className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Joined</TableHead>
               <TableHead className="px-5 py-3 w-10" />
             </TableRow>
           </TableHeader>
           <TableBody className="divide-y divide-zinc-100">
             {loading ? (
-              <TableRow>
-                <TableCell colSpan={7} className="px-5 py-8 text-center text-sm text-zinc-400">
-                  Loading...
-                </TableCell>
-              </TableRow>
+              <>
+                {[1,2,3,4,5].map(i => (
+                  <TableRow key={i}>
+                    <TableCell className="px-5 py-3"><div className="h-4 w-36 bg-zinc-100 rounded animate-pulse" /></TableCell>
+                    <TableCell className="px-5 py-3"><div className="h-4 w-20 bg-zinc-100 rounded animate-pulse" /></TableCell>
+                    <TableCell className="px-5 py-3"><div className="h-4 w-24 bg-zinc-100 rounded animate-pulse" /></TableCell>
+                    <TableCell className="px-5 py-3"><div className="h-4 w-24 bg-zinc-100 rounded animate-pulse" /></TableCell>
+                    <TableCell className="px-5 py-3"><div className="h-5 w-16 bg-zinc-100 rounded-full animate-pulse" /></TableCell>
+                    <TableCell className="px-5 py-3"><div className="h-4 w-20 bg-zinc-100 rounded animate-pulse" /></TableCell>
+                    <TableCell className="px-5 py-3" />
+                  </TableRow>
+                ))}
+              </>
             ) : centres.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="px-5 py-8 text-center text-sm text-zinc-400">
-                  No fitment centres found.
+                <TableCell colSpan={7} className="px-5 py-16 text-center">
+                  <div className="flex flex-col items-center gap-2 mx-auto">
+                    <svg className="w-10 h-10 text-zinc-200" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205l3 1m1.5.5l-1.5-.5M6.75 7.364V3h-3v18m3-13.636l10.5-3.819" />
+                    </svg>
+                    <p className="text-sm font-medium text-zinc-400">No fitment centres found.</p>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
               centres.map((c) => (
-                <TableRow key={c.fitment_centre_id} className="hover:bg-zinc-50">
+                <TableRow key={c.fitment_centre_id} className="even:bg-zinc-50/40 hover:bg-amber-50/30 transition-colors duration-150">
                   <TableCell className="px-5 py-3">
                     <Link href={`/admin/fitters/${c.fitment_centre_id}`} className="flex flex-col group">
                       <span className="font-medium text-primary w-fit group-hover:underline">
@@ -234,6 +241,7 @@ export default function FitmentCentresClient({
             )}
           </TableBody>
         </Table>
+        </div>
 
         <div className="flex items-center justify-between px-5 py-3 border-t border-zinc-100 text-xs text-zinc-500">
           <span>

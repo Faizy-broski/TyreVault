@@ -15,9 +15,11 @@ import {
   Gauge,
   Settings,
   LogOut,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { createClient } from "@/lib/supabase/client";
+import { Button } from "@/components/ui/button";
 
 const nav = [
   {
@@ -78,9 +80,11 @@ const nav = [
 
 interface Props {
   userEmail: string;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
-export default function AdminSidebar({ userEmail }: Props) {
+export default function AdminSidebar({ userEmail, isOpen = false, onClose }: Props) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -168,12 +172,28 @@ export default function AdminSidebar({ userEmail }: Props) {
     //     </div>
     //   </div>
     // </aside>
-    <aside className="w-44 flex flex-col bg-white border-r border-zinc-200 h-full shrink-0">
+    <aside
+      className={cn(
+        "fixed inset-y-0 left-0 z-30 w-64 flex flex-col bg-white border-r border-zinc-200 transition-transform duration-200 ease-in-out",
+        "lg:relative lg:w-44 lg:translate-x-0 lg:shrink-0",
+        isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
+      )}
+    >
       {/* Logo */}
-      <div className="px-4 border-b border-zinc-100">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-200 shadow-sm">
         <Link href="/admin/dashboard">
-          <Image src="/logo.svg" width={200} height={200} alt="Logo" />
+          <Image src="/logo_dark.svg" width={300} height={300} alt="Logo" />
         </Link>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          onClick={onClose}
+          aria-label="Close menu"
+          className="lg:hidden"
+        >
+          <X className="w-5 h-5" />
+        </Button>
       </div>
 
       {/* Nav */}
@@ -185,10 +205,11 @@ export default function AdminSidebar({ userEmail }: Props) {
             <div key={item.href}>
               <Link
                 href={item.href}
-                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                onClick={onClose}
+                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150 ${
                   active
-                    ? "bg-primary text-zinc-900"
-                    : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
+                    ? "bg-primary text-zinc-900 shadow-sm"
+                    : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
                 }`}
               >
                 <Icon className="w-4 h-4 shrink-0" />
@@ -200,11 +221,12 @@ export default function AdminSidebar({ userEmail }: Props) {
                     <Link
                       key={child.href}
                       href={child.href}
+                      onClick={onClose}
                       className={cn(
                         "block rounded-md px-3 py-1.5 text-sm transition-colors",
                         pathname === child.href
-                          ? "text-zinc-900 bg-primary/50 font-medium"
-                          : "text-zinc-500 hover:text-zinc-900",
+                          ? "text-zinc-900 bg-primary/40 font-medium"
+                          : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900",
                       )}
                     >
                       {child.label}

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { X, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle, DialogClose } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 import type { ImportJobStatus } from '@/types/admin.types'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
@@ -113,8 +114,10 @@ export default function ColumnMapModal({ supplierId, file, csvHeaders, accessTok
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
           <DialogTitle className="text-base font-semibold text-zinc-900">Map CSV Columns</DialogTitle>
           {canClose && (
-            <DialogClose className="text-zinc-400 hover:text-zinc-600 p-1 rounded transition-colors">
-              <X className="w-5 h-5" />
+            <DialogClose asChild>
+              <Button variant="ghost" size="icon-sm" aria-label="Close">
+                <X className="w-5 h-5" />
+              </Button>
             </DialogClose>
           )}
         </div>
@@ -149,18 +152,11 @@ export default function ColumnMapModal({ supplierId, file, csvHeaders, accessTok
               </div>
               <div className="flex justify-end gap-2 pt-1">
                 <DialogClose asChild>
-                  <button type="button" className="px-3 py-1.5 rounded-lg text-sm text-zinc-600 hover:bg-zinc-100 transition-colors">
-                    Cancel
-                  </button>
+                  <Button type="button" variant="outline">Cancel</Button>
                 </DialogClose>
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={!validToSubmit()}
-                  className="px-3 py-1.5 rounded-lg bg-primary text-sm text-zinc-900 font-medium hover:bg-primary/90 transition-colors disabled:opacity-40"
-                >
+                <Button type="button" onClick={handleSubmit} disabled={!validToSubmit()}>
                   Start Import
-                </button>
+                </Button>
               </div>
             </>
           )}
@@ -212,17 +208,12 @@ export default function ColumnMapModal({ supplierId, file, csvHeaders, accessTok
               )}
               <div className="flex justify-end gap-2">
                 <DialogClose asChild>
-                  <button type="button" className="px-3 py-1.5 rounded-lg text-sm text-zinc-600 hover:bg-zinc-100 transition-colors">
-                    Close
-                  </button>
+                  <Button type="button" variant="outline">Close</Button>
                 </DialogClose>
                 {(result?.review_queue ?? 0) > 0 && (
-                  <a
-                    href={`/admin/suppliers/${supplierId}/review`}
-                    className="px-3 py-1.5 rounded-lg bg-amber-400 text-sm text-white font-medium hover:bg-amber-500 transition-colors"
-                  >
-                    Review mappings →
-                  </a>
+                  <Button asChild className="bg-amber-400 text-white hover:bg-amber-500">
+                    <a href={`/admin/suppliers/${supplierId}/review`}>Review mappings →</a>
+                  </Button>
                 )}
               </div>
             </div>
@@ -238,17 +229,11 @@ export default function ColumnMapModal({ supplierId, file, csvHeaders, accessTok
               <p className="text-xs text-zinc-500">{error}</p>
               <div className="flex justify-end gap-2">
                 <DialogClose asChild>
-                  <button type="button" className="px-3 py-1.5 rounded-lg text-sm text-zinc-600 hover:bg-zinc-100 transition-colors">
-                    Close
-                  </button>
+                  <Button type="button" variant="outline">Close</Button>
                 </DialogClose>
-                <button
-                  type="button"
-                  onClick={() => setPhase('map')}
-                  className="px-3 py-1.5 rounded-lg bg-primary text-sm text-zinc-900 font-medium hover:bg-primary/90 transition-colors"
-                >
+                <Button type="button" onClick={() => setPhase('map')}>
                   Try Again
-                </button>
+                </Button>
               </div>
             </div>
           )}

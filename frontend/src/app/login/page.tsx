@@ -1,70 +1,55 @@
-"use client";
+'use client'
 
-import { useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-
-function ForgotPasswordButton({ email }: { email: string }) {
-  const [sent, setSent] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  async function send() {
-    if (!email) return;
-    setLoading(true);
-    const supabase = createClient();
-    await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/api/auth/callback?next=/update-password`,
-    });
-    setSent(true);
-    setLoading(false);
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={send}
-      disabled={loading || sent}
-      className="w-full text-center text-xs text-zinc-400 hover:text-zinc-600 transition-colors mt-1 disabled:opacity-50"
-    >
-      {sent
-        ? "✓ Reset link sent — check your email"
-        : loading
-          ? "Sending…"
-          : "Forgot password?"}
-    </button>
-  );
-}
+import { useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
+import { createClient } from '@/lib/supabase/client'
 
 function LoginForm() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") ?? "/";
+  const router       = useRouter()
+  const searchParams = useSearchParams()
+  const redirect     = searchParams.get('redirect') ?? '/'
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [email, setEmail]   = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError]   = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
 
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const supabase = createClient()
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
 
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-      return;
+    if (signInError) {
+      setError(signInError.message)
+      setLoading(false)
+      return
     }
 
-    router.push(redirect);
-    router.refresh();
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: profile }  = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user!.id)
+      .single()
+
+    const role = (profile as any)?.role
+    if (role === 'super_admin') {
+      router.push('/admin/dashboard')
+    } else if (role === 'fitter') {
+      router.push('/fitter/dashboard')
+    } else {
+      router.push(redirect)
+    }
+    router.refresh()
   }
+
+  const forgotHref = email.trim()
+    ? `/forgot-password?email=${encodeURIComponent(email.trim())}`
+    : '/forgot-password'
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4">
@@ -77,10 +62,7 @@ function LoginForm() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-zinc-700"
-            >
+            <label htmlFor="email" className="block text-sm font-medium text-zinc-700">
               Email
             </label>
             <input
@@ -89,17 +71,14 @@ function LoginForm() {
               required
               autoComplete="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={e => setEmail(e.target.value)}
               className="mt-1 block w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
               placeholder="you@example.com"
             />
           </div>
 
           <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-zinc-700"
-            >
+            <label htmlFor="password" className="block text-sm font-medium text-zinc-700">
               Password
             </label>
             <input
@@ -108,16 +87,14 @@ function LoginForm() {
               required
               autoComplete="current-password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={e => setPassword(e.target.value)}
               className="mt-1 block w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
               placeholder="••••••••"
             />
           </div>
 
           {error && (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
-              {error}
-            </p>
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
           )}
 
           <button
@@ -125,14 +102,19 @@ function LoginForm() {
             disabled={loading}
             className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-zinc-900 transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {loading ? "Signing in…" : "Sign in"}
+            {loading ? 'Signing in…' : 'Sign in'}
           </button>
 
-          <ForgotPasswordButton email={email} />
+          <Link
+            href={forgotHref}
+            className="block w-full text-center text-xs text-zinc-400 hover:text-zinc-600 transition-colors mt-1"
+          >
+            Forgot password?
+          </Link>
         </form>
       </div>
     </div>
-  );
+  )
 }
 
 export default function LoginPage() {
@@ -140,5 +122,5 @@ export default function LoginPage() {
     <Suspense>
       <LoginForm />
     </Suspense>
-  );
+  )
 }

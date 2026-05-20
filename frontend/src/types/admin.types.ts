@@ -31,8 +31,13 @@ export interface ProductStock {
   warehouses: Warehouse | null
 }
 
+export type PriceType = 'retail' | 'wholesale' | 'price_a' | 'price_b' | 'special' | 'clearance'
+
 export interface ProductPrice {
-  price_inc_gst: number
+  price_type:      PriceType
+  price_inc_gst:   number
+  price_ex_gst:    number
+  customer_group_id: string | null
   customer_groups: { group_name: string } | null
 }
 
@@ -55,7 +60,23 @@ export interface Sku {
   xl_reinforced: boolean
   ply_rating: string | null
   load_range: string | null
+  construction_type: string | null
+  load_speed_rating: string | null
+  sidewall: string | null
+  tube_type: string | null
   country_of_origin: string | null
+  manufacturer_name: string | null
+  factory_name: string | null
+  factory_country: string | null
+  section_width: number | null
+  max_load: string | null
+  max_pressure: string | null
+  tread_depth: number | null
+  tyre_weight: number | null
+  overall_diameter: number | null
+  e_mark: string | null
+  dot_code: string | null
+  utqg: string | null
   cost_price: number | null
   compare_at_price: number | null
   low_stock_alert: number | null
@@ -234,6 +255,9 @@ export interface OrderDetail {
 
 export type AccountType = 'guest' | 'registered'
 
+export type CustomerType   = 'retail' | 'wholesale' | 'fleet' | 'trade'
+export type AccountStatus  = 'active' | 'paused' | 'blocked'
+
 export interface CustomerListItem {
   customer_id: string
   email: string
@@ -243,6 +267,11 @@ export interface CustomerListItem {
   phone: string | null
   created_at: string
   profile_id: string | null  // null = Guest, set = Registered
+  customer_type?: CustomerType | null
+  account_status?: AccountStatus | null
+  credit_limit?: number | null
+  payment_terms?: string | null
+  billing_address_id?: string | null
   order_count?: number
   total_spent?: number
   last_order_number?: string | null
@@ -251,12 +280,12 @@ export interface CustomerListItem {
 
 export interface Address {
   address_id: string
-  customer_id: string
+  customer_id?: string
   address_name: string
-  address_line_1: string
-  address_line_2: string | null
-  suburb: string | null
-  postcode: string | null
+  address_line1: string
+  address_line2: string | null
+  city: string | null
+  postal_code: string | null
   country: string | null
   state: string | null
   company: string | null
@@ -382,8 +411,8 @@ export type ComplianceStatus = 'valid' | 'expired' | 'pending' | 'rejected'
 // ============================================================
 // Suppliers
 // ============================================================
-export type SupplierType        = 'wholesaler' | 'factory' | 'distributor' | 'importer'
-export type StockAccessType     = 'api' | 'csv' | 'manual'
+export type SupplierType        = 'factory' | 'wholesaler' | 'marketplace_partner' | '3pl'
+export type StockAccessType     = 'owned_after_purchase' | 'consignment' | 'live_supplier_stock'
 
 export interface Supplier {
   supplier_id:       string

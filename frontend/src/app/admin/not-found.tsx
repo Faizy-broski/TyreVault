@@ -4,7 +4,7 @@ import BackButton from '@/components/BackButton'
 
 export default function AdminNotFound() {
   return (
-    <div className="flex flex-col items-center justify-center h-full min-h-[calc(100vh-4rem)] px-6 text-center">
+    <div className="flex flex-col items-center justify-center h-full min-h-[calc(100vh-4rem)] px-4 sm:px-6 text-center">
       {/* Big 404 */}
       <div className="relative mb-6 select-none">
         <p className="text-[9rem] font-black leading-none text-zinc-100 tracking-tighter">404</p>

@@ -164,7 +164,7 @@ export default function FitmentOrdersTab({
   return (
     <div className="divide-y divide-zinc-100">
       {/* KPI cards */}
-      <div className="grid grid-cols-3 divide-x divide-zinc-100">
+      <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-zinc-100">
         <KpiCard
           label="Active Now"
           value={kpis?.activeJobs ?? 0}
@@ -198,7 +198,7 @@ export default function FitmentOrdersTab({
       </div>
 
       {/* Status filter tabs */}
-      <div className="flex items-center gap-0 px-5 py-2 overflow-x-auto">
+      <div className="flex flex-col gap-2 px-5 py-2 sm:flex-row sm:items-center sm:gap-0 overflow-x-auto">
         {STATUS_TABS.map(tab => {
           const count = tab.key === ''
             ? jobs.length
@@ -236,6 +236,7 @@ export default function FitmentOrdersTab({
         <h3 className="text-sm font-semibold text-zinc-900">All Orders</h3>
       </div>
 
+      <div className="overflow-x-auto">
       <Table className="w-full text-sm">
         <TableHeader>
           <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50">
@@ -294,8 +295,10 @@ export default function FitmentOrdersTab({
         </TableBody>
       </Table>
 
+      </div>
+
       {/* Pagination */}
-      <div className="flex items-center justify-between px-5 py-3 text-xs text-zinc-500">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-5 py-3 text-xs text-zinc-500">
         <span>1 — {jobs.length} of {total} results</span>
         <div className="flex items-center gap-3">
           <span>{page} of {totalPages || 1} pages</span>
@@ -319,7 +322,7 @@ export default function FitmentOrdersTab({
       </div>
 
       {/* Purchase in 12 months + Login History */}
-      <div className="grid grid-cols-[1fr_320px] gap-0 divide-x divide-zinc-100">
+      <div className="grid grid-cols-1 gap-0 divide-y lg:grid-cols-[1fr_320px] lg:divide-y-0 lg:divide-x divide-zinc-100">
         <div className="p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-zinc-900">Purchase in 12 months</h3>

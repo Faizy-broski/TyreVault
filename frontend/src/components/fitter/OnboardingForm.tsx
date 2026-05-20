@@ -114,9 +114,9 @@ function YesNoField({ label, value, onChange }: {
   label: string; value: boolean | null; onChange: (v: boolean) => void
 }) {
   return (
-    <div className="flex items-center justify-between py-3 border-b border-zinc-100 last:border-0">
-      <span className="text-sm text-zinc-700">{label}</span>
-      <div className="flex items-center gap-2">
+    <div className="flex items-start justify-between gap-4 py-3 border-b border-zinc-100 last:border-0">
+      <span className="text-sm text-zinc-700 leading-snug">{label}</span>
+      <div className="flex items-center gap-3 shrink-0">
         {(['Yes', 'No'] as const).map(opt => (
           <label key={opt} className="flex items-center gap-1.5 cursor-pointer">
             <input
@@ -209,7 +209,7 @@ function Step1({ data, onChange, onNext, error }: {
       <ProgressBar step={1} total={4} />
       <p className="text-xs font-semibold text-yellow-500 uppercase tracking-wide">Step 1/4</p>
       <div>
-        <h1 className="text-2xl font-bold text-zinc-900">Let's start with your name and email</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-zinc-900">Let's start with your name and email</h1>
         <p className="text-sm text-zinc-500 mt-1">Let's get you set up. It only takes a minute.</p>
       </div>
       <div className="pt-2 space-y-4">
@@ -242,21 +242,23 @@ function Step2({ data, onChange, onNext, onBack, error }: {
       <ProgressBar step={2} total={4} />
       <p className="text-xs font-semibold text-yellow-500 uppercase tracking-wide">Step 2/4</p>
       <div>
-        <h1 className="text-2xl font-bold text-zinc-900">Let's start with your Business Details</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-zinc-900">Business Details</h1>
         <p className="text-sm text-zinc-500 mt-1">Let's get you set up. It only takes a minute.</p>
       </div>
       <div className="pt-2 space-y-4">
-        <div>
-          <Label>Fitment Contact Person</Label>
-          <Input value={data.contactPerson} onChange={e => onChange({ contactPerson: e.target.value })} placeholder="Contact person name"
-            className="w-full rounded-lg h-auto px-4 py-2.5 text-sm placeholder:text-zinc-400 border-zinc-300 focus-visible:ring-primary/30 focus-visible:border-primary"
-          />
-        </div>
-        <div>
-          <Label>Fitment Contact Email</Label>
-          <Input type="email" value={data.contactEmail} onChange={e => onChange({ contactEmail: e.target.value })} placeholder="contact@yourbusiness.com"
-            className="w-full rounded-lg h-auto px-4 py-2.5 text-sm placeholder:text-zinc-400 border-zinc-300 focus-visible:ring-primary/30 focus-visible:border-primary"
-          />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <Label>Fitment Contact Person</Label>
+            <Input value={data.contactPerson} onChange={e => onChange({ contactPerson: e.target.value })} placeholder="Contact person name"
+              className="w-full rounded-lg h-auto px-4 py-2.5 text-sm placeholder:text-zinc-400 border-zinc-300 focus-visible:ring-primary/30 focus-visible:border-primary"
+            />
+          </div>
+          <div>
+            <Label>Fitment Contact Email</Label>
+            <Input type="email" value={data.contactEmail} onChange={e => onChange({ contactEmail: e.target.value })} placeholder="contact@yourbusiness.com"
+              className="w-full rounded-lg h-auto px-4 py-2.5 text-sm placeholder:text-zinc-400 border-zinc-300 focus-visible:ring-primary/30 focus-visible:border-primary"
+            />
+          </div>
         </div>
         <ConfirmField label="Confirm Your Address" value={data.address} confirmed={data.addressConfirmed}
           onChange={v => onChange({ address: v, addressConfirmed: false })} onConfirm={() => onChange({ addressConfirmed: true })}
@@ -274,7 +276,7 @@ function Step2({ data, onChange, onNext, onBack, error }: {
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-3 pt-1">
         <Button type="button" variant="outline" onClick={onBack} className="flex-1 rounded-xl border-zinc-300 h-auto py-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50">Back</Button>
-        <Button type="submit" className="flex-2 rounded-xl bg-primary h-auto py-3 text-sm font-bold text-zinc-900 hover:bg-primary/90">Continue</Button>
+        <Button type="submit" className="flex-[2] rounded-xl bg-primary h-auto py-3 text-sm font-bold text-zinc-900 hover:bg-primary/90">Continue</Button>
       </div>
     </form>
   )
@@ -292,7 +294,7 @@ function Step3({ data, onChange, onNext, onBack, error }: {
       <ProgressBar step={3} total={4} />
       <p className="text-xs font-semibold text-yellow-500 uppercase tracking-wide">Step 3/4</p>
       <div>
-        <h1 className="text-2xl font-bold text-zinc-900">Services Capabilities &amp; Hours</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-zinc-900">Services Capabilities &amp; Hours</h1>
         <p className="text-sm text-zinc-500 mt-1">Select the services you offer and your operating hours.</p>
       </div>
 
@@ -338,29 +340,41 @@ function Step3({ data, onChange, onNext, onBack, error }: {
         </div>
       </div>
 
+      {/* Working Hours — stacks on mobile, inline on sm+ */}
       <div className="rounded-xl border border-zinc-200 bg-white p-4">
         <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-3">Working Days &amp; Timings</p>
-        <div className="space-y-2">
+        <div className="space-y-3">
           {data.workingHours.map((h, idx) => (
-            <div key={h.day} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3">
-              <span className="text-sm text-zinc-700">{h.label}</span>
-              <div className="flex items-center gap-1.5">
-                <input type="checkbox" id={`closed-${h.day}`} checked={h.isClosed}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateHour(idx, { isClosed: e.target.checked })}
-                  className="w-3.5 h-3.5 accent-zinc-600"
-                />
-                <label htmlFor={`closed-${h.day}`} className="text-xs text-zinc-500">Closed</label>
+            <div key={h.day} className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-medium text-zinc-700">{h.label}</span>
+                <label className="flex items-center gap-1.5 cursor-pointer shrink-0">
+                  <input type="checkbox" id={`closed-${h.day}`} checked={h.isClosed}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateHour(idx, { isClosed: e.target.checked })}
+                    className="w-3.5 h-3.5 accent-zinc-600"
+                  />
+                  <span className="text-xs text-zinc-500">Closed</span>
+                </label>
               </div>
-              <select disabled={h.isClosed} value={h.openTime} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateHour(idx, { openTime: e.target.value })}
-                className="rounded-lg border border-zinc-300 px-2 py-1.5 text-xs text-zinc-700 focus:outline-none focus:ring-1 focus:ring-yellow-400 disabled:bg-zinc-100 disabled:text-zinc-400"
-              >
-                {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-              <select disabled={h.isClosed} value={h.closeTime} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateHour(idx, { closeTime: e.target.value })}
-                className="rounded-lg border border-zinc-300 px-2 py-1.5 text-xs text-zinc-700 focus:outline-none focus:ring-1 focus:ring-yellow-400 disabled:bg-zinc-100 disabled:text-zinc-400"
-              >
-                {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
+              {!h.isClosed && (
+                <div className="flex items-center gap-2 pl-0 sm:pl-2">
+                  <span className="text-xs text-zinc-400 w-8 shrink-0">From</span>
+                  <select value={h.openTime} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateHour(idx, { openTime: e.target.value })}
+                    className="flex-1 rounded-lg border border-zinc-300 px-2 py-1.5 text-xs text-zinc-700 focus:outline-none focus:ring-1 focus:ring-yellow-400"
+                  >
+                    {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <span className="text-xs text-zinc-400 shrink-0">to</span>
+                  <select value={h.closeTime} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => updateHour(idx, { closeTime: e.target.value })}
+                    className="flex-1 rounded-lg border border-zinc-300 px-2 py-1.5 text-xs text-zinc-700 focus:outline-none focus:ring-1 focus:ring-yellow-400"
+                  >
+                    {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+              )}
+              {h.isClosed && (
+                <p className="text-xs text-zinc-400 pl-0 sm:pl-2">Closed all day</p>
+              )}
             </div>
           ))}
         </div>
@@ -369,7 +383,7 @@ function Step3({ data, onChange, onNext, onBack, error }: {
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-3 pt-1">
         <Button type="button" variant="outline" onClick={onBack} className="flex-1 rounded-xl border-zinc-300 h-auto py-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50">Back</Button>
-        <Button type="submit" className="flex-2 rounded-xl bg-primary h-auto py-3 text-sm font-bold text-zinc-900 hover:bg-primary/90">Continue</Button>
+        <Button type="submit" className="flex-[2] rounded-xl bg-primary h-auto py-3 text-sm font-bold text-zinc-900 hover:bg-primary/90">Continue</Button>
       </div>
     </form>
   )
@@ -379,7 +393,7 @@ function ReviewRow({ label, value }: { label: string; value?: string | null }) {
   return (
     <div>
       <p className="text-xs text-zinc-500">{label}</p>
-      <p className="text-sm font-medium text-zinc-800 mt-0.5">{value || '—'}</p>
+      <p className="text-sm font-medium text-zinc-800 mt-0.5 break-words">{value || '—'}</p>
     </div>
   )
 }
@@ -400,7 +414,7 @@ function Step4({ data, onBack, onSubmit, submitting, error }: {
       <ProgressBar step={4} total={4} />
       <p className="text-xs font-semibold text-yellow-500 uppercase tracking-wide">Step 4/4</p>
       <div>
-        <h1 className="text-2xl font-bold text-zinc-900">Review &amp; Submit</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-zinc-900">Review &amp; Submit</h1>
         <p className="text-sm text-zinc-500 mt-1">Please review your details before submitting.</p>
       </div>
 
@@ -410,7 +424,7 @@ function Step4({ data, onBack, onSubmit, submitting, error }: {
             <span className="text-base">👤</span>
             <p className="text-sm font-semibold text-zinc-800">Contact Information</p>
           </div>
-          <div className="grid grid-cols-2 gap-3 border-t border-dashed border-zinc-100 pt-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-dashed border-zinc-100 pt-3">
             <ReviewRow label="Name"  value={data.fullName} />
             <ReviewRow label="Email" value={data.email} />
           </div>
@@ -421,12 +435,12 @@ function Step4({ data, onBack, onSubmit, submitting, error }: {
             <span className="text-base">🏢</span>
             <p className="text-sm font-semibold text-zinc-800">Business Details</p>
           </div>
-          <div className="grid grid-cols-2 gap-3 border-t border-dashed border-zinc-100 pt-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-dashed border-zinc-100 pt-3">
             <ReviewRow label="Fitment Contact Person" value={data.contactPerson} />
             <ReviewRow label="Contact Email"          value={data.contactEmail} />
             <ReviewRow label="Mobile Number"          value={data.mobileNumber} />
             <ReviewRow label="Business Number"        value={data.businessNumber} />
-            <div className="col-span-2"><ReviewRow label="Business Address" value={data.address} /></div>
+            <div className="sm:col-span-2"><ReviewRow label="Business Address" value={data.address} /></div>
           </div>
         </div>
 
@@ -457,7 +471,7 @@ function Step4({ data, onBack, onSubmit, submitting, error }: {
                 </div>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div><p className="text-xs text-zinc-500">Hours</p><p className="text-sm font-medium text-zinc-800">{hoursDisplay}</p></div>
               <div><p className="text-xs text-zinc-500">Days</p><p className="text-sm font-medium text-zinc-800">{openDays.join(', ') || '—'}</p></div>
             </div>
@@ -469,7 +483,7 @@ function Step4({ data, onBack, onSubmit, submitting, error }: {
       <div className="flex gap-3 pt-1">
         <Button type="button" variant="outline" onClick={onBack} className="flex-1 rounded-xl border-zinc-300 h-auto py-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50">Back</Button>
         <Button type="button" onClick={onSubmit} disabled={submitting}
-          className="flex-2 rounded-xl bg-primary h-auto py-3 text-sm font-bold text-zinc-900 hover:bg-primary/90 disabled:opacity-60"
+          className="flex-[2] rounded-xl bg-primary h-auto py-3 text-sm font-bold text-zinc-900 hover:bg-primary/90 disabled:opacity-60"
         >
           {submitting ? 'Submitting...' : 'Submit Application'}
         </Button>
@@ -580,23 +594,33 @@ export default function OnboardingForm() {
 
   return (
     <div className="min-h-screen bg-zinc-100 flex flex-col">
-      <header className="bg-white border-b border-zinc-200 px-6 py-4">
-        <div className="max-w-5xl mx-auto">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center">
-              <div className="w-3 h-3 rounded-full bg-primary" />
-            </div>
-            <span className="font-bold text-zinc-900 tracking-wide text-sm">TYRE VAULT</span>
-            <span className="text-xs text-zinc-400 ml-1">TYRES AND AUTOPARTS</span>
+
+      {/* Header — full width */}
+      <header className="bg-white border-b border-zinc-200 px-4 sm:px-6 lg:px-10 py-4">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center">
+            <div className="w-3 h-3 rounded-full bg-primary" />
           </div>
+          <span className="font-bold text-zinc-900 tracking-wide text-sm">TYRE VAULT</span>
+          <span className="text-xs text-zinc-400 ml-1 hidden sm:inline">TYRES AND AUTOPARTS</span>
         </div>
       </header>
 
-      <main className="flex-1 flex flex-col items-center justify-start py-12 px-4">
-        <h1 className="text-3xl font-bold text-zinc-900 mb-8">Tyre Vault Onboarding</h1>
-        <div className="w-full max-w-5xl grid grid-cols-[360px_1fr] gap-6">
-          <div className="shrink-0"><InfoPanel /></div>
-          <div className="bg-white rounded-xl border border-zinc-200 p-8">
+      <main className="flex-1 px-4 sm:px-6 lg:px-10 py-8 lg:py-12">
+        <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 mb-6 lg:mb-8">Tyre Vault Onboarding</h1>
+
+        {/* Responsive layout:
+            mobile  — InfoPanel on top, form below (single column)
+            desktop — InfoPanel fixed left column, form fills remaining width */}
+        <div className="flex flex-col lg:grid lg:grid-cols-[340px_1fr] gap-6">
+
+          {/* Info panel — full width on mobile, fixed sidebar on desktop */}
+          <div className="lg:self-start lg:sticky lg:top-8">
+            <InfoPanel />
+          </div>
+
+          {/* Form card */}
+          <div className="bg-white rounded-xl border border-zinc-200 p-5 sm:p-8">
             {submitted ? (
               <SuccessScreen />
             ) : step === 1 ? (
@@ -609,6 +633,7 @@ export default function OnboardingForm() {
               <Step4 data={data} onBack={() => setStep(3)} onSubmit={handleSubmit} submitting={submitting} error={stepError} />
             )}
           </div>
+
         </div>
       </main>
     </div>

@@ -15,11 +15,13 @@ export async function getCustomerStats(_req: Request, res: Response) {
 }
 
 export async function getCustomers(req: Request, res: Response) {
-  const search      = String(req.query.search ?? '')
-  const accountType = req.query.accountType as 'guest' | 'registered' | undefined
-  const page        = req.query.page ? Number(req.query.page) : 1
+  const search       = String(req.query.search ?? '')
+  const accountType  = req.query.accountType as 'guest' | 'registered' | undefined
+  const customerType = req.query.customerType ? String(req.query.customerType) : undefined
+  const status       = req.query.status       ? String(req.query.status)       : undefined
+  const page         = req.query.page ? Number(req.query.page) : 1
 
-  const { data, error, count } = await svc.listCustomers({ search, accountType, page })
+  const { data, error, count } = await svc.listCustomers({ search, accountType, customerType, status, page })
   if (error) return res.status(500).json({ error: error.message })
   res.json({ customers: data, total: count })
 }
@@ -33,9 +35,9 @@ export async function getCustomer(req: Request, res: Response) {
 }
 
 export async function postCustomer(req: Request, res: Response) {
-  const { email, firstName, lastName, company, phone } = req.body
+  const { email, firstName, lastName, company, phone, customerType, accountStatus } = req.body
   if (!email) return res.status(400).json({ error: 'email is required' })
-  const { data, error } = await svc.createCustomer({ email, firstName, lastName, company, phone })
+  const { data, error } = await svc.createCustomer({ email, firstName, lastName, company, phone, customerType, accountStatus })
   if (error) return res.status(400).json({ error: error.message })
   res.status(201).json({ customer: data })
 }

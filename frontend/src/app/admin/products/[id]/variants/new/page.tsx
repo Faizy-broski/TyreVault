@@ -3,23 +3,63 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { getAdminToken } from '@/lib/admin-token'
+import { toastError } from '@/lib/toast'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+
+function Field({ label, name, required, type = 'text', placeholder, step }: {
+  label: string; name: string; required?: boolean
+  type?: string; placeholder?: string; step?: string
+}) {
+  return (
+    <div>
+      <label htmlFor={name} className="block text-sm text-zinc-600 mb-1">
+        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+      </label>
+      <Input
+        id={name}
+        name={name}
+        type={type}
+        step={step}
+        required={required}
+        placeholder={placeholder}
+      />
+    </div>
+  )
+}
+
+function SelectField({ label, name, options }: {
+  label: string; name: string
+  options: { value: string; label: string }[]
+}) {
+  return (
+    <div>
+      <label htmlFor={name} className="block text-sm text-zinc-600 mb-1">{label}</label>
+      <select
+        id={name}
+        name={name}
+        className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+      >
+        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+    </div>
+  )
+}
 
 export default function NewVariantPage() {
   const { id } = useParams<{ id: string }>()
   const router  = useRouter()
 
   const [saving, setSaving] = useState(false)
-  const [error,  setError]  = useState('')
 
   useEffect(() => { document.title = 'New Variant | Tyre Vault' }, [])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setSaving(true)
-    setError('')
     const fd = new FormData(e.currentTarget)
 
     const variant = {
@@ -59,14 +99,14 @@ export default function NewVariantPage() {
       const { product_id } = await res.json()
       router.push(`/admin/products/${id}/variants/${product_id}`)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to create variant')
+      toastError(err instanceof Error ? err.message : 'Failed to create variant')
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <div className="p-6 max-w-2xl">
+    <div className="p-4 sm:p-6">
       <div className="mb-6">
         <AdminBreadcrumb crumbs={[
           { label: 'Products', href: '/admin/products' },
@@ -75,17 +115,13 @@ export default function NewVariantPage() {
         ]} />
       </div>
 
-      <div className="rounded-xl border border-zinc-200 bg-white p-6">
+      <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-6">
         <h1 className="text-lg font-semibold text-zinc-900 mb-6">Add Variant</h1>
-
-        {error && (
-          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
-        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <section>
             <h2 className="text-sm font-medium text-zinc-700 mb-3">Tyre Specification</h2>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="SKU" name="sku" required />
               <Field label="Size Display" name="tyreSizeDisplay" placeholder="e.g. 205/55R16" required />
               <Field label="Width (mm)" name="width" type="number" placeholder="205" />
@@ -98,7 +134,7 @@ export default function NewVariantPage() {
               <Field label="Noise (dB)" name="noiseDb" placeholder="68" />
               <Field label="Country of Origin" name="countryOfOrigin" placeholder="China" />
             </div>
-            <div className="grid grid-cols-2 gap-4 mt-4">
+            <div className="grid grid-cols-1 gap-4 mt-4 sm:grid-cols-2">
               <SelectField label="Runflat" name="runflat" options={[{ value: 'false', label: 'No' }, { value: 'true', label: 'Yes' }]} />
               <SelectField label="XL Reinforced" name="xlReinforced" options={[{ value: 'false', label: 'No' }, { value: 'true', label: 'Yes' }]} />
             </div>
@@ -106,7 +142,7 @@ export default function NewVariantPage() {
 
           <section>
             <h2 className="text-sm font-medium text-zinc-700 mb-3">Pricing</h2>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Retail Price (inc. GST)" name="priceIncGst" type="number" step="0.01" placeholder="0.00" required />
               <Field label="Compare at Price" name="compareAtPrice" type="number" step="0.01" placeholder="0.00" />
               <Field label="Cost Price" name="costPrice" type="number" step="0.01" placeholder="0.00" />
@@ -114,64 +150,20 @@ export default function NewVariantPage() {
             </div>
           </section>
 
-          <div className="flex gap-3 pt-2">
-            <button
+          <div className="flex flex-wrap gap-3 pt-2">
+            <Button
               type="button"
+              variant="outline"
               onClick={() => router.back()}
-              className="px-4 py-2 text-sm border border-zinc-300 rounded-lg text-zinc-700 hover:bg-zinc-50 transition-colors"
             >
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="px-4 py-2 text-sm font-medium bg-primary text-zinc-900 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-            >
+            </Button>
+            <Button type="submit" disabled={saving}>
               {saving ? 'Creating…' : 'Create Variant'}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
-    </div>
-  )
-}
-
-function Field({ label, name, required, type = 'text', placeholder, step }: {
-  label: string; name: string; required?: boolean
-  type?: string; placeholder?: string; step?: string
-}) {
-  return (
-    <div>
-      <label htmlFor={name} className="block text-sm text-zinc-600 mb-1">
-        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
-      </label>
-      <input
-        id={name}
-        name={name}
-        type={type}
-        step={step}
-        required={required}
-        placeholder={placeholder}
-        className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-      />
-    </div>
-  )
-}
-
-function SelectField({ label, name, options }: {
-  label: string; name: string
-  options: { value: string; label: string }[]
-}) {
-  return (
-    <div>
-      <label htmlFor={name} className="block text-sm text-zinc-600 mb-1">{label}</label>
-      <select
-        id={name}
-        name={name}
-        className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-      >
-        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
     </div>
   )
 }

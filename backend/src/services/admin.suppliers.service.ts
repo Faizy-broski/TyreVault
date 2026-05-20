@@ -21,14 +21,14 @@ export type SupplierRow = {
 
 export type CreateSupplierPayload = {
   supplier_name: string
-  supplier_type?: 'wholesaler' | 'factory' | 'distributor' | 'importer'
+  supplier_type?: 'factory' | 'wholesaler' | 'marketplace_partner' | '3pl'
   contact_name?: string
   email?: string
   phone?: string
   state?: string
   country?: string
   payment_terms?: string
-  stock_access_type?: 'api' | 'csv' | 'manual'
+  stock_access_type?: 'owned_after_purchase' | 'consignment' | 'live_supplier_stock'
 }
 
 export type MappingFilter = 'pending' | 'verified' | 'all'
@@ -93,7 +93,7 @@ export async function createSupplier(payload: CreateSupplierPayload) {
       state:             payload.state,
       country:           payload.country ?? 'Australia',
       payment_terms:     payload.payment_terms,
-      stock_access_type: payload.stock_access_type ?? 'csv',
+      stock_access_type: payload.stock_access_type ?? 'owned_after_purchase',
       is_active:         true,
     })
     .select('supplier_id')
