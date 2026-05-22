@@ -1,104 +1,65 @@
-import Link from 'next/link'
-import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
-import AuthRedirect from '@/components/AuthRedirect'
+"use client";
 
-export default async function RootPage() {
-  // Server-side: redirect already-authenticated users to their portal
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import TopBar from "@/components/home/TopBar";
+import Navbar from "@/components/home/Navbar";
+import HeroSection from "@/components/home/HeroSection";
+import DealsSection from "@/components/home/DealsSection";
+import ServicesSection from "@/components/home/ServicesSection";
+import HelpSection from "@/components/home/HelpSection";
+import VehicleTypesSection from "@/components/home/VehicleTypesSection";
+import TrustedBrandsSection from "@/components/home/TrustedBrandsSection";
+import BestSellingSection from "@/components/home/BestSellingSection";
+import HowItWorksSection from "@/components/home/HowItWorksSection";
+import ContactSection from "@/components/home/ContactSection";
+import FaqSection from "@/components/home/FaqSection";
+import TestimonialsSection from "@/components/home/TestimonialsSection";
+import FooterSection from "@/components/home/FooterSection";
 
-  if (user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
+export default function HomePage() {
+  const [topbarScrolled, setTopbarScrolled] = useState(false);
 
-    const role = (profile as { role?: string } | null)?.role
-    if (role === 'super_admin') redirect('/admin/dashboard')
-    if (role === 'fitter')      redirect('/fitter/dashboard')
-  }
+  useEffect(() => {
+    const onScroll = () => setTopbarScrolled(window.scrollY >= 40);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center px-4">
-      {/* Handles invite hash tokens — client-side auth state listener */}
-      <AuthRedirect />
+    <main className="text-zinc-900">
+      <TopBar />
+      <Navbar topbarScrolled={topbarScrolled} />
+      <HeroSection />
 
-      <div className="mb-10 text-center">
-        <div className="inline-flex items-center gap-2 rounded-full bg-zinc-800 px-3 py-1 text-xs text-zinc-400 mb-4">
-          Development
+      {/* Deals + Services + Help — shared white bg with tyre decoration */}
+      <div className="relative overflow-hidden">
+        <div className="pointer-events-none absolute right-0 top-0 z-0 h-full w-[420px] opacity-[0.06]">
+          <Image src="/tyre.svg" alt="" fill priority className="object-contain object-right" />
         </div>
-        <h1 className="text-3xl font-bold text-white tracking-tight">Tyre Vault</h1>
-        <p className="mt-2 text-zinc-400 text-sm">Select a portal to continue</p>
+        <div className="relative z-10">
+          <DealsSection />
+          <ServicesSection />
+          <HelpSection />
+        </div>
       </div>
 
-      <div className="grid gap-4 w-full max-w-2xl sm:grid-cols-3">
-
-        {/* Admin Portal */}
-        <div className="rounded-2xl bg-zinc-900 ring-1 ring-white/5 p-5 flex flex-col gap-4">
-          <div>
-            <span className="inline-block rounded-full px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700">Admin</span>
-            <h2 className="mt-2 text-base font-semibold text-white">Admin Portal</h2>
-            <p className="mt-1 text-xs text-zinc-400 leading-relaxed">Manage orders, products, customers, suppliers & fitment centres</p>
-          </div>
-          <div className="mt-auto">
-            <Link
-              href="/login?redirect=/admin/dashboard"
-              className="block rounded-lg px-3 py-2 text-center text-sm font-medium text-white transition-colors bg-blue-600 hover:bg-blue-700"
-            >
-              Sign in as Admin
-            </Link>
-          </div>
-        </div>
-
-        {/* Fitter Portal */}
-        <div className="rounded-2xl bg-zinc-900 ring-1 ring-white/5 p-5 flex flex-col gap-4">
-          <div>
-            <span className="inline-block rounded-full px-2 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-700">Fitter</span>
-            <h2 className="mt-2 text-base font-semibold text-white">Fitter Portal</h2>
-            <p className="mt-1 text-xs text-zinc-400 leading-relaxed">View job schedule, manage earnings, update job statuses</p>
-          </div>
-          <div className="flex flex-col gap-2 mt-auto">
-            <Link
-              href="/login?redirect=/fitter/dashboard"
-              className="block rounded-lg px-3 py-2 text-center text-sm font-medium text-white transition-colors bg-emerald-600 hover:bg-emerald-700"
-            >
-              Sign in as Fitter
-            </Link>
-            <Link
-              href="/fitter/onboarding"
-              className="block rounded-lg px-3 py-2 text-center text-sm font-medium text-emerald-400 hover:text-emerald-300 transition-colors border border-emerald-800 hover:border-emerald-600"
-            >
-              Apply as Fitter
-            </Link>
-          </div>
-        </div>
-
-        {/* Storefront */}
-        <div className="rounded-2xl bg-zinc-900 ring-1 ring-white/5 p-5 flex flex-col gap-4">
-          <div>
-            <span className="inline-block rounded-full px-2 py-0.5 text-xs font-medium bg-zinc-100 text-zinc-600">Coming soon</span>
-            <h2 className="mt-2 text-base font-semibold text-white">Storefront</h2>
-            <p className="mt-1 text-xs text-zinc-400 leading-relaxed">Customer-facing tyre shop (in development)</p>
-          </div>
-          <div className="mt-auto">
-            <Link
-              href="/tyres"
-              className="block rounded-lg px-3 py-2 text-center text-sm font-medium text-white transition-colors bg-zinc-600 hover:bg-zinc-700"
-            >
-              View Storefront
-            </Link>
-          </div>
-        </div>
-
+      {/* Vehicle Types + Trusted Brands + Best Selling — shared leftvector bg */}
+      <div className="bg-[url('/leftvector.svg')] bg-[position:left_center] bg-no-repeat">
+        <VehicleTypesSection />
+        <TrustedBrandsSection />
+        <BestSellingSection />
       </div>
 
-      <p className="mt-8 text-xs text-zinc-600">
-        Backend API: <span className="text-zinc-500">localhost:3001</span>
-        &nbsp;&middot;&nbsp;
-        Supabase: <span className="text-zinc-500">connected</span>
-      </p>
-    </div>
-  )
+      {/* How It Works + Contact + FAQ — shared rightvector bg */}
+      <div className="bg-[url('/rightvector.svg')] bg-[position:right_center] bg-no-repeat">
+        <HowItWorksSection />
+        <ContactSection />
+        <FaqSection />
+      </div>
+
+      <TestimonialsSection />
+      <FooterSection />
+    </main>
+  );
 }

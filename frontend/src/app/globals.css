@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Audiowide&family=Caprasimo&family=Cormorant:ital,wght@0,300..700;1,300..700&family=Metal+Mania&family=Oswald:wght@200..700&family=Raleway:ital,wght@0,100..900;1,100..900&family=Roboto:ital,wght@0,100..900;1,100..900&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=Tagesschrift&family=Unbounded:wght@200..900&display=swap");
+
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -44,6 +46,7 @@
   --color-foreground: var(--foreground);
   --color-primary: var(--primary);
   /* --font-sans: var(--font-sans); */
+  --font-oswald: var(--font-oswald);
   --font-mono: var(--font-geist-mono);
   --font-sans: var(--font-geist-sans);
   --font-heading: var(--font-sans);
@@ -156,5 +159,19 @@
     scrollbar-width: thin;
     scrollbar-color: var(--primary)
       color-mix(in oklch, var(--primary) 10%, transparent);
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  @layer utilities {
+    .font-oswald {
+      font-family: "Oswald", sans-serif;
+    }
   }
 }

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono, Inter } from 'next/font/google'
+import { Geist, Geist_Mono, Inter, Oswald } from 'next/font/google'
 import './globals.css'
 import { cn } from "@/lib/utils"
 import NavigationProgress from '@/components/NavigationProgress'
@@ -15,6 +15,11 @@ const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
 })
+
+const oswald = Oswald({
+  subsets: ["latin"],
+  variable: "--font-oswald",
+});
 
 export const metadata: Metadata = {
   title: {

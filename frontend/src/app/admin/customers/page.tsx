@@ -22,7 +22,7 @@ type CustomerStats = {
 
 function AccountBadge({ isGuest }: { isGuest: boolean }) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium w-fit ${
       isGuest ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700'
     }`}>
       <span className={`h-1.5 w-1.5 rounded-full ${isGuest ? 'bg-amber-500' : 'bg-green-500'}`} />
