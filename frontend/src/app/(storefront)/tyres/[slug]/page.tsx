@@ -1,6 +1,5 @@
 import { notFound } from 'next/navigation'
 import { connection } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import ProductDetailClient from '@/components/storefront/ProductDetailClient'
 
@@ -10,53 +9,57 @@ interface Props {
   params: Promise<{ slug: string }>
 }
 
-// Pre-render all active SKU slugs at build time
 export async function generateStaticParams() {
   const supabase = createAdminClient()
   const { data } = await supabase
     .from('skus')
-    .select('product_slug')
+    .select('product_slug, patterns!inner( is_active, show_on_website, brands!inner( is_active, show_on_website ) )')
     .eq('status', 'active')
     .not('product_slug', 'is', null)
 
   return (data ?? [])
-    .filter((r: any) => r.product_slug)
+    .filter((r: any) =>
+      r.product_slug &&
+      r.patterns?.is_active &&
+      r.patterns?.show_on_website &&
+      r.patterns?.brands?.is_active &&
+      r.patterns?.brands?.show_on_website
+    )
     .map((r: any) => ({ slug: r.product_slug as string }))
 }
 
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
-  const { data: sku } = await supabase
+  const { data } = await supabase
     .from('skus')
-    .select('tyre_size_display, patterns!inner(pattern_name, pattern_short_description, brands(brand_name))')
+    .select('tyre_size_display, patterns(pattern_name, pattern_short_description, brands(brand_name))')
     .eq('product_slug', slug)
     .eq('status', 'active')
-    .single()
+    .limit(1)
 
-  if (!sku) return { title: 'Tyre Not Found' }
+  const row = data?.[0]
+  if (!row) return { title: 'Tyre Not Found' }
 
-  const skuAny  = sku as any
-  const pattern = skuAny.patterns
-  const brand   = pattern?.brands
+  const pattern = row.patterns as { pattern_name?: string; pattern_short_description?: string; brands?: { brand_name?: string } } | null
+  const brand   = (pattern as any)?.brands
 
   return {
-    title: `${brand?.brand_name ?? ''} ${pattern?.pattern_name ?? ''} ${skuAny.tyre_size_display ?? ''}`.trim(),
-    description: pattern?.pattern_short_description ?? undefined,
+    title:       `${brand?.brand_name ?? ''} ${(pattern as any)?.pattern_name ?? ''} ${row.tyre_size_display ?? ''}`.trim(),
+    description: (pattern as any)?.pattern_short_description ?? undefined,
   }
 }
 
 export default async function ProductDetailPage({ params }: Props) {
   const { slug } = await params
 
-  // connection() ensures price and stock are always fresh (never prerendered)
+  // connection() opts this page out of static prerendering so price/stock are always live
   await connection()
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
-  // Fetch SKU + pattern + siblings + price + stock in parallel
-  const { data: skuRaw, error } = await supabase
+  const { data, error } = await supabase
     .from('skus')
     .select(`
       product_id,
@@ -88,51 +91,57 @@ export default async function ProductDetailPage({ params }: Props) {
       total_available_stock,
       pattern_id,
       brand_id,
-      patterns!inner (
+      patterns (
         pattern_name,
         pattern_slug,
         pattern_short_description,
         application_type,
         gallery_images,
-        brands ( brand_name, brand_slug )
+        is_active,
+        show_on_website,
+        brands ( brand_name, brand_slug, is_active, show_on_website )
       ),
       product_prices ( price_type, price_inc_gst, customer_group_id )
     `)
     .eq('product_slug', slug)
     .eq('status', 'active')
-    .single()
+    .limit(1)
 
+  const skuRaw = data?.[0] ?? null
   if (error || !skuRaw) notFound()
 
   const sku     = skuRaw as any
   const pattern = sku.patterns
   const brand   = pattern?.brands
 
-  const [siblingsResult] = await Promise.all([
-    supabase
-      .from('skus')
-      .select('product_id, product_slug, tyre_size_display, width, profile, rim_size, total_available_stock')
-      .eq('pattern_id', sku.pattern_id)
-      .eq('status', 'active')
-      .neq('product_id', sku.product_id)
-      .order('width').order('profile').order('rim_size'),
-  ])
+  // Enforce storefront visibility — pattern and brand must both be active and published
+  if (!pattern?.is_active || !pattern?.show_on_website) notFound()
+  if (!brand?.is_active || !brand?.show_on_website) notFound()
+
+  const { data: siblings } = await supabase
+    .from('skus')
+    .select('product_id, product_slug, tyre_size_display, width, profile, rim_size, total_available_stock')
+    .eq('pattern_id', sku.pattern_id)
+    .eq('status', 'active')
+    .neq('product_id', sku.product_id)
+    .order('width').order('profile').order('rim_size')
 
   const retail_price = (sku.product_prices ?? [])
-    .find((p: any) => p.price_type === 'retail' && !p.customer_group_id)
-    ?.price_inc_gst ?? null
+    .find((p: { price_type: string; customer_group_id: string | null }) =>
+      p.price_type === 'retail' && !p.customer_group_id
+    )?.price_inc_gst ?? null
 
   const product = {
     ...sku,
-    brand_name:                brand?.brand_name                ?? null,
-    brand_slug:                brand?.brand_slug                ?? null,
-    pattern_name:              pattern?.pattern_name            ?? null,
-    pattern_slug:              pattern?.pattern_slug            ?? null,
-    pattern_short_description: pattern?.pattern_short_description ?? null,
-    application_type:          pattern?.application_type        ?? null,
-    gallery_images:            pattern?.gallery_images          ?? [],
+    brand_name:                brand?.brand_name                   ?? null,
+    brand_slug:                brand?.brand_slug                   ?? null,
+    pattern_name:              pattern?.pattern_name               ?? null,
+    pattern_slug:              pattern?.pattern_slug               ?? null,
+    pattern_short_description: pattern?.pattern_short_description  ?? null,
+    application_type:          pattern?.application_type           ?? null,
+    gallery_images:            pattern?.gallery_images             ?? [],
     retail_price,
-    siblings: siblingsResult.data ?? [],
+    siblings: siblings ?? [],
   }
 
   return <ProductDetailClient product={product} />

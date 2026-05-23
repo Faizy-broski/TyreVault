@@ -1,12 +1,15 @@
 'use client'
 
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import { ShoppingCart, Search } from 'lucide-react'
 import { useCartStore } from '@/stores/cart.store'
 
 export default function StorefrontHeader() {
   const { itemCount, openCart } = useCartStore()
-  const count = itemCount()
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+  const count = mounted ? itemCount() : 0
 
   return (
     <header className="sticky top-0 z-40 border-b border-zinc-200 bg-white">

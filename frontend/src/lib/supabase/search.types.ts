@@ -1,6 +1,7 @@
 export interface TyreSku {
   product_id:        string
   sku:               string
+  product_slug:      string | null
   tyre_size_display: string
   brand_id:          string
   brand_name:        string

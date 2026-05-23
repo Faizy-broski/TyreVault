@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Image from 'next/image'
 import { Search, SlidersHorizontal, X, ShoppingCart } from 'lucide-react'
@@ -47,7 +47,7 @@ function StockBadge({ stock }: { stock: number }) {
 function TyreCard({ hit, onAddToCart }: { hit: TyreSku; onAddToCart: (hit: TyreSku) => void }) {
   return (
     <div className="group flex flex-col rounded-2xl border border-zinc-200 bg-white hover:shadow-md transition-shadow overflow-hidden">
-      <a href={`/tyres/${hit.pattern_slug}`} className="block">
+      <a href={hit.product_slug ? `/tyres/${hit.product_slug}` : `/tyres?brand_id=${hit.brand_id}`} className="block">
         <div className="aspect-[4/3] bg-zinc-100 relative overflow-hidden">
           {hit.main_image ? (
             <Image
@@ -126,11 +126,19 @@ export default function TyresListingClient({ initialResult, initialFacets, initi
 
   const [filters, setFilters] = useState<InitialParams>(initialParams)
   const [searchInput, setSearchInput] = useState(initialParams.q)
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const searchRef = useRef<HTMLDivElement>(null)
 
   const { addItem } = useCartStore()
 
   const result = initialResult
   const facets = initialFacets
+
+  const brandSuggestions = searchInput.trim().length >= 2
+    ? (facets?.brands ?? []).filter(b =>
+        b.brand_name.toLowerCase().includes(searchInput.toLowerCase())
+      ).slice(0, 6)
+    : []
 
   function navigate(next: InitialParams) {
     const qs = buildQuery(next)
@@ -216,14 +224,36 @@ export default function TyresListingClient({ initialResult, initialFacets, initi
           {/* Search */}
           <form onSubmit={handleSearch}>
             <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1.5">Search</label>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
+            <div className="relative" ref={searchRef}>
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
               <input
                 value={searchInput}
-                onChange={e => setSearchInput(e.target.value)}
+                onChange={e => { setSearchInput(e.target.value); setShowSuggestions(true) }}
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
                 placeholder="Brand, size, pattern..."
                 className="w-full rounded-lg border border-zinc-300 pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
               />
+              {showSuggestions && brandSuggestions.length > 0 && (
+                <ul className="absolute left-0 right-0 top-full mt-1 z-50 rounded-lg border border-zinc-200 bg-white shadow-lg overflow-hidden">
+                  {brandSuggestions.map(b => (
+                    <li key={b.brand_id}>
+                      <button
+                        type="button"
+                        onMouseDown={() => {
+                          updateFilter('brand_id', b.brand_id)
+                          setSearchInput('')
+                          setShowSuggestions(false)
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 flex items-center gap-2"
+                      >
+                        <span className="text-xs text-zinc-400">Brand</span>
+                        {b.brand_name}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </form>
 
