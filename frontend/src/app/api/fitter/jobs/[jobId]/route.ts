@@ -3,13 +3,14 @@ import { createClient } from '@/lib/supabase/server'
 
 const BACKEND = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
-export async function PATCH(req: NextRequest, { params }: { params: { jobId: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ jobId: string }> }) {
   const supabase = await createClient()
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
 
+  const { jobId } = await params
   const body = await req.json()
-  const res = await fetch(`${BACKEND}/api/fitter/portal/jobs/${params.jobId}`, {
+  const res = await fetch(`${BACKEND}/api/fitter/portal/jobs/${jobId}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',

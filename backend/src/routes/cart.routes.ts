@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { supabase as db } from '../services/supabase.service'
+import { evaluateCartPromotions } from '../services/promotions.service'
 
 const router = Router()
 
@@ -36,6 +37,23 @@ router.post('/validate', async (req, res, next) => {
     }
 
     res.json({ valid: errors.length === 0, errors })
+  } catch (err) { next(err) }
+})
+
+// POST /api/cart/prices
+// Returns promotion-adjusted effective price per product_id.
+// Body: { items: [{ product_id, quantity, unit_price }] }
+router.post('/prices', async (req, res, next) => {
+  try {
+    const items: { product_id: string; quantity: number; unit_price: number }[] = req.body.items ?? []
+    if (!items.length) return res.json({ prices: {} })
+
+    const discounts = await evaluateCartPromotions(items)
+    const prices: Record<string, number> = {}
+    for (const item of items) {
+      prices[item.product_id] = discounts.get(item.product_id) ?? item.unit_price
+    }
+    res.json({ prices })
   } catch (err) { next(err) }
 })
 

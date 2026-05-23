@@ -81,18 +81,31 @@ export async function listJobs(centreId: string, status?: string) {
 }
 
 export async function getJob(centreId: string, jobId: string) {
-  return db
-    .from('fitment_jobs')
-    .select('job_id, fitment_centre_id, task_number, customer_name, customer_phone, scheduled_date, scheduled_time, tyre_pattern, tyre_size, quantity, vehicle_model, job_status, notes, fitter_notes, admin_notes, accepted_at, completed_at, earnings_amount, created_at')
-    .eq('job_id', jobId)
-    .eq('fitment_centre_id', centreId)
-    .single()
+  const [jobRes, itemsRes] = await Promise.all([
+    db
+      .from('fitment_jobs')
+      .select('job_id, fitment_centre_id, task_number, customer_name, customer_phone, scheduled_date, scheduled_time, tyre_pattern, tyre_size, quantity, vehicle_model, job_status, notes, fitter_notes, admin_notes, accepted_at, completed_at, earnings_amount, created_at')
+      .eq('job_id', jobId)
+      .eq('fitment_centre_id', centreId)
+      .single(),
+
+    db
+      .from('fitment_job_items')
+      .select('job_item_id, product_id, quantity, service_type, unit_price')
+      .eq('job_id', jobId),
+  ])
+
+  if (jobRes.error || !jobRes.data) return jobRes
+
+  // Attach items array — empty array if table not yet populated or query fails
+  const items = itemsRes.error ? [] : (itemsRes.data ?? [])
+  return { ...jobRes, data: { ...jobRes.data, items } }
 }
 
 export async function updateJobStatus(
   centreId:     string,
   jobId:        string,
-  status:       'accepted' | 'in_progress' | 'completed' | 'cancelled',
+  status:       'accepted' | 'rejected' | 'in_progress' | 'completed' | 'cancelled',
   fitterNotes?: string
 ) {
   const update: Record<string, unknown> = { job_status: status }
@@ -114,7 +127,7 @@ export async function getWeekJobs(centreId: string, weekStart: string, weekEnd: 
     .eq('fitment_centre_id', centreId)
     .gte('scheduled_date', weekStart)
     .lte('scheduled_date', weekEnd)
-    .in('job_status', ['accepted', 'completed'])
+    .in('job_status', ['assigned', 'accepted', 'in_progress', 'completed'])
     .order('scheduled_date', { ascending: true })
     .order('scheduled_time', { ascending: true })
 }

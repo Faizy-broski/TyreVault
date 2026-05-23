@@ -4,6 +4,7 @@ import { useState } from 'react'
 import AdminSidebar from './AdminSidebar'
 import AdminHeader from './AdminHeader'
 import { Toaster } from '@/components/ui/sonner'
+import { ReactQueryProvider } from '@/lib/query/client'
 
 interface Props {
   userEmail: string
@@ -14,6 +15,7 @@ export default function AdminShell({ userEmail, children }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
+    <ReactQueryProvider>
     <div className="flex h-screen bg-zinc-100 overflow-hidden">
       {sidebarOpen && (
         <div
@@ -44,5 +46,6 @@ export default function AdminShell({ userEmail, children }: Props) {
         toastOptions={{ duration: 3000 }}
       />
     </div>
+    </ReactQueryProvider>
   )
 }

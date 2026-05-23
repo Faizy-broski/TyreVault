@@ -1,16 +1,13 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useCallback } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
 import type { OrderListItem, PaymentStatus, OrderStatus } from '@/types/admin.types'
 import OrderFiltersBar from '@/components/admin/orders/OrderFiltersBar'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { Button } from '@/components/ui/button'
-import { toastError } from '@/lib/toast'
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+import { useOrderList, useOrderStats } from '@/lib/query/hooks'
 
 // ── Badge helpers ──────────────────────────────────────────────────────────
 
@@ -94,6 +91,8 @@ function KpiCard({ title, value, sub, icon }: { title: string; value: string; su
 
 const LIMIT = 20
 
+const EMPTY_STATS = { totalOrders: 0, totalRevenue: 0, avgOrderSize: 0, pendingPayment: 0 }
+
 export default function OrdersPage() {
   const searchParams    = useSearchParams()
   const router          = useRouter()
@@ -104,48 +103,13 @@ export default function OrdersPage() {
   const paymentStatus     = searchParams.get('paymentStatus')     ?? ''
   const fulfillmentStatus = searchParams.get('fulfillmentStatus') ?? ''
 
-  const [orders, setOrders]   = useState<OrderListItem[]>([])
-  const [total, setTotal]     = useState(0)
-  const [stats, setStats]     = useState({ totalOrders: 0, totalRevenue: 0, avgOrderSize: 0, pendingPayment: 0 })
-  const [loading, setLoading] = useState(true)
+  const listQuery  = useOrderList({ search, page, paymentStatus, fulfillmentStatus })
+  const statsQuery = useOrderStats()
 
-  useEffect(() => { document.title = 'Orders | Tyre Vault' }, [])
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const { data: { session } } = await createClient().auth.getSession()
-      const token = session?.access_token ?? ''
-      const headers = { Authorization: `Bearer ${token}` }
-
-      const qs = new URLSearchParams()
-      if (search)            qs.set('search', search)
-      if (paymentStatus)     qs.set('paymentStatus', paymentStatus)
-      if (fulfillmentStatus) qs.set('fulfillmentStatus', fulfillmentStatus)
-      qs.set('page', String(page))
-
-      const [listRes, statsRes] = await Promise.all([
-        fetch(`${API}/api/admin/orders?${qs}`, { headers }),
-        fetch(`${API}/api/admin/orders/stats`,  { headers }),
-      ])
-
-      if (!listRes.ok)  throw new Error(`Orders API ${listRes.status}: ${await listRes.text()}`)
-      if (!statsRes.ok) throw new Error(`Stats API ${statsRes.status}: ${await statsRes.text()}`)
-
-      const listJson  = await listRes.json()
-      const statsJson = await statsRes.json()
-
-      setOrders(listJson.data ?? [])
-      setTotal(listJson.total ?? 0)
-      setStats(statsJson)
-    } catch (err: unknown) {
-      toastError(err instanceof Error ? err.message : 'Failed to load orders')
-    } finally {
-      setLoading(false)
-    }
-  }, [search, page, paymentStatus, fulfillmentStatus])
-
-  useEffect(() => { load() }, [load])
+  const loading = listQuery.isPending || statsQuery.isPending
+  const orders  = listQuery.data?.data   ?? []
+  const total   = listQuery.data?.total  ?? 0
+  const stats   = statsQuery.data        ?? EMPTY_STATS
 
   const totalPages = Math.ceil(total / LIMIT)
 

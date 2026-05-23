@@ -1,11 +1,15 @@
 'use client'
 
-import { useState, useTransition, useEffect } from 'react'
+import { useState, useTransition, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import Link from 'next/link'
+import { useQueryClient } from '@tanstack/react-query'
+import { fitterKeys } from '@/lib/query/keys'
+import { useFitterKPIs, useFitterJobs } from '@/lib/query/fitter-hooks'
+import { BACKEND_API_URL, createBackendHeaders } from '@/lib/backend-api'
 import {
   ShoppingCart, ClipboardList, CalendarDays, Receipt,
-  Phone, Clock, Calendar, Check, TrendingUp,
+  Phone, Clock, Calendar, Check, TrendingUp, X, Play,
 } from 'lucide-react'
 import { Button }                  from '@/components/ui/button'
 import { Card, CardContent }       from '@/components/ui/card'
@@ -15,7 +19,10 @@ import type { FitmentJob, FitterKPIs, JobStatus } from '@/types/fitter.types'
 import { StatusBadge }             from '@/components/fitter/StatusBadge'
 import { FitterBreadcrumb }        from '@/components/fitter/FitterBreadcrumb'
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+async function getToken(): Promise<string> {
+  const { data: { session } } = await createClient().auth.getSession()
+  return session?.access_token ?? ''
+}
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
 
@@ -92,17 +99,20 @@ function JobCardSkeleton() {
 
 const STATUS_LEFT_ACCENT: Partial<Record<JobStatus, string>> = {
   pending:     'border-l-[3px] border-l-blue-400',
+  assigned:    'border-l-[3px] border-l-violet-400',
   accepted:    'border-l-[3px] border-l-amber-400',
   in_progress: 'border-l-[3px] border-l-orange-400',
   completed:   'border-l-[3px] border-l-green-400',
   cancelled:   'border-l-[3px] border-l-zinc-300',
+  rejected:    'border-l-[3px] border-l-red-300',
 }
 
 function JobCard({ job, onStatusChange }: {
   job:            FitmentJob
-  onStatusChange: (jobId: string, status: 'accepted' | 'completed' | 'cancelled') => void
+  onStatusChange: (jobId: string, status: 'accepted' | 'rejected' | 'in_progress' | 'completed' | 'cancelled') => Promise<void>
 }) {
   const [isPending, startTransition] = useTransition()
+  const router = useRouter()
 
   const fmtDate = job.scheduled_date
     ? new Date(job.scheduled_date).toISOString().slice(0, 10)
@@ -117,7 +127,13 @@ function JobCard({ job, onStatusChange }: {
   const accent = STATUS_LEFT_ACCENT[job.job_status] ?? ''
 
   return (
-    <Link href={`/fitter/jobs/${job.job_id}`} className={`bg-white rounded-2xl border border-zinc-200 p-4 space-y-3 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${accent} ${isPending ? 'opacity-50' : ''}`}>
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={() => router.push(`/fitter/jobs/${job.job_id}`)}
+      onKeyDown={e => e.key === 'Enter' && router.push(`/fitter/jobs/${job.job_id}`)}
+      className={`bg-white rounded-2xl border border-zinc-200 p-4 space-y-3 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-pointer ${accent} ${isPending ? 'opacity-50' : ''}`}
+    >
       <div>
         <div className="flex items-center gap-2 flex-wrap">
           <p className="text-sm font-semibold text-zinc-900">{job.customer_name}</p>
@@ -159,8 +175,32 @@ function JobCard({ job, onStatusChange }: {
         <p className="text-xs text-zinc-400 italic">Note: {job.notes}</p>
       )}
 
+      {job.job_status === 'assigned' && (
+        <div className="grid grid-cols-2 gap-2 pt-1" onClick={e => e.stopPropagation()}>
+          <Button
+            size="sm"
+            onClick={() => startTransition(() => onStatusChange(job.job_id, 'accepted'))}
+            disabled={isPending}
+            className="rounded-xl bg-primary text-zinc-900 hover:bg-primary/90 h-10 font-semibold disabled:opacity-40 transition-all duration-150"
+          >
+            <Check className="w-4 h-4" />
+            Accept
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={e => { e.stopPropagation(); startTransition(() => onStatusChange(job.job_id, 'rejected')) }}
+            disabled={isPending}
+            className="rounded-xl h-10 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 disabled:opacity-40 transition-all duration-150"
+          >
+            <X className="w-4 h-4" />
+            Reject
+          </Button>
+        </div>
+      )}
+
       {job.job_status === 'pending' && (
-        <div className="grid grid-cols-2 gap-2 pt-1">
+        <div className="grid grid-cols-2 gap-2 pt-1" onClick={e => e.stopPropagation()}>
           <Button
             size="sm"
             onClick={() => startTransition(() => onStatusChange(job.job_id, 'accepted'))}
@@ -173,112 +213,149 @@ function JobCard({ job, onStatusChange }: {
           <Button
             size="sm"
             variant="outline"
+            onClick={e => { e.stopPropagation(); startTransition(() => onStatusChange(job.job_id, 'cancelled')) }}
             disabled={isPending}
-            className="rounded-xl h-10 disabled:opacity-40 transition-all duration-150"
+            className="rounded-xl h-10 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 disabled:opacity-40 transition-all duration-150"
           >
-            Re-Schedule
+            <X className="w-4 h-4" />
+            Reject
           </Button>
         </div>
       )}
 
       {job.job_status === 'accepted' && (
-        <Button
-          size="sm"
-          onClick={() => startTransition(() => onStatusChange(job.job_id, 'completed'))}
-          disabled={isPending}
-          className="w-full rounded-xl bg-primary text-zinc-900 hover:bg-primary/90 h-10 font-semibold disabled:opacity-40 transition-all duration-150"
-        >
-          <Check className="w-4 h-4" />
-          Mark Complete
-        </Button>
+        <div className="grid grid-cols-2 gap-2 pt-1" onClick={e => e.stopPropagation()}>
+          <Button
+            size="sm"
+            onClick={e => { e.stopPropagation(); startTransition(() => onStatusChange(job.job_id, 'in_progress')) }}
+            disabled={isPending}
+            className="rounded-xl bg-primary text-zinc-900 hover:bg-primary/90 h-10 font-semibold disabled:opacity-40 transition-all duration-150"
+          >
+            <Play className="w-4 h-4" />
+            Start Job
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={e => { e.stopPropagation(); startTransition(() => onStatusChange(job.job_id, 'cancelled')) }}
+            disabled={isPending}
+            className="rounded-xl h-10 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 disabled:opacity-40 transition-all duration-150"
+          >
+            <X className="w-4 h-4" />
+            Cancel
+          </Button>
+        </div>
       )}
-    </Link>
+
+      {job.job_status === 'in_progress' && (
+        <div className="grid grid-cols-2 gap-2 pt-1" onClick={e => e.stopPropagation()}>
+          <Button
+            size="sm"
+            onClick={e => { e.stopPropagation(); startTransition(async () => { await onStatusChange(job.job_id, 'completed'); router.push(`/fitter/jobs/${job.job_id}`) }) }}
+            disabled={isPending}
+            className="rounded-xl bg-primary text-zinc-900 hover:bg-primary/90 h-10 font-semibold disabled:opacity-40 transition-all duration-150"
+          >
+            <Check className="w-4 h-4" />
+            Mark Complete
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={e => { e.stopPropagation(); startTransition(() => onStatusChange(job.job_id, 'cancelled')) }}
+            disabled={isPending}
+            className="rounded-xl h-10 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 disabled:opacity-40 transition-all duration-150"
+          >
+            <X className="w-4 h-4" />
+            Cancel
+          </Button>
+        </div>
+      )}
+    </div>
   )
 }
 
 // ── Tab config ─────────────────────────────────────────────────────────────────
 
 const TABS: { key: JobStatus; label: string }[] = [
-  { key: 'pending',   label: 'New Requests' },
-  { key: 'accepted',  label: 'Accepted'     },
-  { key: 'completed', label: 'Completed'    },
-  { key: 'cancelled', label: 'Cancelled'    },
+  { key: 'pending',     label: 'New Requests' },
+  { key: 'assigned',    label: 'Assigned'     },
+  { key: 'accepted',    label: 'Accepted'     },
+  { key: 'in_progress', label: 'In Progress'  },
+  { key: 'completed',   label: 'Completed'    },
+  { key: 'cancelled',   label: 'Cancelled'    },
+  { key: 'rejected',    label: 'Rejected'     },
 ]
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function DashboardClient({
-  initialKPIs, initialJobs, centreId, accessToken,
+  initialKPIs, initialJobs, centreId,
 }: {
-  initialKPIs:  FitterKPIs
-  initialJobs:  FitmentJob[]
-  centreId:     string
-  accessToken:  string
+  initialKPIs: FitterKPIs
+  initialJobs: FitmentJob[]
+  centreId:    string
 }) {
-  const [kpis,      setKpis]    = useState<FitterKPIs>(initialKPIs)
-  const [jobs,      setJobs]    = useState<FitmentJob[]>(initialJobs)
-  const [activeTab, setTab]     = useState<JobStatus>('pending')
-  const [loading] = useState(false)
+  const queryClient  = useQueryClient()
+  const [activeTab, setTab] = useState<JobStatus>('pending')
 
-  // Supabase Realtime — push new job assignments without page refresh
+  // Server pre-populates cache via initialData — no loading spinner on first render
+  const { data: kpis } = useFitterKPIs({ initialData: initialKPIs })
+  const { data: jobs }  = useFitterJobs({ initialData: initialJobs })
+  const loading = false  // initialData guarantees immediate data
+
+  // Supabase Realtime — push new job INSERTs directly into the React Query cache
   useEffect(() => {
     if (!centreId) return
     const supabase = createClient()
-    const channel = supabase
+    const channel  = supabase
       .channel(`fitter-jobs-${centreId}`)
-      .on(
-        'postgres_changes',
-        {
-          event:  'INSERT',
-          schema: 'public',
-          table:  'fitment_jobs',
-          filter: `fitment_centre_id=eq.${centreId}`,
-        },
-        (payload) => {
-          const newJob = payload.new as FitmentJob
-          setJobs(prev => {
-            if (prev.some(j => j.job_id === newJob.job_id)) return prev
-            return [newJob, ...prev]
-          })
-          setKpis(prev => ({
-            ...prev,
-            newJobsToday: prev.newJobsToday + 1,
-            pendingJobs:  prev.pendingJobs  + 1,
-          }))
-        },
-      )
+      .on('postgres_changes', {
+        event:  'INSERT',
+        schema: 'public',
+        table:  'fitment_jobs',
+        filter: `fitment_centre_id=eq.${centreId}`,
+      }, (payload) => {
+        const newJob = payload.new as FitmentJob
+        queryClient.setQueryData<FitmentJob[]>(fitterKeys.jobs(), prev => {
+          if (!prev) return [newJob]
+          if (prev.some(j => j.job_id === newJob.job_id)) return prev
+          return [newJob, ...prev]
+        })
+        queryClient.setQueryData<FitterKPIs>(fitterKeys.kpis(), prev =>
+          prev ? { ...prev, newJobsToday: prev.newJobsToday + 1, pendingJobs: prev.pendingJobs + 1 } : prev,
+        )
+      })
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [centreId])
+  }, [centreId, queryClient])
 
-  async function handleStatusChange(jobId: string, status: 'accepted' | 'completed' | 'cancelled') {
-    const res = await fetch(`${API}/api/fitter/portal/jobs/${jobId}`, {
+  async function handleStatusChange(jobId: string, status: 'accepted' | 'rejected' | 'in_progress' | 'completed' | 'cancelled') {
+    const token = await getToken()
+    const res = await fetch(`${BACKEND_API_URL}/api/fitter/portal/jobs/${jobId}`, {
       method:  'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      headers: createBackendHeaders(token, { 'Content-Type': 'application/json' }),
       body:    JSON.stringify({ status }),
     })
     if (!res.ok) return
 
-    setJobs(prev => prev.map(j => j.job_id === jobId ? { ...j, job_status: status } : j))
-
-    if (status === 'accepted') {
-      setKpis(prev => ({
-        ...prev,
-        pendingJobs:       Math.max(0, prev.pendingJobs - 1),
-        scheduledThisWeek: prev.scheduledThisWeek + 1,
-      }))
-    }
-    if (status === 'completed') {
-      setKpis(prev => ({
-        ...prev,
-        scheduledThisWeek:      Math.max(0, prev.scheduledThisWeek - 1),
-        completedJobsThisMonth: prev.completedJobsThisMonth + 1,
-      }))
-    }
+    // Update both the jobs list and job detail caches atomically
+    queryClient.setQueryData<FitmentJob[]>(fitterKeys.jobs(), prev =>
+      prev?.map(j => j.job_id === jobId ? { ...j, job_status: status } : j),
+    )
+    queryClient.setQueryData<FitmentJob>(fitterKeys.jobDetail(jobId), prev =>
+      prev ? { ...prev, job_status: status } : prev,
+    )
+    queryClient.setQueryData<FitterKPIs>(fitterKeys.kpis(), prev => {
+      if (!prev) return prev
+      if (status === 'accepted')  return { ...prev, pendingJobs: Math.max(0, prev.pendingJobs - 1), scheduledThisWeek: prev.scheduledThisWeek + 1 }
+      if (status === 'rejected')  return { ...prev, pendingJobs: Math.max(0, prev.pendingJobs - 1) }
+      if (status === 'completed') return { ...prev, scheduledThisWeek: Math.max(0, prev.scheduledThisWeek - 1), completedJobsThisMonth: prev.completedJobsThisMonth + 1 }
+      return prev
+    })
   }
 
-  const pendingCount = jobs.filter(j => j.job_status === 'pending').length
+  const pendingCount = (jobs ?? []).filter(j => j.job_status === 'pending').length
 
   return (
     <div className="p-4 sm:p-6 space-y-5 sm:space-y-6">
@@ -309,21 +386,21 @@ export default function DashboardClient({
             <KpiCard
               theme="blue"
               title="New Jobs Today"
-              value={kpis.newJobsToday}
+              value={kpis?.newJobsToday ?? 0}
               subtitle="Awaiting your response"
               icon={<ShoppingCart className="w-4 h-4" />}
             />
             <KpiCard
               theme="amber"
               title="Pending Jobs"
-              value={String(kpis.pendingJobs).padStart(2, '0')}
+              value={String(kpis?.pendingJobs ?? 0).padStart(2, '0')}
               subtitle="Need scheduling"
               icon={<ClipboardList className="w-4 h-4" />}
             />
             <KpiCard
               theme="violet"
               title="Scheduled Jobs"
-              value={kpis.scheduledThisWeek}
+              value={kpis?.scheduledThisWeek ?? 0}
               subtitle="This week"
               icon={<CalendarDays className="w-4 h-4" />}
             />
@@ -332,8 +409,8 @@ export default function DashboardClient({
               title="Earnings This Month"
               value={new Intl.NumberFormat('en-AU', {
                 style: 'currency', currency: 'AUD', maximumFractionDigits: 0,
-              }).format(kpis.earningsThisMonth)}
-              subtitle={`${kpis.completedJobsThisMonth} jobs completed`}
+              }).format(kpis?.earningsThisMonth ?? 0)}
+              subtitle={`${kpis?.completedJobsThisMonth ?? 0} jobs completed`}
               icon={<Receipt className="w-4 h-4" />}
             />
           </>
@@ -350,7 +427,7 @@ export default function DashboardClient({
           {!loading && (
             <div className="ml-auto flex items-center gap-1 text-xs text-zinc-400">
               <TrendingUp className="w-3.5 h-3.5" />
-              <span>{jobs.length} total</span>
+              <span>{(jobs ?? []).length} total</span>
             </div>
           )}
         </div>
@@ -360,7 +437,7 @@ export default function DashboardClient({
             className="bg-transparent p-0 h-auto gap-0.5 flex-wrap justify-start w-full"
           >
             {TABS.map(tab => {
-              const count = jobs.filter(j => j.job_status === tab.key).length
+              const count = (jobs ?? []).filter(j => j.job_status === tab.key).length
               const hasPending = tab.key === 'pending' && !loading && count > 0
               return (
                 <TabsTrigger
@@ -386,7 +463,7 @@ export default function DashboardClient({
           </TabsList>
 
           {TABS.map(tab => {
-            const tabJobs = jobs.filter(j => j.job_status === tab.key)
+            const tabJobs = (jobs ?? []).filter(j => j.job_status === tab.key)
             return (
               <TabsContent key={tab.key} value={tab.key} className="mt-0">
                 {loading ? (

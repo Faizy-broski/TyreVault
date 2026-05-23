@@ -61,7 +61,7 @@ export async function patchJobStatus(req: Request, res: Response, next: NextFunc
     const jobId = String((req.params as P).jobId)
     const { status, fitter_notes } = req.body
 
-    const allowed = ['accepted', 'in_progress', 'completed', 'cancelled']
+    const allowed = ['pending', 'assigned', 'accepted', 'rejected', 'in_progress', 'completed', 'cancelled']
     if (!allowed.includes(status)) {
       res.status(400).json({ message: `Invalid status. Allowed: ${allowed.join(', ')}` }); return
     }

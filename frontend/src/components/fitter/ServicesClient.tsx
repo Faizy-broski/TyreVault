@@ -1,15 +1,23 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Save, Wrench, Navigation, Clock } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Button }   from '@/components/ui/button'
 import { Input }    from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { FitterBreadcrumb } from '@/components/fitter/FitterBreadcrumb'
 import type { FitterServices, WorkingHour } from '@/types/fitter.types'
+import { useFitterServicesData } from '@/lib/query/fitter-hooks'
+import { fitterKeys } from '@/lib/query/keys'
+import { BACKEND_API_URL, createBackendHeaders } from '@/lib/backend-api'
+import { createClient } from '@/lib/supabase/client'
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+async function getToken(): Promise<string> {
+  const { data: { session } } = await createClient().auth.getSession()
+  return session?.access_token ?? ''
+}
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -80,7 +88,8 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export default function ServicesClient({ accessToken }: { accessToken: string }) {
+export default function ServicesClient() {
+  const queryClient = useQueryClient()
   const [capabilities, setCapabilities] = useState<Capabilities>({
     passenger_suv:  null,
     wheel_packages: null,
@@ -90,34 +99,30 @@ export default function ServicesClient({ accessToken }: { accessToken: string })
   const [wheelAlignmentPrice, setWheelAlignmentPrice] = useState('')
   const [mobileFitting,       setMobileFitting]       = useState(false)
   const [hours,   setHours]   = useState<WorkingHour[]>(DEFAULT_HOURS)
-  const [loading, setLoading] = useState(true)
   const [saving,  setSaving]  = useState(false)
   const [saved,   setSaved]   = useState(false)
   const [error,   setError]   = useState('')
+  const seeded = useRef(false)
+
+  const { data, isPending: loading } = useFitterServicesData()
 
   useEffect(() => {
-    fetch(`${API}/api/fitter/portal/services`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    })
-      .then(r => r.ok ? r.json() : null)
-      .then((data: FitterServices | null) => {
-        if (!data) return
-        const offered = data.services_offered ?? []
-        setCapabilities({
-          passenger_suv:  offered.includes('passenger_suv')  ? true : offered.length > 0 ? false : null,
-          wheel_packages: offered.includes('wheel_packages') ? true : offered.length > 0 ? false : null,
-          truck:          offered.includes('truck')          ? true : offered.length > 0 ? false : null,
-        })
-        setWheelAlignmentOn(offered.includes('wheel_alignment'))
-        setWheelAlignmentPrice(data.wheel_alignment_price != null ? String(data.wheel_alignment_price) : '')
-        setMobileFitting(offered.includes('mobile_fitting') || !!data.mobile_fitting_available)
-        if (Array.isArray(data.opening_hours) && data.opening_hours.length > 0) {
-          setHours(data.opening_hours)
-        }
+    if (data && !seeded.current) {
+      const offered = data.services_offered ?? []
+      setCapabilities({
+        passenger_suv:  offered.includes('passenger_suv')  ? true : offered.length > 0 ? false : null,
+        wheel_packages: offered.includes('wheel_packages') ? true : offered.length > 0 ? false : null,
+        truck:          offered.includes('truck')          ? true : offered.length > 0 ? false : null,
       })
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [accessToken])
+      setWheelAlignmentOn(offered.includes('wheel_alignment'))
+      setWheelAlignmentPrice(data.wheel_alignment_price != null ? String(data.wheel_alignment_price) : '')
+      setMobileFitting(offered.includes('mobile_fitting') || !!data.mobile_fitting_available)
+      if (Array.isArray(data.opening_hours) && data.opening_hours.length > 0) {
+        setHours(data.opening_hours)
+      }
+      seeded.current = true
+    }
+  }, [data])
 
   function updateHour(index: number, patch: Partial<WorkingHour>) {
     setHours(prev => prev.map((h, i) => i === index ? { ...h, ...patch } : h))
@@ -130,6 +135,7 @@ export default function ServicesClient({ accessToken }: { accessToken: string })
       return
     }
     setSaving(true); setError('')
+    const token = await getToken()
 
     const services_offered: string[] = []
     if (capabilities.passenger_suv)  services_offered.push('passenger_suv')
@@ -139,9 +145,9 @@ export default function ServicesClient({ accessToken }: { accessToken: string })
     if (mobileFitting)               services_offered.push('mobile_fitting')
 
     try {
-      const res = await fetch(`${API}/api/fitter/portal/services`, {
+      const res = await fetch(`${BACKEND_API_URL}/api/fitter/portal/services`, {
         method:  'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        headers: createBackendHeaders(token, { 'Content-Type': 'application/json' }),
         body:    JSON.stringify({
           services_offered,
           wheel_alignment_price:    wheelAlignmentOn && wheelAlignmentPrice ? parseFloat(wheelAlignmentPrice) : null,
@@ -151,6 +157,7 @@ export default function ServicesClient({ accessToken }: { accessToken: string })
       })
       if (!res.ok) { setError('Failed to save services.'); return }
       setSaved(true)
+      queryClient.invalidateQueries({ queryKey: fitterKeys.services() })
     } finally { setSaving(false) }
   }
 

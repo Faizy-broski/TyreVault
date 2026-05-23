@@ -2,7 +2,7 @@ import { Worker, type Job } from 'bullmq'
 import { supabase } from '../services/supabase.service'
 import { redis, TTL } from '../services/redis.service'
 import { normalizeTyreSize } from '../utils/size-normalizer'
-import { catalogueSyncQueue } from '../queues'
+import { getSetting } from '../services/admin.settings.service'
 
 const connection = {
   url: process.env.UPSTASH_REDIS_URL!,
@@ -48,8 +48,11 @@ export const supplierImportWorker = new Worker<SupplierImportJobData>(
     console.log(`[SupplierImport] Processing ${rows.length} rows for supplier ${supplier_id}`)
 
     // Load brand normalization map from Redis (or DB if cache miss)
-    const brandMap = await getBrandMap()
+    const brandMap   = await getBrandMap()
     const patternMap = await getPatternMap()
+
+    // Read auto_mapping_enabled toggle — cached in Redis 60s
+    const autoMappingEnabled = await getAutoMappingEnabled()
 
     const results = { auto_mapped: 0, review_queue: 0, rejected: 0 }
 
@@ -59,41 +62,43 @@ export const supplierImportWorker = new Worker<SupplierImportJobData>(
 
       try {
         const score = await scoreRow(row, brandMap, patternMap)
-        const mappedProductId = score.confidence >= AUTO_MAP_THRESHOLD ? score.product_id : null
+
+        // Toggle-aware threshold logic
+        const shouldAutoApprove = autoMappingEnabled && score.confidence >= AUTO_MAP_THRESHOLD
+        const isAboveReview     = score.confidence >= REVIEW_THRESHOLD
+
+        if (!isAboveReview) {
+          // Below review threshold — rejected, skip upsert
+          results.rejected++
+          continue
+        }
+
+        const mappedProductId = shouldAutoApprove ? score.product_id : null
 
         await supabase.from('supplier_product_map').upsert({
           supplier_id,
-          product_id: mappedProductId,
-          supplier_sku: row.supplier_sku,
-          supplier_product_name: row.supplier_product_name,
-          supplier_brand_name: row.supplier_brand_name,
-          supplier_pattern_name: row.supplier_pattern_name,
-          supplier_size_raw: row.supplier_size_raw,
-          normalized_size_code: score.normalized_size,
-          load_index: row.load_index,
-          speed_rating: row.speed_rating,
-          ply_rating: row.ply_rating,
-          supplier_price: row.supplier_price,
-          supplier_stock: row.supplier_stock ?? 0,
-          lead_time_days: row.lead_time_days,
-          is_verified: score.confidence >= AUTO_MAP_THRESHOLD,
-          match_confidence: score.confidence,
-          last_updated: new Date().toISOString(),
+          product_id:             mappedProductId,
+          supplier_sku:           row.supplier_sku,
+          supplier_product_name:  row.supplier_product_name,
+          supplier_brand_name:    row.supplier_brand_name,
+          supplier_pattern_name:  row.supplier_pattern_name,
+          supplier_size_raw:      row.supplier_size_raw,
+          normalized_size_code:   score.normalized_size,
+          load_index:             row.load_index,
+          speed_rating:           row.speed_rating,
+          ply_rating:             row.ply_rating,
+          supplier_price:         row.supplier_price,
+          supplier_stock:         row.supplier_stock ?? 0,
+          lead_time_days:         row.lead_time_days,
+          is_verified:            shouldAutoApprove,
+          match_confidence:       score.confidence,
+          last_updated:           new Date().toISOString(),
         }, { onConflict: 'supplier_id,supplier_sku' })
 
-        if (score.confidence >= AUTO_MAP_THRESHOLD) {
+        if (shouldAutoApprove) {
           results.auto_mapped++
-          // Trigger catalogue sync for the matched SKU
-          if (mappedProductId) {
-            await catalogueSyncQueue?.add('upsert_sku', {
-              type: 'upsert_sku',
-              product_id: mappedProductId,
-            })
-          }
-        } else if (score.confidence >= REVIEW_THRESHOLD) {
-          results.review_queue++
         } else {
-          results.rejected++
+          results.review_queue++
         }
       } catch (err) {
         console.error(`[SupplierImport] Row ${i} failed:`, err)
@@ -228,4 +233,19 @@ async function getPatternMap(): Promise<PatternMapEntry[]> {
   const map = (data ?? []).map(p => ({ id: p.pattern_id, name: p.pattern_name, brand_id: p.brand_id }))
   await redis?.set('supplier_pattern_map', map, { ex: TTL.SUPPLIER_MAP })
   return map
+}
+
+async function getAutoMappingEnabled(): Promise<boolean> {
+  const CACHE_KEY = 'setting:auto_mapping_enabled'
+  const cached = await redis?.get<boolean>(CACHE_KEY)
+  if (cached !== null && cached !== undefined) return cached
+
+  try {
+    const row = await getSetting('auto_mapping_enabled')
+    const value = row?.value ?? true
+    await redis?.set(CACHE_KEY, value, { ex: 60 })
+    return Boolean(value)
+  } catch {
+    return true // default: enabled
+  }
 }

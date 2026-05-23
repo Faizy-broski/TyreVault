@@ -1,13 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button }           from '@/components/ui/button'
 import { Skeleton }         from '@/components/ui/skeleton'
 import { FitterBreadcrumb } from '@/components/fitter/FitterBreadcrumb'
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+import { useFitterSchedule } from '@/lib/query/fitter-hooks'
 
 interface ScheduleJob {
   job_id:         string
@@ -63,26 +62,13 @@ function formatWeekHeader(monday: Date): string {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export default function ScheduleClient({ accessToken }: { accessToken: string }) {
-  const [monday,  setMonday]  = useState<Date>(() => getMondayOf(new Date()))
-  const [jobs,    setJobs]    = useState<ScheduleJob[]>([])
-  const [loading, setLoading] = useState(false)
+export default function ScheduleClient() {
+  const [monday, setMonday] = useState<Date>(() => getMondayOf(new Date()))
+
+  const { data: jobs = [], isFetching: loading } = useFitterSchedule(monday)
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(monday, i))
   const todayISO = toISO(new Date())
-
-  useEffect(() => {
-    const weekStart = toISO(monday)
-    const weekEnd   = toISO(addDays(monday, 6))
-    setLoading(true)
-    fetch(`${API}/api/fitter/portal/schedule?weekStart=${weekStart}&weekEnd=${weekEnd}`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    })
-      .then(r => r.ok ? r.json() : [])
-      .then(data => setJobs(Array.isArray(data) ? data : []))
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [monday, accessToken])
 
   // Build: { [isoDate]: { [hourKey]: ScheduleJob[] } }
   const jobMap: Record<string, Record<string, ScheduleJob[]>> = {}

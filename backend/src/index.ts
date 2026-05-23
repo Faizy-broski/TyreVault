@@ -3,6 +3,7 @@ import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import compression from 'compression'
+import rateLimit from 'express-rate-limit'
 import { errorMiddleware } from './middleware/error.middleware'
 
 const app = express()
@@ -17,6 +18,10 @@ app.use(cors({
 }))
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
+
+// --- Rate limiting ---
+const importLimiter = rateLimit({ windowMs: 60_000, max: 5,  standardHeaders: true, legacyHeaders: false })
+const checkoutLimiter = rateLimit({ windowMs: 60_000, max: 20, standardHeaders: true, legacyHeaders: false })
 
 // --- Health check ---
 app.get('/health', (_req, res) => {
@@ -33,18 +38,27 @@ import fitterRoutes             from './routes/fitter.routes'
 import fitterPortalRoutes       from './routes/fitter-portal.routes'
 import storefrontProductsRoutes from './routes/storefront.products.routes'
 import cartRoutes               from './routes/cart.routes'
+import stripeRoutes             from './routes/stripe.routes'
+import ordersRoutes             from './routes/orders.routes'
+import adminSettingsRoutes      from './routes/admin.settings.routes'
+import adminPromotionsRoutes    from './routes/admin.promotions.routes'
+import vehiclesRoutes           from './routes/vehicles.routes'
+import sseRoutes                from './routes/sse.routes'
 app.use('/api/admin/products',         adminProductsRoutes)
 app.use('/api/admin/customers',        adminCustomersRoutes)
 app.use('/api/admin/orders',           adminOrdersRoutes)
 app.use('/api/admin/fitment-centres',  adminFitmentCentresRoutes)
 app.use('/api/admin/suppliers',        adminSuppliersRoutes)
+app.use('/api/admin/settings',         adminSettingsRoutes)
+app.use('/api/admin/promotions',       adminPromotionsRoutes)
+app.use('/api/vehicles',               vehiclesRoutes)
+app.use('/api/sse',                    sseRoutes)
 app.use('/api/fitter',                 fitterRoutes)
 app.use('/api/fitter/portal',          fitterPortalRoutes)
 app.use('/api/products',               storefrontProductsRoutes)
 app.use('/api/cart',                   cartRoutes)
-// app.use('/api/orders', orderRoutes)
-// app.use('/api/shipping', shippingRoutes)
-// app.use('/api/stripe', stripeRoutes)
+app.use('/api/stripe',                 stripeRoutes)
+app.use('/api/orders',                 ordersRoutes)
 // app.use('/api/make-model', makeModelRoutes)
 
 // --- Error handler (must be last) ---

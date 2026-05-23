@@ -1,14 +1,12 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useCallback } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
 import ProductsTable from '@/components/admin/products/ProductsTable'
-import { toastError } from '@/lib/toast'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
+import { useProductList, useProductMeta } from '@/lib/query/hooks'
 
-const API   = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 const LIMIT = 20
 
 type Product = {
@@ -45,85 +43,13 @@ export default function AdminProductsPage() {
   const brandId   = searchParams.get('brandId')   ?? ''
   const status    = searchParams.get('status')    ?? ''
 
-  const [products, setProducts] = useState<Product[]>([])
-  const [brands, setBrands]     = useState<Brand[]>([])
-  const [count, setCount]       = useState(0)
-  const [loading, setLoading]   = useState(true)
+  const metaQuery = useProductMeta()
+  const listQuery = useProductList({ search, page, sortBy, sortOrder, brandId, status })
 
-  useEffect(() => { document.title = 'Products | Tyre Vault' }, [])
-
-  // Fetch brands for filter dropdown once
-  useEffect(() => {
-    async function loadBrands() {
-      try {
-        const { data: { session } } = await createClient().auth.getSession()
-        const tok = session?.access_token ?? ''
-        const res = await fetch(`${API}/api/admin/products/meta`, {
-          headers: { Authorization: `Bearer ${tok}` },
-        })
-        if (res.ok) {
-          const json = await res.json()
-          setBrands(json.brands ?? [])
-        }
-      } catch { /* non-fatal */ }
-    }
-    loadBrands()
-  }, [])
-
-  useEffect(() => {
-    let cancelled = false
-    async function load() {
-      setLoading(true)
-      try {
-        const { data: { session } } = await createClient().auth.getSession()
-        const tok = session?.access_token ?? ''
-
-        const qs = new URLSearchParams({ page: String(page), sortBy, sortOrder })
-        if (search)  qs.set('search',  search)
-        if (brandId) qs.set('brandId', brandId)
-        if (status)  qs.set('status',  status)
-
-        const res = await fetch(`${API}/api/admin/products?${qs}`, {
-          headers: { Authorization: `Bearer ${tok}` },
-          cache: 'no-store',
-        })
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}))
-          throw new Error(body.error ?? `API returned ${res.status}`)
-        }
-        const json = await res.json()
-        if (!cancelled) {
-          setCount(json.total ?? 0)
-          setProducts((json.data ?? []).map((p: {
-            id: string; name: string
-            brand: { brand_id: string; brand_name: string } | null
-            collection: { collection_name: string } | null
-            variantCount: number; activeVariantCount: number
-            isActive: boolean; showOnWebsite: boolean
-            updatedAt: string; createdAt: string
-          }) => ({
-            id:             p.id,
-            name:           p.name,
-            brand:          p.brand?.brand_name ?? '—',
-            brandId:        p.brand?.brand_id ?? '',
-            collection:     p.collection?.collection_name ?? null,
-            variantCount:   p.variantCount,
-            activeVariants: p.activeVariantCount,
-            isActive:       p.isActive,
-            showOnWebsite:  p.showOnWebsite,
-            updatedAt:      p.updatedAt,
-            createdAt:      p.createdAt,
-          })))
-        }
-      } catch (err) {
-        if (!cancelled) toastError(err instanceof Error ? err.message : 'Failed to load products')
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-    load()
-    return () => { cancelled = true }
-  }, [search, page, sortBy, sortOrder, brandId, status])
+  const loading  = listQuery.isPending
+  const products = listQuery.data?.data ?? []
+  const brands   = metaQuery.data?.brands ?? []
+  const count    = listQuery.data?.total  ?? 0
 
   const totalPages = Math.ceil(count / LIMIT)
 

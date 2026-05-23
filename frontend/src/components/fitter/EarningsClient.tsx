@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Download, Search, CircleDollarSign, Plus, TrendingUp } from 'lucide-react'
 import { Button }   from '@/components/ui/button'
 import { Input }    from '@/components/ui/input'
@@ -12,8 +12,10 @@ import {
 import type { FitterEarning } from '@/types/fitter.types'
 import { FitterBreadcrumb } from '@/components/fitter/FitterBreadcrumb'
 import { fmtCurrency, fmtShortDate } from '@/lib/fitter-format'
+import { useFitterEarningsSummary, useFitterEarningsList } from '@/lib/query/fitter-hooks'
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+type EarningsSummary     = { thisMonth: number; pendingTotal: number; completedCount: number }
+type EarningsListResponse = { data: FitterEarning[]; total: number }
 
 const PAYOUT_STYLE = {
   paid:    'bg-green-100 text-green-600 hover:bg-green-100',
@@ -39,67 +41,43 @@ function TableSkeleton() {
   ))
 }
 
-export default function EarningsClient({ accessToken }: { accessToken: string }) {
-  const [earnings, setEarnings]         = useState<FitterEarning[]>([])
-  const [total, setTotal]               = useState(0)
-  const [thisMonth, setThisMonth]       = useState(0)
-  const [pendingTotal, setPendingTotal] = useState(0)
-  const [completedCount, setCompleted]  = useState(0)
-  const [statusFilter, setStatusFilter] = useState('')
-  const [search, setSearch]             = useState('')
-  const [page, setPage]                 = useState(1)
-  const [loading, setLoading]           = useState(true)
-  const [summaryLoading, setSummaryLoading] = useState(true)
+export default function EarningsClient({
+  initialSummary,
+  initialList,
+}: {
+  initialSummary?: EarningsSummary
+  initialList?:    EarningsListResponse
+}) {
+  const [statusFilter,     setStatusFilter]     = useState('')
+  const [search,           setSearch]           = useState('')
+  const [committedSearch,  setCommittedSearch]  = useState('')
+  const [page,             setPage]             = useState(1)
 
-  const limit      = 20
+  const limit = 20
+
+  const summaryQ = useFitterEarningsSummary({ initialData: initialSummary })
+  const listQ    = useFitterEarningsList(
+    { statusFilter, search: committedSearch, page },
+    { initialData: initialList },
+  )
+
+  const { thisMonth = 0, pendingTotal = 0, completedCount = 0 } = summaryQ.data ?? {}
+  const earnings   = listQ.data?.data  ?? []
+  const total      = listQ.data?.total ?? 0
   const totalPages = Math.ceil(total / limit)
-  const headers    = { Authorization: `Bearer ${accessToken}` }
 
-  async function fetchEarnings(opts: { status?: string; search?: string; page?: number }) {
-    setLoading(true)
-    const qs = new URLSearchParams()
-    if (opts.status) qs.set('status', opts.status)
-    if (opts.search) qs.set('search', opts.search)
-    qs.set('page', String(opts.page ?? 1))
-    try {
-      const res = await fetch(`${API}/api/fitter/portal/earnings?${qs}`, { headers })
-      if (res.ok) {
-        const json = await res.json()
-        setEarnings(json.data  ?? [])
-        setTotal(json.total    ?? 0)
-      }
-    } finally { setLoading(false) }
-  }
-
-  useEffect(() => {
-    fetch(`${API}/api/fitter/portal/earnings/summary`, { headers })
-      .then(r => r.ok ? r.json() : {})
-      .then((s: Record<string, number>) => {
-        setThisMonth(s.thisMonth      ?? 0)
-        setPendingTotal(s.pendingTotal   ?? 0)
-        setCompleted(s.completedCount ?? 0)
-      })
-      .catch(() => {})
-      .finally(() => setSummaryLoading(false))
-
-    fetchEarnings({ page: 1 })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken])
+  const summaryLoading = summaryQ.isPending
+  const loading        = listQ.isPending
 
   function applyStatus(s: string) {
-    const next = s === statusFilter ? '' : s
-    setStatusFilter(next); setPage(1)
-    fetchEarnings({ status: next, search, page: 1 })
+    setStatusFilter(s === statusFilter ? '' : s)
+    setPage(1)
   }
 
   function handleSearch(e: React.FormEvent) {
-    e.preventDefault(); setPage(1)
-    fetchEarnings({ status: statusFilter, search, page: 1 })
-  }
-
-  function goPage(p: number) {
-    setPage(p)
-    fetchEarnings({ status: statusFilter, search, page: p })
+    e.preventDefault()
+    setCommittedSearch(search)
+    setPage(1)
   }
 
   return (
@@ -250,7 +228,7 @@ export default function EarningsClient({ accessToken }: { accessToken: string })
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => page > 1 && goPage(page - 1)}
+                onClick={() => page > 1 && setPage(page - 1)}
                 disabled={page <= 1}
                 className="h-7 px-2.5 text-xs rounded border-zinc-200 hover:bg-zinc-50 disabled:opacity-40 transition-colors"
               >
@@ -259,7 +237,7 @@ export default function EarningsClient({ accessToken }: { accessToken: string })
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => page < totalPages && goPage(page + 1)}
+                onClick={() => page < totalPages && setPage(page + 1)}
                 disabled={page >= totalPages}
                 className="h-7 px-2.5 text-xs rounded border-zinc-200 hover:bg-zinc-50 disabled:opacity-40 transition-colors"
               >

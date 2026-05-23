@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import FitterSidebar from '@/components/fitter/FitterSidebar'
 import FitterHeader  from '@/components/fitter/FitterHeader'
+import FitterShell   from '@/components/fitter/FitterShell'
 import type { FitmentCentre } from '@/types/fitter.types'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
@@ -40,21 +41,23 @@ export default async function FitterLayout({ children }: { children: React.React
   if (!centre) redirect('/fitter/onboarding')
 
   return (
-    <div className="flex h-svh bg-zinc-100 overflow-hidden">
-      {/* Desktop sidebar — hidden on mobile, shown lg+ */}
-      <FitterSidebar />
+    <FitterShell>
+      <div className="flex h-svh bg-zinc-100 overflow-hidden">
+        {/* Desktop sidebar — hidden on mobile, shown lg+ */}
+        <FitterSidebar />
 
-      {/* Main column */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <FitterHeader
-          centre={centre}
-          userEmail={user.email ?? ''}
-          notificationCount={0}
-        />
-        <main className="flex-1 overflow-y-auto overflow-x-hidden">
-          {children}
-        </main>
+        {/* Main column */}
+        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+          <FitterHeader
+            centre={centre}
+            userEmail={user.email ?? ''}
+            notificationCount={0}
+          />
+          <main className="flex-1 overflow-y-auto overflow-x-hidden">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </FitterShell>
   )
 }

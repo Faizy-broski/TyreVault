@@ -12,8 +12,7 @@ export default async function FitterDashboardPage() {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) redirect('/login')
 
-  const token   = session.access_token
-  const headers = { Authorization: `Bearer ${token}` }
+  const headers = { Authorization: `Bearer ${session.access_token}` }
 
   let kpis: FitterKPIs = {
     newJobsToday: 0, pendingJobs: 0, scheduledThisWeek: 0,
@@ -38,7 +37,6 @@ export default async function FitterDashboardPage() {
       initialKPIs={kpis}
       initialJobs={jobs}
       centreId={centreId}
-      accessToken={token}
     />
   )
 }

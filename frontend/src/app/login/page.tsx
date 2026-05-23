@@ -1,12 +1,11 @@
 'use client'
 
 import { useState, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 
 function LoginForm() {
-  const router       = useRouter()
   const searchParams = useSearchParams()
   const redirect     = searchParams.get('redirect') ?? '/'
 
@@ -38,13 +37,12 @@ function LoginForm() {
 
     const role = (profile as any)?.role
     if (role === 'super_admin') {
-      router.push('/admin/dashboard')
+      window.location.replace('/admin/dashboard')
     } else if (role === 'fitter') {
-      router.push('/fitter/dashboard')
+      window.location.replace('/fitter/dashboard')
     } else {
-      router.push(redirect)
+      window.location.replace(redirect)
     }
-    router.refresh()
   }
 
   const forgotHref = email.trim()

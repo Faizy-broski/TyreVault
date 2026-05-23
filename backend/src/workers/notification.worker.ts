@@ -1,5 +1,5 @@
 import { Worker, type Job } from 'bullmq'
-import { supabase } from '../services/supabase.service'
+import nodemailer from 'nodemailer'
 
 const connection = {
   url: process.env.UPSTASH_REDIS_URL!,
@@ -7,19 +7,89 @@ const connection = {
   enableReadyCheck: false,
 }
 
-export type NotificationJobData =
-  | { type: 'order_confirmed';     customer_email: string; order_number: string; total_amount: number }
-  | { type: 'fitment_job_assigned'; fitter_email: string; job_id: string; scheduled_date: string }
-  | { type: 'fitment_job_completed'; customer_email: string; order_number: string }
-  | { type: 'stock_low_alert';     admin_email: string; product_id: string; sku: string; stock: number }
-  | { type: 'supplier_import_done'; admin_email: string; supplier_id: string; results: Record<string, number> }
+// Lazily create transporter — only when SMTP env vars are present
+let _transporter: nodemailer.Transporter | null = null
+function getTransporter(): nodemailer.Transporter | null {
+  if (_transporter) return _transporter
+  const host = process.env.SMTP_HOST
+  if (!host) return null
+  _transporter = nodemailer.createTransport({
+    host,
+    port:   parseInt(process.env.SMTP_PORT ?? '587', 10),
+    secure: process.env.SMTP_SECURE === 'true',
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  })
+  return _transporter
+}
 
-// ============================================================
-// Worker — concurrency: 20, fire-and-forget
-// Sends transactional notifications.
-// Phase 1: Supabase Auth emails only (built-in).
-// Phase 2: Replace with SendGrid / Postmark.
-// ============================================================
+export type NotificationJobData =
+  | { type: 'order_confirmed';       customer_email: string; order_number: string; total_amount: number; items?: Array<{ name: string; qty: number; price: number }>; fitment_centre?: string; scheduled_date?: string }
+  | { type: 'shipment_tracking';     customer_email: string; order_number: string; tracking_number: string; tracking_url: string; carrier: string }
+  | { type: 'delivery_confirmation'; customer_email: string; order_number: string; delivered_at: string }
+  | { type: 'fitment_job_assigned';  fitter_email: string;   job_id: string; job_number?: string; customer_name?: string; customer_contact?: string; scheduled_date: string; scheduled_time?: string }
+  | { type: 'fitment_job_completed'; customer_email: string; order_number: string }
+  | { type: 'stock_low_alert';       admin_email: string; product_id: string; sku: string; stock: number }
+  | { type: 'supplier_import_done';  admin_email: string; supplier_id: string; results: Record<string, number> }
+
+// ── Nodemailer email sender ────────────────────────────────────
+async function sendEmail(to: string, subject: string, html: string) {
+  const transporter = getTransporter()
+  if (!transporter) {
+    console.log(`[Notification] (no SMTP config) Would send "${subject}" → ${to}`)
+    return
+  }
+  await transporter.sendMail({
+    from:    process.env.EMAIL_FROM ?? '"Onyx Tyres" <noreply@onyxtyres.com.au>',
+    to,
+    subject,
+    html,
+  })
+}
+
+// ── Email templates ────────────────────────────────────────────
+function tplOrderConfirmed(d: Extract<NotificationJobData, { type: 'order_confirmed' }>): string {
+  const rows = (d.items ?? []).map(i =>
+    `<tr><td style="padding:6px 8px">${i.name}</td><td style="padding:6px 8px;text-align:center">${i.qty}</td><td style="padding:6px 8px;text-align:right">$${(i.price * i.qty).toFixed(2)}</td></tr>`
+  ).join('')
+  return `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#18181b">
+    <h2>Order Confirmed</h2>
+    <p>Your reference: <strong>${d.order_number}</strong></p>
+    ${rows ? `<table style="width:100%;border-collapse:collapse;margin:16px 0"><thead><tr style="background:#f4f4f5"><th style="padding:8px;text-align:left">Item</th><th style="padding:8px">Qty</th><th style="padding:8px;text-align:right">Total</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="2" style="padding:8px;font-weight:bold">Total</td><td style="padding:8px;font-weight:bold;text-align:right">$${d.total_amount.toFixed(2)}</td></tr></tfoot></table>` : ''}
+    ${d.fitment_centre ? `<p>Fitment booked at <strong>${d.fitment_centre}</strong>${d.scheduled_date ? ` on ${d.scheduled_date}` : ''}.</p>` : ''}
+    <p style="color:#71717a;font-size:12px">Prices include GST. Questions? Email support@onyxtyres.com.au</p>
+  </div>`
+}
+
+function tplShipmentTracking(d: Extract<NotificationJobData, { type: 'shipment_tracking' }>): string {
+  return `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#18181b">
+    <h2>Your order is on its way!</h2>
+    <p>Order <strong>${d.order_number}</strong> shipped via ${d.carrier}.</p>
+    <p>Tracking: <strong>${d.tracking_number}</strong></p>
+    <p><a href="${d.tracking_url}" style="color:#2563eb">Track your parcel →</a></p>
+  </div>`
+}
+
+function tplDeliveryConfirmation(d: Extract<NotificationJobData, { type: 'delivery_confirmation' }>): string {
+  return `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#18181b">
+    <h2>Order delivered!</h2>
+    <p>Order <strong>${d.order_number}</strong> was delivered on ${new Date(d.delivered_at).toLocaleDateString('en-AU')}.</p>
+    <p>We hope you love your new tyres. Please consider leaving us a review!</p>
+  </div>`
+}
+
+function tplFitterAssignment(d: Extract<NotificationJobData, { type: 'fitment_job_assigned' }>): string {
+  return `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#18181b">
+    <h2>New Fitment Job Assigned</h2>
+    <p>Job: <strong>${d.job_number ?? d.job_id}</strong></p>
+    ${d.customer_name ? `<p>Customer: ${d.customer_name}${d.customer_contact ? ` — ${d.customer_contact}` : ''}</p>` : ''}
+    <p>Scheduled: ${d.scheduled_date}${d.scheduled_time ? ` at ${d.scheduled_time}` : ''}</p>
+  </div>`
+}
+
+// ── Worker ─────────────────────────────────────────────────────
 export const notificationWorker = new Worker<NotificationJobData>(
   'notification',
   async (job: Job<NotificationJobData>) => {
@@ -27,25 +97,25 @@ export const notificationWorker = new Worker<NotificationJobData>(
 
     switch (data.type) {
       case 'order_confirmed':
-        await sendOrderConfirmation(data)
+        await sendEmail(data.customer_email, `Order Confirmed — ${data.order_number}`, tplOrderConfirmed(data))
         break
-
+      case 'shipment_tracking':
+        await sendEmail(data.customer_email, `Your order ${data.order_number} has shipped`, tplShipmentTracking(data))
+        break
+      case 'delivery_confirmation':
+        await sendEmail(data.customer_email, `Order ${data.order_number} delivered`, tplDeliveryConfirmation(data))
+        break
       case 'fitment_job_assigned':
-        await sendFitmentJobAssigned(data)
+        await sendEmail(data.fitter_email, `New fitment job ${data.job_number ?? data.job_id}`, tplFitterAssignment(data))
         break
-
       case 'fitment_job_completed':
-        await sendFitmentJobCompleted(data)
+        console.log(`[Notification] Fitment completed → ${data.customer_email} | #${data.order_number}`)
         break
-
       case 'stock_low_alert':
-        console.log(`[Notification] Low stock alert: SKU ${data.sku} = ${data.stock} units`)
-        // TODO Stage 6: send to admin Slack / email
+        console.log(`[Notification] Low stock: SKU ${data.sku} = ${data.stock} units`)
         break
-
       case 'supplier_import_done':
-        console.log(`[Notification] Supplier import done for ${data.supplier_id}:`, data.results)
-        // TODO Stage 6: send summary to admin
+        console.log(`[Notification] Import done for ${data.supplier_id}:`, data.results)
         break
     }
   },
@@ -55,24 +125,3 @@ export const notificationWorker = new Worker<NotificationJobData>(
 notificationWorker.on('failed', (job, err) => {
   console.error(`[Notification] Job ${job?.id} failed:`, err.message)
 })
-
-// ============================================================
-// Notification handlers (Phase 1: log only; Phase 2: email API)
-// ============================================================
-
-async function sendOrderConfirmation(data: Extract<NotificationJobData, { type: 'order_confirmed' }>) {
-  // Phase 1: Supabase auth emails handle auth flows only.
-  // Transactional emails (order confirmed) need an email service.
-  // TODO Stage 6: integrate SendGrid / Postmark
-  console.log(`[Notification] Order confirmed → ${data.customer_email} | Order #${data.order_number} | $${data.total_amount}`)
-}
-
-async function sendFitmentJobAssigned(data: Extract<NotificationJobData, { type: 'fitment_job_assigned' }>) {
-  console.log(`[Notification] Job assigned → ${data.fitter_email} | Job ${data.job_id} on ${data.scheduled_date}`)
-  // TODO Stage 6: email + Supabase Realtime push
-}
-
-async function sendFitmentJobCompleted(data: Extract<NotificationJobData, { type: 'fitment_job_completed' }>) {
-  console.log(`[Notification] Job completed → ${data.customer_email} | Order #${data.order_number}`)
-  // TODO Stage 6: email customer with completion confirmation
-}
