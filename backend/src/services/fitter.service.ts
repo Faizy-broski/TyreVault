@@ -40,7 +40,7 @@ export async function resendFitterInvite(id: string) {
   const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000'
 
   const { error } = await db.auth.admin.inviteUserByEmail(app.email as string, {
-    redirectTo: `${frontendUrl}/api/auth/callback?next=/fitter/dashboard`,
+    redirectTo: `${frontendUrl}/update-password`,
     data: { full_name: app.full_name },
   })
 
@@ -133,7 +133,7 @@ export async function reviewApplication(
   const { data: invited, error: inviteErr } = await db.auth.admin.inviteUserByEmail(
     app.email as string,
     {
-      redirectTo: `${frontendUrl}/api/auth/callback?next=/fitter/dashboard`,
+      redirectTo: `${frontendUrl}/update-password`,
       data: { full_name: app.full_name },
     }
   )

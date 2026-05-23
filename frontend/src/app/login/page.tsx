@@ -54,6 +54,17 @@ function LoginForm() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4">
       <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-sm ring-1 ring-black/5">
+      <Link
+      href="/"
+      className="mb-6 flex items-center justify-center transition-opacity hover:opacity-80"
+    >
+      <img
+        src="/logo_dark.svg"
+        alt="Tyre Vault"
+        className="h-14 w-auto"
+      />
+    </Link>
+
         <div className="mb-6">
           <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
             Sign in to Tyre Vault
