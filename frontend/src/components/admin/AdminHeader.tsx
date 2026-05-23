@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { Bell, ChevronDown, Menu } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -20,13 +19,12 @@ interface Props {
 }
 
 export default function AdminHeader({ userEmail, notificationCount = 0, onMenuToggle }: Props) {
-  const router      = useRouter()
   const initials    = userEmail.slice(0, 2).toUpperCase()
   const displayName = userEmail.split('@')[0].split('.').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')
 
   async function handleSignOut() {
     await createClient().auth.signOut()
-    router.push('/login')
+    window.location.replace('/login')
   }
 
   return (

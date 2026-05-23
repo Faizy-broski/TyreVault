@@ -64,6 +64,7 @@ export default function PricingOverrideTab({ centreId, initialRows, accessToken 
   })
   const [editing, setEditing] = useState(false)
   const [saving, setSaving]   = useState(false)
+  const [, setSaved]          = useState(false)
 
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }
 

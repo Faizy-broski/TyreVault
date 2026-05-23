@@ -12,14 +12,10 @@ export default async function FitterEarningsPage() {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) redirect('/login')
 
-  const token   = session.access_token
-  const headers = { Authorization: `Bearer ${token}` }
+  const headers = { Authorization: `Bearer ${session.access_token}` }
 
-  let thisMonth      = 0
-  let pendingTotal   = 0
-  let completedCount = 0
-  let earnings: FitterEarning[] = []
-  let total = 0
+  let initialSummary = { thisMonth: 0, pendingTotal: 0, completedCount: 0 }
+  let initialList: { data: FitterEarning[]; total: number } = { data: [], total: 0 }
 
   try {
     const [summaryRes, historyRes] = await Promise.all([
@@ -28,25 +24,22 @@ export default async function FitterEarningsPage() {
     ])
     if (summaryRes.ok) {
       const s = await summaryRes.json()
-      thisMonth      = s.thisMonth      ?? 0
-      pendingTotal   = s.pendingTotal   ?? 0
-      completedCount = s.completedCount ?? 0
+      initialSummary = {
+        thisMonth:      s.thisMonth      ?? 0,
+        pendingTotal:   s.pendingTotal   ?? 0,
+        completedCount: s.completedCount ?? 0,
+      }
     }
     if (historyRes.ok) {
       const h = await historyRes.json()
-      earnings = h.data  ?? []
-      total    = h.total ?? 0
+      initialList = { data: h.data ?? [], total: h.total ?? 0 }
     }
   } catch { /* backend may not be running in dev */ }
 
   return (
     <EarningsClient
-      thisMonth={thisMonth}
-      pendingTotal={pendingTotal}
-      completedCount={completedCount}
-      initialEarnings={earnings}
-      initialTotal={total}
-      accessToken={token}
+      initialSummary={initialSummary}
+      initialList={initialList}
     />
   )
 }

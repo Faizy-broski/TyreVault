@@ -1,6 +1,5 @@
 import { supabase } from './supabase.service'
 import { redis, TTL } from './redis.service'
-import { catalogueSyncQueue } from '../queues'
 import { normalizeTyreSize } from '../utils/size-normalizer'
 
 // ============================================================
@@ -336,12 +335,6 @@ export async function createProduct(payload: CreateProductPayload) {
     }
   }
 
-  // 5. Enqueue Typesense sync for all created SKUs
-  await catalogueSyncQueue?.add('bulk_sync', {
-    type: 'bulk_sync',
-    product_ids: createdSkus,
-  })
-
   return { patternId, skuIds: createdSkus }
 }
 
@@ -405,15 +398,6 @@ export async function updateProduct(patternId: string, payload: Partial<CreatePr
     }
   }
 
-  // Sync all SKUs of this pattern to Typesense
-  const { data: skus } = await supabase
-    .from('skus').select('product_id').eq('pattern_id', patternId)
-  if (skus && skus.length > 0) {
-    await catalogueSyncQueue?.add('bulk_sync', {
-      type: 'bulk_sync',
-      product_ids: skus.map(s => s.product_id),
-    })
-  }
 }
 
 // ============================================================
@@ -427,13 +411,6 @@ export async function publishProduct(patternId: string, publish: boolean) {
     .update({ status: publish ? 'active' : 'inactive' })
     .eq('pattern_id', patternId)
 
-  const { data: skus } = await supabase.from('skus').select('product_id').eq('pattern_id', patternId)
-  if (skus && skus.length > 0) {
-    await catalogueSyncQueue?.add('bulk_sync', {
-      type: 'bulk_sync',
-      product_ids: skus.map(s => s.product_id),
-    })
-  }
 }
 
 // ============================================================
@@ -501,7 +478,6 @@ export async function addVariant(patternId: string, variant: VariantPayload, pri
     })
   }
 
-  await catalogueSyncQueue?.add('upsert_sku', { type: 'upsert_sku', product_id: sku.product_id })
   return sku.product_id
 }
 
@@ -526,7 +502,6 @@ export async function updateVariantStock(
   if (error) throw error
 
   await redis?.del(`stock:${productId}`)
-  await catalogueSyncQueue?.add('upsert_sku', { type: 'upsert_sku', product_id: productId })
 }
 
 // ============================================================
@@ -606,7 +581,6 @@ export async function updateVariantPrices(
     }
   }
 
-  await catalogueSyncQueue?.add('upsert_sku', { type: 'upsert_sku', product_id: productId })
 }
 
 // ============================================================
@@ -689,7 +663,6 @@ export async function updateProductStock(
   await supabase.from('skus').update({ total_available_stock: total }).eq('product_id', productId)
 
   await redis?.del(`stock:${productId}`)
-  await catalogueSyncQueue?.add('upsert_sku', { type: 'upsert_sku', product_id: productId })
 }
 
 // ============================================================

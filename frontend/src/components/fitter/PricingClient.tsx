@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Save, Trash2 } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Button }  from '@/components/ui/button'
 import { Input }   from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -12,6 +13,15 @@ import {
 import type { FitterPricingRow, PricingMatrix, TyreType, RimRange } from '@/types/fitter.types'
 import { TYRE_TYPES, RIM_RANGES, emptyPricingMatrix } from '@/types/fitter.types'
 import { FitterBreadcrumb } from '@/components/fitter/FitterBreadcrumb'
+import { useFitterPricing } from '@/lib/query/fitter-hooks'
+import { fitterKeys } from '@/lib/query/keys'
+import { BACKEND_API_URL, createBackendHeaders } from '@/lib/backend-api'
+import { createClient } from '@/lib/supabase/client'
+
+async function getToken(): Promise<string> {
+  const { data: { session } } = await createClient().auth.getSession()
+  return session?.access_token ?? ''
+}
 
 function PriceInput({ value, onChange, placeholder = '0.00' }: {
   value: string; onChange: (v: string) => void; placeholder?: string
@@ -58,24 +68,22 @@ function buildMatrix(rows: FitterPricingRow[]): PricingMatrix {
   return matrix
 }
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
-
-export default function PricingClient({ accessToken }: { accessToken: string }) {
+export default function PricingClient() {
+  const queryClient = useQueryClient()
   const [matrix,  setMatrix]  = useState<PricingMatrix>(emptyPricingMatrix)
-  const [loading, setLoading] = useState(true)
   const [saving,  setSaving]  = useState(false)
   const [saved,   setSaved]   = useState(false)
   const [error,   setError]   = useState('')
+  const seeded = useRef(false)
+
+  const { data: rows, isPending: loading } = useFitterPricing()
 
   useEffect(() => {
-    fetch(`${API}/api/fitter/portal/pricing`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    })
-      .then(r => r.ok ? r.json() : [])
-      .then((rows: FitterPricingRow[]) => setMatrix(buildMatrix(rows)))
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [accessToken])
+    if (rows && !seeded.current) {
+      setMatrix(buildMatrix(rows))
+      seeded.current = true
+    }
+  }, [rows])
 
   function handleChange(
     tyreType: TyreType, rimRange: RimRange,
@@ -91,7 +99,8 @@ export default function PricingClient({ accessToken }: { accessToken: string }) 
 
   async function handleSave() {
     setSaving(true); setError('')
-    const rows = TYRE_TYPES.flatMap(t =>
+    const token = await getToken()
+    const saveRows = TYRE_TYPES.flatMap(t =>
       RIM_RANGES.map(r => {
         const cell = matrix[t.key][r.key]
         return {
@@ -105,13 +114,14 @@ export default function PricingClient({ accessToken }: { accessToken: string }) 
       })
     )
     try {
-      const res = await fetch(`${API}/api/fitter/portal/pricing`, {
+      const res = await fetch(`${BACKEND_API_URL}/api/fitter/portal/pricing`, {
         method:  'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-        body:    JSON.stringify({ rows }),
+        headers: createBackendHeaders(token, { 'Content-Type': 'application/json' }),
+        body:    JSON.stringify({ rows: saveRows }),
       })
       if (!res.ok) { setError('Failed to save pricing.'); return }
       setSaved(true)
+      queryClient.invalidateQueries({ queryKey: fitterKeys.pricing() })
     } finally { setSaving(false) }
   }
 

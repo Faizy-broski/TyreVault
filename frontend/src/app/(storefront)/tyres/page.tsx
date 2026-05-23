@@ -1,4 +1,4 @@
-import { searchTyres } from '@/lib/typesense'
+import { searchTyres, getTyreFacets } from '@/lib/supabase/search'
 import TyresListingClient from '@/components/storefront/TyresListingClient'
 
 export const metadata = {
@@ -8,42 +8,49 @@ export const metadata = {
 
 interface Props {
   searchParams: Promise<{
-    q?: string
-    width?: string
-    profile?: string
+    q?:        string
+    width?:    string
+    profile?:  string
     rim_size?: string
-    brand?: string | string[]
-    runflat?: string
-    in_stock?: string
-    application_type?: string
-    page?: string
-    sort?: string
+    brand_id?: string
+    runflat?:  string
+    xl?:       string
+    speed?:    string
+    page?:     string
+    sort?:     string
   }>
 }
 
 export default async function TyresPage({ searchParams }: Props) {
   const params = await searchParams
 
-  const brands = params.brand
-    ? Array.isArray(params.brand) ? params.brand : [params.brand]
-    : undefined
+  const filters = {
+    q:        params.q,
+    width:    params.width    ? Number(params.width)    : undefined,
+    profile:  params.profile  ? Number(params.profile)  : undefined,
+    rim_size: params.rim_size ? Number(params.rim_size) : undefined,
+    brand_id: params.brand_id,
+    runflat:  params.runflat === 'true' ? true : params.runflat === 'false' ? false : undefined,
+    xl:       params.xl      === 'true' ? true : params.xl      === 'false' ? false : undefined,
+    speed:    params.speed,
+    sort:     params.sort as 'price_asc' | 'price_desc' | 'stock_desc' | 'updated_at_desc' | undefined,
+    page:     params.page ? Number(params.page) : 1,
+  }
 
   let result = null
+  let facets = null
   let errorMsg: string | null = null
 
   try {
-    result = await searchTyres({
-      q:                params.q,
-      width:            params.width    ? Number(params.width)    : undefined,
-      profile:          params.profile  ? Number(params.profile)  : undefined,
-      rim_size:         params.rim_size ? Number(params.rim_size) : undefined,
-      brand:            brands,
-      runflat:          params.runflat    === 'true' ? true : params.runflat === 'false' ? false : undefined,
-      in_stock:         params.in_stock  === 'true' ? true : undefined,
-      application_type: params.application_type,
-      page:             params.page ? Number(params.page) : 1,
-      sort:             params.sort as 'price_asc' | 'price_desc' | 'stock_desc' | undefined,
-    })
+    ;[result, facets] = await Promise.all([
+      searchTyres(filters),
+      getTyreFacets({
+        width:    filters.width,
+        profile:  filters.profile,
+        rim_size: filters.rim_size,
+        brand_id: filters.brand_id,
+      }),
+    ])
   } catch (err) {
     errorMsg = err instanceof Error ? err.message : 'Search unavailable'
   }
@@ -51,18 +58,19 @@ export default async function TyresPage({ searchParams }: Props) {
   return (
     <TyresListingClient
       initialResult={result}
+      initialFacets={facets}
       initialError={errorMsg}
       initialParams={{
-        q:                params.q ?? '',
-        width:            params.width    ? Number(params.width)    : undefined,
-        profile:          params.profile  ? Number(params.profile)  : undefined,
-        rim_size:         params.rim_size ? Number(params.rim_size) : undefined,
-        brand:            brands ?? [],
-        runflat:          params.runflat    === 'true' ? true : params.runflat === 'false' ? false : undefined,
-        in_stock:         params.in_stock  === 'true',
-        application_type: params.application_type,
-        page:             params.page ? Number(params.page) : 1,
-        sort:             (params.sort ?? 'stock_desc') as 'price_asc' | 'price_desc' | 'stock_desc',
+        q:        params.q ?? '',
+        width:    filters.width,
+        profile:  filters.profile,
+        rim_size: filters.rim_size,
+        brand_id: params.brand_id,
+        runflat:  filters.runflat,
+        xl:       filters.xl,
+        speed:    params.speed,
+        sort:     (params.sort ?? 'updated_at_desc') as 'price_asc' | 'price_desc' | 'stock_desc' | 'updated_at_desc',
+        page:     filters.page,
       }}
     />
   )

@@ -1,7 +1,6 @@
 import { Worker, type Job } from 'bullmq'
 import { supabase } from '../services/supabase.service'
 import { redis, TTL } from '../services/redis.service'
-import { catalogueSyncQueue } from '../queues'
 
 const connection = {
   url: process.env.UPSTASH_REDIS_URL!,
@@ -61,13 +60,7 @@ async function syncSupplierStock(supplier_id: string): Promise<void> {
     stockRows.map(row => redis?.del(`stock:${row.product_id}`))
   )
 
-  // Trigger Typesense sync for affected SKUs
-  const productIds = stockRows.map(r => r.product_id)
-  if (productIds.length > 0) {
-    await catalogueSyncQueue?.add('bulk_sync', { type: 'bulk_sync', product_ids: productIds })
-  }
-
-  console.log(`[StockSync] Invalidated ${productIds.length} stock cache entries for supplier ${supplier_id}`)
+  console.log(`[StockSync] Invalidated ${stockRows.length} stock cache entries for supplier ${supplier_id}`)
 }
 
 // ============================================================

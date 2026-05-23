@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import FitterMobileMenu from '@/components/fitter/FitterMobileMenu'
+import { createClient } from '@/lib/supabase/client'
 import type { FitmentCentre } from '@/types/fitter.types'
 
 interface Props {
@@ -21,6 +22,11 @@ interface Props {
 export default function FitterHeader({ centre, userEmail, notificationCount = 0 }: Props) {
   const initials    = userEmail.slice(0, 2).toUpperCase()
   const displayName = userEmail.split('@')[0].split('.').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')
+
+  async function handleSignOut() {
+    await createClient().auth.signOut()
+    window.location.replace('/login')
+  }
 
   return (
     <header className="h-14 bg-white border-b border-zinc-200 shadow-sm flex items-center gap-3 px-4 sm:px-6 shrink-0">
@@ -83,10 +89,11 @@ export default function FitterHeader({ centre, userEmail, notificationCount = 0 
               <a href="/fitter/support" className="cursor-pointer">Support</a>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <a href="/api/auth/signout" className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer">
-                Sign out
-              </a>
+            <DropdownMenuItem
+              className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer"
+              onSelect={handleSignOut}
+            >
+              Sign out
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

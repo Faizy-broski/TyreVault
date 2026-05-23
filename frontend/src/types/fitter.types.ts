@@ -38,48 +38,60 @@ export interface FitmentCentre {
   is_active:         boolean
 }
 
+export interface FitmentJobItem {
+  job_item_id:  string
+  product_id:   string | null
+  quantity:     number
+  service_type: 'fit_only' | 'supply_and_fit' | 'alignment' | null
+  unit_price:   number | null
+}
+
 export interface FitmentJob {
-  job_id:            string
-  task_number:       string
-  customer_name:     string
-  customer_phone:    string | null
-  scheduled_date:    string | null
-  scheduled_time:    string | null
-  tyre_pattern:      string | null
-  tyre_size:         string | null
-  quantity:          number
-  vehicle_model:     string | null
-  job_status:        JobStatus
-  notes:             string | null
-  fitter_notes:      string | null
-  admin_notes:       string | null
-  accepted_at:       string | null
-  completed_at:      string | null
-  earnings_amount:   number | null
-  fitment_centre_id: string
-  created_at:        string
+  job_id:             string
+  task_number:        string
+  customer_name:      string
+  customer_phone:     string | null
+  scheduled_date:     string | null
+  scheduled_time:     string | null
+  tyre_pattern:       string | null
+  tyre_size:          string | null
+  quantity:           number
+  vehicle_model:      string | null
+  job_status:         JobStatus
+  notes:              string | null
+  fitter_notes?:      string | null
+  admin_notes?:       string | null
+  accepted_at?:       string | null
+  completed_at?:      string | null
+  earnings_amount:    number | null
+  fitment_centre_id?: string
+  fitment_id?:        string
+  created_at:         string
+  items?:             FitmentJobItem[]
 }
 
 export interface FitterPricingRow {
-  id:           string
-  fitment_centre_id: string
-  tyre_type:         TyreType
-  rim_range:         RimRange
-  per_tyre:          number | null
-  per_pair:          number | null
-  per_set_of_4:      number | null
-  callout_fee:       number | null
+  id:                 string
+  fitment_centre_id?: string
+  fitment_id?:        string
+  tyre_type:          TyreType
+  rim_range:          RimRange
+  per_tyre:           number | null
+  per_pair:           number | null
+  per_set_of_4:       number | null
+  callout_fee:        number | null
 }
 
 export interface FitterEarning {
-  id:          string
-  fitment_centre_id: string
-  job_id:            string | null
-  customer_name:     string | null
-  amount:            number
-  status:            EarningStatus
-  payment_date:      string | null
-  created_at:        string
+  id:                 string
+  fitment_centre_id?: string
+  fitment_id?:        string
+  job_id:             string | null
+  customer_name:      string | null
+  amount:             number
+  status:             EarningStatus
+  payment_date:       string | null
+  created_at:         string
 }
 
 export interface FitterKPIs {

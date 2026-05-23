@@ -1,4 +1,5 @@
 import { supabase as db } from './supabase.service'
+import { notificationQueue } from '../queues'
 
 const PAGE_SIZE = 20
 
@@ -289,4 +290,143 @@ export async function listWarehouses() {
 export async function listShippingMethods() {
   const { data, error } = await db.from('shipping_methods').select('shipping_method_id, method_name').eq('is_active', true).limit(20)
   return { data, error }
+}
+
+// ── Create order (storefront checkout) ──────────────────────────────────────
+
+export interface CreateOrderPayload {
+  customer: { email: string; first_name: string; last_name: string }
+  items: Array<{ product_id: string; quantity: number; unit_price: number }>
+  shipping_address: { line1: string; line2?: string; suburb: string; state: string; postcode: string }
+  fitment_centre_id?: string | null
+  booking_slot?: { date: string; time: string } | null
+  stripe_payment_intent_id: string
+  total_amount: number
+}
+
+export async function createOrder(payload: CreateOrderPayload) {
+  // 1. Find or create guest customer
+  let customerId: string
+  const { data: existing } = await db
+    .from('customers')
+    .select('customer_id')
+    .eq('email', payload.customer.email)
+    .maybeSingle()
+
+  if (existing) {
+    customerId = existing.customer_id
+  } else {
+    const { data: newCust, error: custErr } = await db
+      .from('customers')
+      .insert({
+        email:      payload.customer.email,
+        first_name: payload.customer.first_name,
+        last_name:  payload.customer.last_name,
+      })
+      .select('customer_id')
+      .single()
+    if (custErr || !newCust) return { data: null, error: custErr ?? new Error('Failed to create customer') }
+    customerId = newCust.customer_id
+  }
+
+  // 2. Generate order number ONX-YYYYMMDD-XXXX
+  const datePart  = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+  const rand      = String(Math.floor(Math.random() * 9000) + 1000)
+  const orderNumber = `ONX-${datePart}-${rand}`
+
+  // 3. Insert order
+  const { data: order, error: orderErr } = await db
+    .from('orders')
+    .insert({
+      order_number:              orderNumber,
+      customer_id:               customerId,
+      payment_status:            'paid',
+      order_status:              'processing',
+      order_type:                payload.fitment_centre_id ? 'fitment' : 'delivery',
+      fitment_centre_id:         payload.fitment_centre_id ?? null,
+      currency:                  'AUD',
+      total_amount:              payload.total_amount,
+      shipping_cost:             0,
+      gst_amount:                0,
+      discount_amount:           0,
+      shipping_address_snapshot: {
+        ...payload.shipping_address,
+        ...(payload.booking_slot ? { booking_slot: payload.booking_slot } : {}),
+      },
+    })
+    .select('order_id, order_number')
+    .single()
+
+  if (orderErr || !order) return { data: null, error: orderErr ?? new Error('Failed to create order') }
+
+  // 4. Insert order items
+  const { error: itemsErr } = await db.from('order_items').insert(
+    payload.items.map(i => ({
+      order_id:    order.order_id,
+      product_id:  i.product_id,
+      quantity:    i.quantity,
+      unit_price:  i.unit_price,
+      total_price: +(i.unit_price * i.quantity).toFixed(2),
+    }))
+  )
+  if (itemsErr) return { data: null, error: itemsErr }
+
+  // 5. Decrement stock (read-modify-write; acceptable for MVP scale)
+  for (const item of payload.items) {
+    const { data: sku } = await db
+      .from('skus')
+      .select('total_available_stock')
+      .eq('product_id', item.product_id)
+      .maybeSingle()
+    if (sku) {
+      await db
+        .from('skus')
+        .update({ total_available_stock: Math.max(0, (sku.total_available_stock ?? 0) - item.quantity) })
+        .eq('product_id', item.product_id)
+    }
+  }
+
+  // 6. Payment record
+  await db.from('order_payments').insert({
+    order_id:          order.order_id,
+    payment_reference: orderNumber,
+    payment_method:    'stripe',
+    amount:            payload.total_amount,
+    currency:          'AUD',
+    status:            'paid',
+    stripe_payment_id: payload.stripe_payment_intent_id,
+  })
+
+  // 7. Fitment job (if applicable)
+  if (payload.fitment_centre_id && payload.booking_slot) {
+    const jobNum = `FJ-${orderNumber}`
+    await db.from('fitment_jobs').insert({
+      order_id:           order.order_id,
+      fitment_centre_id:  payload.fitment_centre_id,
+      task_number:        jobNum,
+      job_status:         'scheduled',
+      scheduled_date:     payload.booking_slot.date,
+      scheduled_time:     payload.booking_slot.time,
+    })
+  }
+
+  // 8. Activity log
+  await db.from('order_activity').insert({
+    order_id:    order.order_id,
+    event_type:  'order_placed',
+    description: `Order ${orderNumber} placed via storefront checkout`,
+  })
+
+  // 9. Fire order confirmation email (best-effort)
+  notificationQueue?.add('order_confirmed', {
+    type:           'order_confirmed',
+    customer_email: payload.customer.email,
+    order_number:   order.order_number,
+    total_amount:   payload.total_amount,
+    items:          payload.items.map(i => ({ name: i.product_id, qty: i.quantity, price: i.unit_price })),
+    fitment_centre: undefined,
+    scheduled_date: payload.booking_slot?.date,
+  }).catch(() => {})
+
+  return { data: { order_id: order.order_id, order_number: order.order_number }, error: null }
 }

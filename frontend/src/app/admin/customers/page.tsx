@@ -8,10 +8,7 @@ import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { Button } from '@/components/ui/button'
 import CustomerRowMenu from '@/components/admin/customers/CustomerRowMenu'
 import CreateCustomerModal from '@/components/admin/customers/CreateCustomerModal'
-import type { CustomerListItem } from '@/types/admin.types'
-import { toastError } from '@/lib/toast'
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+import { useCustomerList, useCustomerStats } from '@/lib/query/hooks'
 
 type CustomerStats = {
   totalCustomers: number
@@ -86,6 +83,8 @@ function KpiCard({ label, value, sub, icon }: { label: string; value: React.Reac
 
 const LIMIT = 20
 
+const EMPTY_STATS: CustomerStats = { totalCustomers: 0, totalOrders: 0, avgOrderSize: 0, totalRevenue: 0 }
+
 export default function CustomersPage() {
   const searchParams  = useSearchParams()
   const router        = useRouter()
@@ -98,55 +97,21 @@ export default function CustomersPage() {
   const statusFilter = searchParams.get('status') ?? ''
   const modal        = searchParams.get('modal')
 
-  const [stats, setStats]         = useState<CustomerStats>({ totalCustomers: 0, totalOrders: 0, avgOrderSize: 0, totalRevenue: 0 })
-  const [customers, setCustomers] = useState<CustomerListItem[]>([])
-  const [count, setCount]         = useState(0)
-  const [token, setToken]         = useState('')
-  const [loading, setLoading]     = useState(true)
-
-  useEffect(() => { document.title = 'Customers | Tyre Vault' }, [])
-
+  // Token is only needed for mutation child components (CreateCustomerModal, CustomerRowMenu)
+  const [token, setToken] = useState('')
   useEffect(() => {
-    let cancelled = false
-    async function load() {
-      setLoading(true)
-      try {
-        const { data: { session } } = await createClient().auth.getSession()
-        const tok = session?.access_token ?? ''
-        if (!cancelled) setToken(tok)
+    createClient().auth.getSession().then(({ data: { session } }) =>
+      setToken(session?.access_token ?? ''),
+    )
+  }, [])
 
-        const headers = { Authorization: `Bearer ${tok}` }
-        const qs = new URLSearchParams({ page: String(page) })
-        if (search) qs.set('search', search)
-        if (accountType) qs.set('accountType', accountType)
-        if (customerType) qs.set('customerType', customerType)
-        if (statusFilter) qs.set('status', statusFilter)
+  const statsQuery = useCustomerStats()
+  const listQuery  = useCustomerList({ search, page, accountType, customerType, statusFilter })
 
-        const [statsRes, custsRes] = await Promise.all([
-          fetch(`${API}/api/admin/customers/stats`, { headers }),
-          fetch(`${API}/api/admin/customers?${qs}`, { headers }),
-        ])
-
-        if (!statsRes.ok || !custsRes.ok) {
-          const body = await (!statsRes.ok ? statsRes : custsRes).json().catch(() => ({}))
-          throw new Error(body.error ?? 'Failed to load customers')
-        }
-
-        const [statsData, custsData] = await Promise.all([statsRes.json(), custsRes.json()])
-        if (!cancelled) {
-          setStats(statsData)
-          setCustomers(custsData.customers ?? [])
-          setCount(custsData.total ?? 0)
-        }
-      } catch (err) {
-        if (!cancelled) toastError(err instanceof Error ? err.message : 'Failed to load customers')
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-    load()
-    return () => { cancelled = true }
-  }, [search, page, accountType])
+  const loading   = listQuery.isPending || statsQuery.isPending
+  const stats     = statsQuery.data     ?? EMPTY_STATS
+  const customers = listQuery.data?.customers ?? []
+  const count     = listQuery.data?.total     ?? 0
 
   function closeModal() {
     const p = new URLSearchParams(searchParams.toString())

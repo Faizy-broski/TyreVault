@@ -1,48 +1,41 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Image from 'next/image'
 import { Search, SlidersHorizontal, X, ShoppingCart } from 'lucide-react'
 import { useCartStore } from '@/stores/cart.store'
-import type { TyreSearchResponse, TyreSearchFilters, TyreSearchResult } from '@/lib/typesense'
+import type { TyreSku, TyreFacets, TyreSearchFilters } from '@/lib/supabase/search.types'
+import { PAGE_SIZE } from '@/lib/supabase/search.types'
 
-const PAGE_SIZE = 24
+type SortOption = 'price_asc' | 'price_desc' | 'stock_desc' | 'updated_at_desc'
+
+interface InitialParams extends TyreSearchFilters {
+  q:    string
+  page: number
+  sort: SortOption
+}
 
 interface Props {
-  initialResult:  TyreSearchResponse | null
-  initialError:   string | null
-  initialParams:  {
-    q:                string
-    width?:           number
-    profile?:         number
-    rim_size?:        number
-    brand:            string[]
-    runflat?:         boolean
-    in_stock:         boolean
-    application_type?: string
-    page:             number
-    sort:             'price_asc' | 'price_desc' | 'stock_desc'
-  }
+  initialResult: { data: TyreSku[]; total: number } | null
+  initialFacets: TyreFacets | null
+  initialError:  string | null
+  initialParams: InitialParams
 }
 
-function buildQuery(filters: ReturnType<typeof normaliseFilters>): string {
+function buildQuery(filters: InitialParams): string {
   const p = new URLSearchParams()
-  if (filters.q)                p.set('q', filters.q)
-  if (filters.width)            p.set('width',    String(filters.width))
-  if (filters.profile)          p.set('profile',  String(filters.profile))
-  if (filters.rim_size)         p.set('rim_size', String(filters.rim_size))
-  if (filters.brand?.length)    filters.brand.forEach(b => p.append('brand', b))
-  if (filters.runflat != null)  p.set('runflat', String(filters.runflat))
-  if (filters.in_stock)         p.set('in_stock', 'true')
-  if (filters.application_type) p.set('application_type', filters.application_type)
-  if (filters.sort !== 'stock_desc') p.set('sort', filters.sort)
-  if (filters.page > 1)         p.set('page', String(filters.page))
+  if (filters.q)        p.set('q',        filters.q)
+  if (filters.width)    p.set('width',    String(filters.width))
+  if (filters.profile)  p.set('profile',  String(filters.profile))
+  if (filters.rim_size) p.set('rim_size', String(filters.rim_size))
+  if (filters.brand_id) p.set('brand_id', filters.brand_id)
+  if (filters.runflat != null) p.set('runflat', String(filters.runflat))
+  if (filters.xl != null)      p.set('xl',      String(filters.xl))
+  if (filters.speed)    p.set('speed',    filters.speed)
+  if (filters.sort !== 'updated_at_desc') p.set('sort', filters.sort)
+  if (filters.page > 1) p.set('page',    String(filters.page))
   return p.toString()
-}
-
-function normaliseFilters(p: Props['initialParams']): TyreSearchFilters & { page: number; sort: 'price_asc' | 'price_desc' | 'stock_desc' } {
-  return { ...p, brand: p.brand ?? [] }
 }
 
 function StockBadge({ stock }: { stock: number }) {
@@ -51,14 +44,19 @@ function StockBadge({ stock }: { stock: number }) {
   return <span className="text-xs font-medium text-green-700">In stock</span>
 }
 
-function TyreCard({ hit, onAddToCart }: { hit: TyreSearchResult; onAddToCart: (hit: TyreSearchResult) => void }) {
-  const imgSrc = hit.main_image ?? null
+function TyreCard({ hit, onAddToCart }: { hit: TyreSku; onAddToCart: (hit: TyreSku) => void }) {
   return (
     <div className="group flex flex-col rounded-2xl border border-zinc-200 bg-white hover:shadow-md transition-shadow overflow-hidden">
-      <a href={hit.product_slug ? `/tyres/${hit.product_slug}` : '#'} className="block">
+      <a href={hit.product_slug ? `/tyres/${hit.product_slug}` : `/tyres?brand_id=${hit.brand_id}`} className="block">
         <div className="aspect-[4/3] bg-zinc-100 relative overflow-hidden">
-          {imgSrc ? (
-            <Image src={imgSrc} alt={hit.tyre_size_display} fill className="object-contain p-4 group-hover:scale-105 transition-transform" sizes="(max-width: 768px) 50vw, 25vw" />
+          {hit.main_image ? (
+            <Image
+              src={hit.main_image}
+              alt={hit.tyre_size_display}
+              fill
+              className="object-contain p-4 group-hover:scale-105 transition-transform"
+              sizes="(max-width: 768px) 50vw, 25vw"
+            />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="w-16 h-16 rounded-full border-4 border-zinc-300 opacity-30" />
@@ -70,24 +68,24 @@ function TyreCard({ hit, onAddToCart }: { hit: TyreSearchResult; onAddToCart: (h
           <p className="text-sm font-semibold text-zinc-900 line-clamp-2 leading-snug">{hit.pattern_name}</p>
           <p className="text-sm text-zinc-600">{hit.tyre_size_display}</p>
           <div className="flex flex-wrap gap-1 pt-0.5">
-            {hit.runflat      && <span className="text-xs bg-zinc-100 text-zinc-600 px-1.5 py-0.5 rounded-full">Runflat</span>}
+            {hit.runflat       && <span className="text-xs bg-zinc-100 text-zinc-600 px-1.5 py-0.5 rounded-full">Runflat</span>}
             {hit.xl_reinforced && <span className="text-xs bg-zinc-100 text-zinc-600 px-1.5 py-0.5 rounded-full">XL</span>}
           </div>
         </div>
       </a>
       <div className="mt-auto border-t border-zinc-100 px-4 py-3 flex items-center justify-between gap-2">
         <div>
-          {hit.effective_price_retail != null ? (
-            <p className="text-base font-bold text-zinc-900">${hit.effective_price_retail.toFixed(2)}</p>
+          {hit.price_inc_gst != null ? (
+            <p className="text-base font-bold text-zinc-900">${hit.price_inc_gst.toFixed(2)}</p>
           ) : (
             <p className="text-sm text-zinc-400">Price on request</p>
           )}
-          <StockBadge stock={hit.total_available_stock} />
+          <StockBadge stock={hit.total_stock} />
         </div>
         <button
           type="button"
           onClick={() => onAddToCart(hit)}
-          disabled={hit.total_available_stock === 0}
+          disabled={hit.total_stock === 0}
           className="shrink-0 flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-zinc-900 hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <ShoppingCart className="w-3.5 h-3.5" />
@@ -99,8 +97,9 @@ function TyreCard({ hit, onAddToCart }: { hit: TyreSearchResult; onAddToCart: (h
 }
 
 function DimensionSelect({ label, value, options, onChange }: {
-  label: string; value: number | undefined
-  options: { value: string; count: number }[]
+  label:    string
+  value:    number | undefined
+  options:  number[]
   onChange: (v: number | undefined) => void
 }) {
   return (
@@ -113,50 +112,49 @@ function DimensionSelect({ label, value, options, onChange }: {
       >
         <option value="">Any {label}</option>
         {options.map(o => (
-          <option key={o.value} value={o.value}>{o.value}{o.count ? ` (${o.count})` : ''}</option>
+          <option key={o} value={o}>{o}</option>
         ))}
       </select>
     </div>
   )
 }
 
-export default function TyresListingClient({ initialResult, initialError, initialParams }: Props) {
-  const router     = useRouter()
-  const pathname   = usePathname()
+export default function TyresListingClient({ initialResult, initialFacets, initialError, initialParams }: Props) {
+  const router   = useRouter()
+  const pathname = usePathname()
   const [pending, startTransition] = useTransition()
 
-  const [filters, setFilters] = useState(normaliseFilters(initialParams))
+  const [filters, setFilters] = useState<InitialParams>(initialParams)
   const [searchInput, setSearchInput] = useState(initialParams.q)
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const searchRef = useRef<HTMLDivElement>(null)
 
   const { addItem } = useCartStore()
 
   const result = initialResult
-  const error  = initialError
-  const facets = result?.facets
+  const facets = initialFacets
 
-  function navigate(newFilters: typeof filters) {
-    const qs = buildQuery(newFilters)
+  const brandSuggestions = searchInput.trim().length >= 2
+    ? (facets?.brands ?? []).filter(b =>
+        b.brand_name.toLowerCase().includes(searchInput.toLowerCase())
+      ).slice(0, 6)
+    : []
+
+  function navigate(next: InitialParams) {
+    const qs = buildQuery(next)
     startTransition(() => {
       router.push(qs ? `${pathname}?${qs}` : pathname)
     })
   }
 
-  function updateFilter<K extends keyof typeof filters>(key: K, value: (typeof filters)[K]) {
-    const next = { ...filters, [key]: value, page: 1 }
+  function updateFilter<K extends keyof InitialParams>(key: K, value: InitialParams[K]) {
+    const next = { ...filters, [key]: value, page: 1 } as InitialParams
     setFilters(next)
     navigate(next)
   }
 
-  function toggleBrand(brand: string) {
-    const current = filters.brand ?? []
-    const next = current.includes(brand)
-      ? current.filter(b => b !== brand)
-      : [...current, brand]
-    updateFilter('brand', next)
-  }
-
   function clearAll() {
-    const clean = { q: '', brand: [], page: 1, sort: 'stock_desc' as const, in_stock: false }
+    const clean: InitialParams = { q: '', page: 1, sort: 'updated_at_desc' }
     setFilters(clean)
     setSearchInput('')
     startTransition(() => { router.push(pathname) })
@@ -167,32 +165,35 @@ export default function TyresListingClient({ initialResult, initialError, initia
     updateFilter('q', searchInput)
   }
 
-  async function handleAddToCart(hit: TyreSearchResult) {
-    const result = await addItem({
-      id:    hit.id,
+  async function handleAddToCart(hit: TyreSku) {
+    const res = await addItem({
+      id:    hit.product_id,
       sku:   hit.sku,
       name:  `${hit.brand_name} ${hit.pattern_name}`,
       size:  hit.tyre_size_display,
-      price: hit.effective_price_retail ?? 0,
-      image: hit.main_image ?? null,
-      stock: hit.total_available_stock,
+      price: hit.price_inc_gst ?? 0,
+      image: hit.main_image,
+      stock: hit.total_stock,
     }, 1)
-    if (result.error === 'out_of_stock') {
+    if (res.error === 'out_of_stock') {
       alert('Sorry, this item is out of stock.')
-    } else if (result.error === 'insufficient_stock') {
-      alert(`Only ${result.available} unit(s) available. Cart updated to maximum.`)
+    } else if (res.error === 'insufficient_stock') {
+      alert(`Only ${res.available} unit(s) available. Cart updated to maximum.`)
     }
   }
 
-  const hasActiveFilters = (filters.width || filters.profile || filters.rim_size ||
-    (filters.brand?.length ?? 0) > 0 || filters.runflat != null || filters.in_stock ||
-    filters.application_type || filters.q)
+  const hasActiveFilters = !!(
+    filters.width || filters.profile || filters.rim_size ||
+    filters.brand_id || filters.runflat != null || filters.xl != null ||
+    filters.speed || filters.q
+  )
 
   const totalPages  = result ? Math.ceil(result.total / PAGE_SIZE) : 1
-  const currentPage = filters.page ?? 1
+  const currentPage = filters.page
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-zinc-900">Shop Tyres</h1>
@@ -206,9 +207,10 @@ export default function TyresListingClient({ initialResult, initialError, initia
           <label className="text-xs text-zinc-500">Sort by</label>
           <select
             value={filters.sort}
-            onChange={e => updateFilter('sort', e.target.value as typeof filters.sort)}
+            onChange={e => updateFilter('sort', e.target.value as SortOption)}
             className="rounded-lg border border-zinc-300 px-2 py-1.5 text-xs text-zinc-700 focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white"
           >
+            <option value="updated_at_desc">Newest</option>
             <option value="stock_desc">In stock first</option>
             <option value="price_asc">Price: low to high</option>
             <option value="price_desc">Price: high to low</option>
@@ -222,44 +224,65 @@ export default function TyresListingClient({ initialResult, initialError, initia
           {/* Search */}
           <form onSubmit={handleSearch}>
             <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1.5">Search</label>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
+            <div className="relative" ref={searchRef}>
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
               <input
                 value={searchInput}
-                onChange={e => setSearchInput(e.target.value)}
+                onChange={e => { setSearchInput(e.target.value); setShowSuggestions(true) }}
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
                 placeholder="Brand, size, pattern..."
                 className="w-full rounded-lg border border-zinc-300 pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
               />
+              {showSuggestions && brandSuggestions.length > 0 && (
+                <ul className="absolute left-0 right-0 top-full mt-1 z-50 rounded-lg border border-zinc-200 bg-white shadow-lg overflow-hidden">
+                  {brandSuggestions.map(b => (
+                    <li key={b.brand_id}>
+                      <button
+                        type="button"
+                        onMouseDown={() => {
+                          updateFilter('brand_id', b.brand_id)
+                          setSearchInput('')
+                          setShowSuggestions(false)
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 flex items-center gap-2"
+                      >
+                        <span className="text-xs text-zinc-400">Brand</span>
+                        {b.brand_name}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </form>
 
           {/* Dimensions */}
-          <DimensionSelect label="Width"   value={filters.width}    options={facets?.width   ?? []} onChange={v => updateFilter('width', v)} />
-          <DimensionSelect label="Profile" value={filters.profile}  options={facets?.profile ?? []} onChange={v => updateFilter('profile', v)} />
-          <DimensionSelect label="Rim"     value={filters.rim_size} options={facets?.rim_size ?? []} onChange={v => updateFilter('rim_size', v)} />
+          <DimensionSelect label="Width"   value={filters.width}    options={facets?.widths    ?? []} onChange={v => updateFilter('width',    v)} />
+          <DimensionSelect label="Profile" value={filters.profile}  options={facets?.profiles  ?? []} onChange={v => updateFilter('profile',  v)} />
+          <DimensionSelect label="Rim"     value={filters.rim_size} options={facets?.rim_sizes ?? []} onChange={v => updateFilter('rim_size', v)} />
 
-          {/* Brand */}
-          {(facets?.brand_name?.length ?? 0) > 0 && (
+          {/* Brands */}
+          {(facets?.brands?.length ?? 0) > 0 && (
             <div>
               <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1.5">Brand</label>
               <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
-                {facets!.brand_name.map(b => (
-                  <label key={b.value} className="flex items-center gap-2 cursor-pointer py-0.5">
+                {facets!.brands.map(b => (
+                  <label key={b.brand_id} className="flex items-center gap-2 cursor-pointer py-0.5">
                     <input
                       type="checkbox"
-                      checked={(filters.brand ?? []).includes(b.value)}
-                      onChange={() => toggleBrand(b.value)}
+                      checked={filters.brand_id === b.brand_id}
+                      onChange={() => updateFilter('brand_id', filters.brand_id === b.brand_id ? undefined : b.brand_id)}
                       className="w-3.5 h-3.5 accent-yellow-400 rounded"
                     />
-                    <span className="text-sm text-zinc-700">{b.value}</span>
-                    <span className="ml-auto text-xs text-zinc-400">{b.count}</span>
+                    <span className="text-sm text-zinc-700">{b.brand_name}</span>
                   </label>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Toggles */}
+          {/* Feature toggles */}
           <div className="space-y-2">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -273,36 +296,13 @@ export default function TyresListingClient({ initialResult, initialError, initia
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                checked={!!filters.in_stock}
-                onChange={e => updateFilter('in_stock', e.target.checked)}
+                checked={!!filters.xl}
+                onChange={e => updateFilter('xl', e.target.checked ? true : undefined)}
                 className="w-3.5 h-3.5 accent-yellow-400"
               />
-              <span className="text-sm text-zinc-700">In stock only</span>
+              <span className="text-sm text-zinc-700">XL reinforced</span>
             </label>
           </div>
-
-          {/* Application type */}
-          {(facets?.application_type?.length ?? 0) > 0 && (
-            <div>
-              <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1.5">Type</label>
-              <div className="flex flex-wrap gap-1.5">
-                {facets!.application_type.map(a => (
-                  <button
-                    key={a.value}
-                    type="button"
-                    onClick={() => updateFilter('application_type', filters.application_type === a.value ? undefined : a.value)}
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
-                      filters.application_type === a.value
-                        ? 'bg-primary text-zinc-900'
-                        : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
-                    }`}
-                  >
-                    {a.value} ({a.count})
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
 
           {hasActiveFilters && (
             <button
@@ -318,10 +318,10 @@ export default function TyresListingClient({ initialResult, initialError, initia
 
         {/* Results */}
         <div className="flex-1 min-w-0">
-          {error && (
+          {initialError && (
             <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 mb-4 text-sm text-red-700 flex items-center gap-2">
               <SlidersHorizontal className="w-4 h-4 shrink-0" />
-              Search unavailable: {error}
+              Search unavailable: {initialError}
             </div>
           )}
 
@@ -340,7 +340,7 @@ export default function TyresListingClient({ initialResult, initialError, initia
             </div>
           )}
 
-          {!pending && result && result.hits.length === 0 && (
+          {!pending && result && result.data.length === 0 && (
             <div className="flex flex-col items-center justify-center py-24 text-center">
               <div className="w-16 h-16 rounded-full bg-zinc-100 flex items-center justify-center mb-4">
                 <Search className="w-7 h-7 text-zinc-400" />
@@ -353,11 +353,11 @@ export default function TyresListingClient({ initialResult, initialError, initia
             </div>
           )}
 
-          {!pending && result && result.hits.length > 0 && (
+          {!pending && result && result.data.length > 0 && (
             <>
               <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-                {result.hits.map(hit => (
-                  <TyreCard key={hit.id} hit={hit} onAddToCart={handleAddToCart} />
+                {result.data.map(hit => (
+                  <TyreCard key={hit.product_id} hit={hit} onAddToCart={handleAddToCart} />
                 ))}
               </div>
 

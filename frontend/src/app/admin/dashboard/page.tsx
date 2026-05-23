@@ -1,16 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
   TrendingUp, ShoppingCart, Users, Clock,
   ArrowUpRight, Wrench, CircleDollarSign,
 } from 'lucide-react'
-import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
-import { createClient } from '@/lib/supabase/client'
-import { toastError } from '@/lib/toast'
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+import {
+  useOrderStats, useOrderList,
+  useCustomerStats, useCustomerList,
+  useFitmentCentreList,
+} from '@/lib/query/hooks'
 
 function fmtCurrency(n: number) {
   return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD', maximumFractionDigits: 0 }).format(n)
@@ -61,61 +60,22 @@ const STATUS_ROWS = [
   { label: 'Cancelled',  key: 'cancelled',  dot: 'bg-red-500'   },
 ]
 
+const EMPTY_ORDER_STATS    = { totalOrders: 0, totalRevenue: 0, avgOrderSize: 0, pendingPayment: 0 }
+const EMPTY_CUSTOMER_STATS = { totalCustomers: 0 }
+
 export default function AdminDashboard() {
-  const [orderStats,    setOrderStats]    = useState<OrderStats>({ totalOrders: 0, totalRevenue: 0, avgOrderSize: 0, pendingPayment: 0 })
-  const [customerStats, setCustomerStats] = useState<CustomerStats>({ totalCustomers: 0 })
-  const [recentOrders,  setRecentOrders]  = useState<OrderRow[]>([])
-  const [recentCustomers, setRecentCustomers] = useState<CustomerRow[]>([])
-  const [centres,       setCentres]       = useState<CentreRow[]>([])
-  const [loading,       setLoading]       = useState(true)
+  const orderStatsQ    = useOrderStats()
+  const ordersQ        = useOrderList({ page: 1, search: '', paymentStatus: '', fulfillmentStatus: '' })
+  const customerStatsQ = useCustomerStats()
+  const customersQ     = useCustomerList({ page: 1, search: '', accountType: undefined, customerType: '', statusFilter: '' })
+  const centresQ       = useFitmentCentreList(1)
 
-  useEffect(() => { document.title = 'Dashboard | Tyre Vault' }, [])
-
-  useEffect(() => {
-    let cancelled = false
-    async function load() {
-      try {
-        const { data: { session } } = await createClient().auth.getSession()
-        const tok = session?.access_token ?? ''
-        const headers = { Authorization: `Bearer ${tok}` }
-
-        const [statsRes, ordersRes, custStatsRes, custsRes, centresRes] = await Promise.all([
-          fetch(`${API}/api/admin/orders/stats`,           { headers }),
-          fetch(`${API}/api/admin/orders?page=1`,           { headers }),
-          fetch(`${API}/api/admin/customers/stats`,         { headers }),
-          fetch(`${API}/api/admin/customers?page=1`,        { headers }),
-          fetch(`${API}/api/admin/fitment-centres?page=1`,  { headers }),
-        ])
-
-        if (!statsRes.ok) {
-          const body = await statsRes.json().catch(() => ({}))
-          throw new Error(body.error ?? `API returned ${statsRes.status}`)
-        }
-
-        const [statsData, ordersData, custStatsData, custsData, centresData] = await Promise.all([
-          statsRes.json(),
-          ordersRes.ok    ? ordersRes.json()    : Promise.resolve({}),
-          custStatsRes.ok ? custStatsRes.json() : Promise.resolve({}),
-          custsRes.ok     ? custsRes.json()     : Promise.resolve({}),
-          centresRes.ok   ? centresRes.json()   : Promise.resolve([]),
-        ])
-
-        if (!cancelled) {
-          setOrderStats(statsData)
-          setRecentOrders((ordersData.data ?? []).slice(0, 6))
-          setCustomerStats(custStatsData)
-          setRecentCustomers((custsData.customers ?? []).slice(0, 5))
-          setCentres(centresData.data ?? centresData)
-        }
-      } catch (err) {
-        if (!cancelled) toastError(err instanceof Error ? err.message : 'Failed to load dashboard')
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-    load()
-    return () => { cancelled = true }
-  }, [])
+  const loading         = orderStatsQ.isPending || ordersQ.isPending
+  const orderStats      = orderStatsQ.data    ?? EMPTY_ORDER_STATS
+  const customerStats   = customerStatsQ.data ?? EMPTY_CUSTOMER_STATS
+  const recentOrders    = ordersQ.data?.data?.slice(0, 6)       ?? []
+  const recentCustomers = customersQ.data?.customers?.slice(0, 5) ?? []
+  const centres         = centresQ.data ?? []
 
   const activeCentres = centres.filter(c => c.is_active).length
   const statusCounts  = recentOrders.reduce<Record<string, number>>((acc, o) => {

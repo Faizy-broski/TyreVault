@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { Search, ClipboardList } from 'lucide-react'
 import { Button }   from '@/components/ui/button'
@@ -13,16 +13,17 @@ import type { FitmentJob, JobStatus } from '@/types/fitter.types'
 import { StatusBadge }      from '@/components/fitter/StatusBadge'
 import { FitterBreadcrumb } from '@/components/fitter/FitterBreadcrumb'
 import { fmtShortDate, fmtTime } from '@/lib/fitter-format'
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+import { useFitterJobs } from '@/lib/query/fitter-hooks'
 
 const STATUS_FILTERS: { key: string; label: string }[] = [
   { key: '',            label: 'All'         },
   { key: 'pending',     label: 'New'         },
+  { key: 'assigned',    label: 'Assigned'    },
   { key: 'accepted',    label: 'Accepted'    },
   { key: 'in_progress', label: 'In Progress' },
   { key: 'completed',   label: 'Completed'   },
   { key: 'cancelled',   label: 'Cancelled'   },
+  { key: 'rejected',    label: 'Rejected'    },
 ]
 
 function TableSkeleton() {
@@ -65,21 +66,11 @@ function EmptyState({ search, hasFilter }: { search: string; hasFilter: boolean 
   )
 }
 
-export default function JobsClient({ accessToken }: { accessToken: string }) {
-  const [jobs,         setJobs]         = useState<FitmentJob[]>([])
-  const [loading,      setLoading]      = useState(true)
+export default function JobsClient() {
   const [statusFilter, setStatusFilter] = useState('')
   const [search,       setSearch]       = useState('')
 
-  useEffect(() => {
-    fetch(`${API}/api/fitter/portal/jobs`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    })
-      .then(r => r.ok ? r.json() : [])
-      .then(data => setJobs(Array.isArray(data) ? data : []))
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [accessToken])
+  const { data: jobs = [], isPending: loading } = useFitterJobs()
 
   const filtered = jobs.filter(j => {
     const matchStatus = !statusFilter || j.job_status === statusFilter

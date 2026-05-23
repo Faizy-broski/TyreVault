@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Save, Building2, User, Mail, Phone, Hash, BadgeCheck } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Button }   from '@/components/ui/button'
 import { Input }    from '@/components/ui/input'
 import { Label }    from '@/components/ui/label'
@@ -9,9 +10,15 @@ import { Badge }    from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { FitterBreadcrumb } from '@/components/fitter/FitterBreadcrumb'
-import type { FitterProfile } from '@/types/fitter.types'
+import { useFitterProfile } from '@/lib/query/fitter-hooks'
+import { fitterKeys } from '@/lib/query/keys'
+import { BACKEND_API_URL, createBackendHeaders } from '@/lib/backend-api'
+import { createClient } from '@/lib/supabase/client'
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+async function getToken(): Promise<string> {
+  const { data: { session } } = await createClient().auth.getSession()
+  return session?.access_token ?? ''
+}
 
 const STATUS_STYLE: Record<string, string> = {
   approved:  'bg-green-100 text-green-700 border-0',
@@ -37,39 +44,36 @@ interface FormState {
   business_number: string
 }
 
-export default function ProfileClient({ accessToken }: { accessToken: string }) {
-  const [profile, setProfile] = useState<FitterProfile | null>(null)
-  const [form, setForm]       = useState<FormState>({
-    business_name:   '',
-    contact_name:    '',
-    email:           '',
-    contact_phone:   '',
-    business_number: '',
-  })
-  const [loading, setLoading] = useState(true)
+const EMPTY_FORM: FormState = {
+  business_name:   '',
+  contact_name:    '',
+  email:           '',
+  contact_phone:   '',
+  business_number: '',
+}
+
+export default function ProfileClient() {
+  const queryClient = useQueryClient()
+  const [form,    setForm]    = useState<FormState>(EMPTY_FORM)
   const [saving,  setSaving]  = useState(false)
   const [saved,   setSaved]   = useState(false)
   const [error,   setError]   = useState('')
+  const seeded = useRef(false)
+
+  const { data: profile, isPending: loading } = useFitterProfile()
 
   useEffect(() => {
-    fetch(`${API}/api/fitter/portal/profile`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    })
-      .then(r => r.ok ? r.json() : null)
-      .then((data: FitterProfile | null) => {
-        if (!data) return
-        setProfile(data)
-        setForm({
-          business_name:   data.business_name    ?? '',
-          contact_name:    data.contact_name     ?? '',
-          email:           data.email            ?? '',
-          contact_phone:   data.contact_phone    ?? '',
-          business_number: data.business_number  ?? '',
-        })
+    if (profile && !seeded.current) {
+      setForm({
+        business_name:   profile.business_name    ?? '',
+        contact_name:    profile.contact_name     ?? '',
+        email:           profile.email            ?? '',
+        contact_phone:   profile.contact_phone    ?? '',
+        business_number: profile.business_number  ?? '',
       })
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [accessToken])
+      seeded.current = true
+    }
+  }, [profile])
 
   function handleChange(field: keyof FormState, value: string) {
     setForm(prev => ({ ...prev, [field]: value }))
@@ -78,14 +82,16 @@ export default function ProfileClient({ accessToken }: { accessToken: string }) 
 
   async function handleSave() {
     setSaving(true); setError('')
+    const token = await getToken()
     try {
-      const res = await fetch(`${API}/api/fitter/portal/profile`, {
+      const res = await fetch(`${BACKEND_API_URL}/api/fitter/portal/profile`, {
         method:  'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        headers: createBackendHeaders(token, { 'Content-Type': 'application/json' }),
         body:    JSON.stringify(form),
       })
       if (!res.ok) { setError('Failed to save profile.'); return }
       setSaved(true)
+      queryClient.invalidateQueries({ queryKey: fitterKeys.profile() })
     } finally { setSaving(false) }
   }
 
