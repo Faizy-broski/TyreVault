@@ -10,11 +10,17 @@ const socialIcons = [FaFacebookF, FaInstagram, FaLinkedinIn, FaPinterestP, FaYou
 
 export default function FooterSection() {
   return (
-    <footer className="relative overflow-hidden bg-black text-white">
-      <div className="absolute inset-0">
-        <Image src="/footer-bg.jpg" alt="Background" fill className="object-cover opacity-20" />
-      </div>
-      <div className="absolute inset-0 bg-black/80" />
+    <footer
+      className="relative overflow-hidden text-white"
+      style={{
+        backgroundColor: '#000',
+        backgroundImage: 'url(/footer-bg.png)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
+      <div className="absolute inset-0 bg-black/50" />
 
       <div className="relative z-10 mx-auto max-w-[1400px] px-4 py-12 sm:px-6 sm:py-14 lg:px-10">
         <div className="rounded-[28px] border border-white/10 bg-white/[0.02] p-5 backdrop-blur-sm sm:p-8">

@@ -10,7 +10,7 @@ export default function FaqSection() {
     <section className="relative overflow-hidden py-20 lg:py-28">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_right,rgba(223,173,8,0.12),transparent_50%)]" />
       <div className="absolute right-0 top-0 h-full w-[260px] opacity-[0.05]">
-        <Image src="/tyre-pattern.png" alt="pattern" fill className="object-cover" />
+        <Image src="/tyre.svg" alt="pattern" fill className="object-cover" sizes="260px" />
       </div>
       <div className="relative z-10 mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-10">
         <motion.div className="mb-14" initial="hidden" whileInView="visible" viewport={viewport} variants={stagger}>
@@ -32,6 +32,7 @@ export default function FaqSection() {
             <Image
               src="https://images.unsplash.com/photo-1503376780353-7e6692767b70?q=80&w=1200&auto=format&fit=crop"
               alt="Car" fill
+              sizes="(max-width: 1024px) 0px, 360px"
               className="object-cover transition-transform duration-700 hover:scale-[1.03]"
             />
           </motion.div>

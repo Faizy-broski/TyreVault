@@ -16,6 +16,7 @@ import ContactSection from "@/components/home/ContactSection";
 import FaqSection from "@/components/home/FaqSection";
 import TestimonialsSection from "@/components/home/TestimonialsSection";
 import FooterSection from "@/components/home/FooterSection";
+import CartDrawer from "@/components/storefront/CartDrawer";
 
 export default function HomePage() {
   const [topbarScrolled, setTopbarScrolled] = useState(false);
@@ -60,6 +61,7 @@ export default function HomePage() {
 
       <TestimonialsSection />
       <FooterSection />
+      <CartDrawer />
     </main>
   );
 }

@@ -1,11 +1,24 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { ChevronDown, Menu, Search, ShoppingCart, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useCartStore } from "@/stores/cart.store";
+
+const navLinks = [
+  { label: "Shop Tyres", href: "/tyres", chevron: false },
+  { label: "Accessories", href: "#",     chevron: false },
+  { label: "Deals",       href: "#",     chevron: false },
+];
 
 export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) {
+  const { openCart, itemCount } = useCartStore();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  const count = mounted ? itemCount() : 0;
+
   return (
     <header
       className={`fixed left-0 right-0 z-50 w-full text-white transition-[top] duration-300 ${topbarScrolled ? "top-0" : "top-10"}`}
@@ -22,10 +35,10 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
               <Menu className="h-5 w-5" />
             </Button>
             <nav className="hidden items-center gap-8 lg:flex">
-              {[{ label: "Shop Tires", chevron: true }, { label: "Accessories" }, { label: "Deals" }].map(({ label, chevron }) => (
+              {navLinks.map(({ label, href, chevron }) => (
                 <Link
                   key={label}
-                  href="#"
+                  href={href}
                   className="group flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-white transition-colors duration-200 hover:text-primary"
                 >
                   {label}
@@ -35,22 +48,34 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
             </nav>
           </div>
 
-          <div className="absolute left-1/2 hidden -translate-x-1/2 lg:block">
-            <Image src="/logo.svg" width={240} height={60} alt="Tyre Vault" className="object-contain" />
-          </div>
-          <div className="lg:hidden">
-            <Image src="/logo.svg" width={160} height={40} alt="Tyre Vault" className="object-contain" />
-          </div>
+          <Link href="/" className="absolute left-1/2 hidden -translate-x-1/2 lg:block">
+            <Image src="/logo.svg" width={240} height={60} alt="Tyre Vault" style={{ height: 'auto' }} />
+          </Link>
+          <Link href="/" className="lg:hidden">
+            <Image src="/logo.svg" width={160} height={40} alt="Tyre Vault" style={{ height: 'auto' }} />
+          </Link>
 
           <div className="flex items-center gap-2">
             <div className="hidden items-center gap-1 lg:flex">
-              <Button size="icon" variant="ghost" aria-label="Account" className="text-white hover:bg-transparent hover:text-primary">
-                <User className="h-5 w-5" />
-              </Button>
+              <Link href="/account">
+                <Button size="icon" variant="ghost" aria-label="Account" className="text-white hover:bg-transparent hover:text-primary">
+                  <User className="h-5 w-5" />
+                </Button>
+              </Link>
               <div className="h-5 w-px bg-white/20" />
-              <Button size="icon" variant="ghost" aria-label="Cart" className="text-white hover:bg-transparent hover:text-primary">
+              <button
+                type="button"
+                onClick={openCart}
+                aria-label="Open cart"
+                className="relative flex items-center justify-center h-10 w-10 rounded-lg text-white hover:text-primary transition-colors"
+              >
                 <ShoppingCart className="h-5 w-5" />
-              </Button>
+                {count > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-primary text-[10px] font-bold text-zinc-900 px-1">
+                    {count > 99 ? "99+" : count}
+                  </span>
+                )}
+              </button>
             </div>
             <div className="relative hidden lg:block">
               <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
@@ -59,6 +84,20 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
                 className="h-11 w-64 rounded-full border-white/15 bg-white/5 pl-11 text-sm text-white placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-primary"
               />
             </div>
+            {/* Mobile cart */}
+            <button
+              type="button"
+              onClick={openCart}
+              aria-label="Open cart"
+              className="relative flex items-center justify-center h-10 w-10 rounded-lg text-white hover:text-primary transition-colors lg:hidden"
+            >
+              <ShoppingCart className="h-5 w-5" />
+              {count > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-primary text-[10px] font-bold text-zinc-900 px-1">
+                  {count > 99 ? "99+" : count}
+                </span>
+              )}
+            </button>
             <Button size="icon" variant="ghost" aria-label="Search" className="text-white hover:bg-transparent hover:text-primary lg:hidden">
               <Search className="h-5 w-5" />
             </Button>

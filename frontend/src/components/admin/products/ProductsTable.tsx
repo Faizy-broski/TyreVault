@@ -3,10 +3,10 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { MoreVertical, Eye, Plus, Trash2, Package, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle, DialogClose } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
 } from '@/components/ui/table'
@@ -84,7 +84,8 @@ function InlinePublishToggle({ productId, initial, onToggled }: {
 // ── Row actions menu ───────────────────────────────────────────────────────
 
 function ProductRowMenu({ product }: { product: Product }) {
-  const router = useRouter()
+  const router      = useRouter()
+  const queryClient = useQueryClient()
   const [open, setOpen]         = useState(false)
   const [showDel, setShowDel]   = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -111,8 +112,8 @@ function ProductRowMenu({ product }: { product: Product }) {
         throw new Error(body.error ?? `Error ${res.status}`)
       }
       toastSuccess('Product deleted')
-      router.refresh()
       setShowDel(false)
+      queryClient.invalidateQueries({ queryKey: ['admin', 'products'] })
     } catch (err: unknown) {
       toastError(err instanceof Error ? err.message : 'Failed to delete product')
     } finally {

@@ -27,7 +27,7 @@ export default function HowItWorksSection() {
           {steps.map((step) => (
             <div key={step.id} className="overflow-hidden rounded-2xl bg-white shadow-sm">
               <div className="relative h-36 sm:h-44">
-                <Image src={step.image} alt={step.title} fill className="object-cover" />
+                <Image src={step.image} alt={step.title} fill sizes="(max-width: 640px) 100vw, 33vw" className="object-cover" />
                 <div className="absolute inset-0 bg-black/45" />
                 <div className="absolute bottom-4 left-4 flex h-11 w-11 items-center justify-center rounded-full bg-primary text-xl font-black text-white shadow-lg">
                   {step.id}
@@ -89,6 +89,7 @@ export default function HowItWorksSection() {
                           src={step.image}
                           alt={step.title}
                           fill
+                          sizes="100vw"
                           className="object-cover transition-transform duration-700 hover:scale-105"
                         />
                       </div>
@@ -116,7 +117,7 @@ export default function HowItWorksSection() {
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.28 }}
                     >
-                      <Image src={step.image} alt={step.title} fill className="object-cover" />
+                      <Image src={step.image} alt={step.title} fill sizes="170px" className="object-cover" />
                       <div className="absolute inset-0 bg-black/55" />
                       <div className="absolute inset-0 flex items-center justify-center">
                         <h3 className="rotate-[-90deg] whitespace-nowrap font-oswald text-[28px] font-black uppercase tracking-wide text-white">

@@ -1,14 +1,14 @@
 import type { ReactNode } from 'react'
-import StorefrontHeader from '@/components/storefront/StorefrontHeader'
-import StorefrontFooter from '@/components/storefront/StorefrontFooter'
+import StorefrontShell from '@/components/storefront/StorefrontShell'
+import FooterSection from '@/components/home/FooterSection'
 import CartDrawer from '@/components/storefront/CartDrawer'
 
 export default function StorefrontLayout({ children }: { children: ReactNode }) {
   return (
     <>
-      <StorefrontHeader />
+      <StorefrontShell />
       <main className="min-h-screen bg-zinc-50">{children}</main>
-      <StorefrontFooter />
+      <FooterSection />
       <CartDrawer />
     </>
   )

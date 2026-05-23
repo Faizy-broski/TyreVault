@@ -69,6 +69,7 @@ export default function DealsSection() {
                       src={deal.image}
                       alt={deal.title}
                       fill
+                      sizes="(max-width: 640px) 240px, 285px"
                       className="object-cover transition duration-700 group-hover:scale-110"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/35 to-black/10" />
