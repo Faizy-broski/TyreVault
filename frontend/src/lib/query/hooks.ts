@@ -194,3 +194,53 @@ export function useFitmentCentreList(page = 1) {
     staleTime: 2 * 60_000,
   })
 }
+
+// ─── Promotions ───────────────────────────────────────────────────────────────
+
+export interface PromotionRow {
+  promotion_id:      string
+  title:             string
+  brand_name:        string | null
+  description:       string | null
+  image_url:         string | null
+  cta_url:           string | null
+  discount_type:     'percent' | 'fixed_amount' | 'bundle'
+  discount_value:    number
+  start_date:        string
+  end_date:          string
+  applies_to:        string
+  target_id:         string | null
+  minimum_qty:       number
+  is_active:         boolean
+  show_on_homepage:  boolean
+  display_order:     number
+  created_at:        string
+  updated_at:        string
+}
+
+export function usePromotionList(params: { page?: number; search?: string } = {}) {
+  const qs = new URLSearchParams()
+  if (params.page)   qs.set('page',   String(params.page))
+  if (params.search) qs.set('search', params.search)
+  return useQuery({
+    queryKey:    adminKeys.promotionList(Object.fromEntries(qs)),
+    queryFn:     async () => fetchBackendJson<{ data: PromotionRow[]; total: number }>(
+      `/api/admin/promotions?${qs}`,
+      await getToken(),
+    ),
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+  })
+}
+
+export function usePromotionDetail(id: string) {
+  return useQuery({
+    queryKey: adminKeys.promotionDetail(id),
+    queryFn:  async () => fetchBackendJson<PromotionRow>(
+      `/api/admin/promotions/${id}`,
+      await getToken(),
+    ),
+    enabled: !!id,
+    staleTime: 30_000,
+  })
+}

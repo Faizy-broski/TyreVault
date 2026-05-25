@@ -79,7 +79,7 @@ function StatusDropdown({
         <SelectTrigger className={`rounded-lg border px-3 py-1.5 text-sm font-medium h-auto w-auto ${current?.cls ?? 'border-zinc-300 bg-white text-zinc-700'}`}>
           <SelectValue />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent position="popper" sideOffset={4}>
           {options.map(o => (
             <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
           ))}
@@ -90,10 +90,9 @@ function StatusDropdown({
 }
 
 const PAYMENT_OPTIONS: StatusOption[] = [
-  { value: 'unpaid',         label: 'Unpaid',   cls: 'border-amber-200 bg-amber-50 text-amber-700' },
-  { value: 'paid',           label: 'Paid',     cls: 'border-green-200 bg-green-50 text-green-700' },
-  { value: 'partially_paid', label: 'Partial',  cls: 'border-blue-200 bg-blue-50 text-blue-700' },
-  { value: 'refunded',       label: 'Refunded', cls: 'border-zinc-200 bg-zinc-100 text-zinc-600' },
+  { value: 'unpaid',   label: 'Unpaid',   cls: 'border-amber-200 bg-amber-50 text-amber-700' },
+  { value: 'paid',     label: 'Paid',     cls: 'border-green-200 bg-green-50 text-green-700' },
+  { value: 'refunded', label: 'Refunded', cls: 'border-zinc-200 bg-zinc-100 text-zinc-600' },
 ]
 
 const ORDER_STATUS_OPTIONS: StatusOption[] = [
@@ -416,8 +415,7 @@ export default function OrderDetailClient({
   const c       = order.customers
   const addr    = order.shipping_address_snapshot
   const billing = order.billing_address_snapshot
-  const isFitment   = !!order.fitment_id
-  const orderStatus = deriveOrderStatus(order.order_status)
+  const isFitment = !!order.fitment_id
 
   const fullName = c ? [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email : '—'
 
@@ -461,12 +459,6 @@ export default function OrderDetailClient({
             onChange={val => patchStatus({ orderStatus: val })}
             loading={statusSaving}
           />
-          <div className="flex flex-col gap-1">
-            <span className="text-xs text-zinc-400">Order Status</span>
-            <Badge className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-sm font-medium h-auto ${orderStatus.cls}`}>
-              {orderStatus.label}
-            </Badge>
-          </div>
         </div>
       </div>
 

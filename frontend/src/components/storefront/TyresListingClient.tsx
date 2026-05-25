@@ -33,6 +33,7 @@ function buildQuery(filters: InitialParams): string {
   if (filters.runflat != null) p.set('runflat', String(filters.runflat))
   if (filters.xl != null)      p.set('xl',      String(filters.xl))
   if (filters.speed)    p.set('speed',    filters.speed)
+  if (filters.app_type) p.set('app_type', filters.app_type)
   if (filters.sort !== 'updated_at_desc') p.set('sort', filters.sort)
   if (filters.page > 1) p.set('page',    String(filters.page))
   return p.toString()
@@ -44,12 +45,24 @@ function StockBadge({ stock }: { stock: number }) {
   return <span className="text-xs font-semibold text-emerald-500">In stock</span>
 }
 
+function DiscountBadge({ original, promo }: { original: number; promo: number }) {
+  const pct = Math.round((1 - promo / original) * 100)
+  if (pct <= 0) return null
+  return (
+    <div className="absolute top-2 right-2 z-10 rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-black text-white shadow-sm tracking-wide">
+      -{pct}%
+    </div>
+  )
+}
+
 function TyreCard({ hit, onAddToCart }: { hit: TyreSku; onAddToCart: (hit: TyreSku) => void }) {
+  const hasPromo = hit.promo_price != null && hit.price_inc_gst != null && hit.promo_price < hit.price_inc_gst
+
   return (
     <div className="group flex flex-col rounded-2xl border border-zinc-200 bg-white hover:shadow-xl hover:-translate-y-1 transition-all duration-200 overflow-hidden">
       <a href={hit.product_slug ? `/tyres/${hit.product_slug}` : `/tyres?brand_id=${hit.brand_id}`} className="block">
         <div className="aspect-[4/3] bg-zinc-50 relative overflow-hidden">
-          {hit.main_image ? (
+          {hit.main_image && hit.main_image.startsWith('http') ? (
             <Image
               src={hit.main_image}
               alt={hit.tyre_size_display}
@@ -61,6 +74,9 @@ function TyreCard({ hit, onAddToCart }: { hit: TyreSku; onAddToCart: (hit: TyreS
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="w-16 h-16 rounded-full border-[3px] border-zinc-200 opacity-50" />
             </div>
+          )}
+          {hasPromo && (
+            <DiscountBadge original={hit.price_inc_gst!} promo={hit.promo_price!} />
           )}
         </div>
         <div className="px-4 pt-3 pb-2 space-y-1">
@@ -78,7 +94,20 @@ function TyreCard({ hit, onAddToCart }: { hit: TyreSku; onAddToCart: (hit: TyreS
       <div className="mt-auto border-t border-zinc-100 px-4 py-3 flex items-center justify-between gap-2">
         <div>
           {hit.price_inc_gst != null ? (
-            <p className="text-base font-bold text-zinc-900">${hit.price_inc_gst.toFixed(2)}</p>
+            hasPromo ? (
+              <div>
+                <p className="text-[11px] text-zinc-400 line-through leading-none">
+                  ${hit.price_inc_gst.toLocaleString()}
+                </p>
+                <p className="text-base font-bold text-primary leading-tight">
+                  ${hit.promo_price!.toLocaleString()}
+                </p>
+              </div>
+            ) : (
+              <p className="text-base font-bold text-zinc-900">
+                ${hit.price_inc_gst.toLocaleString()}
+              </p>
+            )
           ) : (
             <p className="text-xs text-zinc-400 italic">Price on request</p>
           )}
@@ -182,7 +211,7 @@ export default function TyresListingClient({ initialResult, initialFacets, initi
       name:  `${hit.brand_name} ${hit.pattern_name}`,
       size:  hit.tyre_size_display,
       price: hit.price_inc_gst ?? 0,
-      image: hit.main_image,
+      image: hit.main_image?.startsWith('http') ? hit.main_image : null,
       stock: hit.total_stock,
     }, 1)
     if (res.error === 'out_of_stock') {

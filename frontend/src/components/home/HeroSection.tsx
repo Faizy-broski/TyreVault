@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -11,10 +12,7 @@ import { cn } from "@/lib/utils";
 import { stagger, slideRight } from "./motion-variants";
 import { SelectorDialog } from "./SelectorDialog";
 import {
-  MAKES_DATA,
   POPULAR_MAKES,
-  YEARS,
-  VARIANTS,
   TYRE_WIDTHS,
   POPULAR_WIDTHS,
   PROFILES,
@@ -22,6 +20,21 @@ import {
   RIM_DIAMETERS,
   POPULAR_RIMS,
 } from "./hero-data";
+
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface Variant {
+  vehicle_id: string;
+  variant: string | null;
+  series: string | null;
+  body_type: string | null;
+}
+
+function variantLabel(v: Variant): string {
+  return [v.variant, v.series, v.body_type].filter(Boolean).join(" · ") || "Standard";
+}
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
@@ -138,8 +151,21 @@ function TriggerField({
 // ─── HeroSection ──────────────────────────────────────────────────────────────
 
 export default function HeroSection() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"vehicle" | "size">("vehicle");
   const [openDialog, setOpenDialog] = useState<ActiveDialog>(null);
+
+  // ── Dynamic vehicle data ───────────────────────────────────────────────────
+
+  const [makes, setMakes] = useState<string[]>([]);
+  const [models, setModels] = useState<string[]>([]);
+  const [years, setYears] = useState<string[]>([]);
+  const [variants, setVariants] = useState<Variant[]>([]);
+  const [variantId, setVariantId] = useState("");
+  // label → vehicle_id lookup built when variants load
+  const [variantLabelMap, setVariantLabelMap] = useState(
+    new Map<string, string>(),
+  );
 
   // ── Forms ──────────────────────────────────────────────────────────────────
 
@@ -155,9 +181,61 @@ export default function HeroSection() {
   });
   const s = sizeForm.watch();
 
+  // ── Vehicle data fetching ──────────────────────────────────────────────────
+
+  useEffect(() => {
+    fetch(`${API}/api/vehicles/makes`)
+      .then((r) => r.json())
+      .then(setMakes)
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!v.make) {
+      setModels([]);
+      return;
+    }
+    fetch(`${API}/api/vehicles/models?make=${encodeURIComponent(v.make)}`)
+      .then((r) => r.json())
+      .then(setModels)
+      .catch(() => {});
+  }, [v.make]);
+
+  useEffect(() => {
+    if (!v.make || !v.model) {
+      setYears([]);
+      return;
+    }
+    fetch(
+      `${API}/api/vehicles/years?make=${encodeURIComponent(v.make)}&model=${encodeURIComponent(v.model)}`,
+    )
+      .then((r) => r.json())
+      .then((data: number[]) => setYears(data.map(String)))
+      .catch(() => {});
+  }, [v.make, v.model]);
+
+  useEffect(() => {
+    if (!v.make || !v.model || !v.year) {
+      setVariants([]);
+      setVariantLabelMap(new Map());
+      return;
+    }
+    fetch(
+      `${API}/api/vehicles/variants?make=${encodeURIComponent(v.make)}&model=${encodeURIComponent(v.model)}&year=${v.year}`,
+    )
+      .then((r) => r.json())
+      .then((data: Variant[]) => {
+        setVariants(data);
+        const map = new Map<string, string>();
+        for (const variant of data) map.set(variantLabel(variant), variant.vehicle_id);
+        setVariantLabelMap(map);
+      })
+      .catch(() => {});
+  }, [v.make, v.model, v.year]);
+
   // ── Derived ────────────────────────────────────────────────────────────────
 
-  const availableModels = v.make ? (MAKES_DATA[v.make] ?? []) : [];
+  const variantDisplayLabels = variants.map(variantLabel);
   const vehicleComplete = !!(v.make && v.model && v.year && v.variant);
   const sizeComplete = !!(s.width && s.profile && s.rim);
   const canSearch = activeTab === "vehicle" ? vehicleComplete : sizeComplete;
@@ -166,7 +244,6 @@ export default function HeroSection() {
 
   const handleTabSwitch = (tab: "vehicle" | "size") => {
     if (tab === activeTab) return;
-    // Reset the mode being left so it starts fresh on return
     if (activeTab === "vehicle") vehicleForm.reset();
     else sizeForm.reset();
     setActiveTab(tab);
@@ -182,6 +259,7 @@ export default function HeroSection() {
         vehicleForm.setValue("model", "");
         vehicleForm.setValue("year", "");
         vehicleForm.setValue("variant", "");
+        setVariantId("");
       }
       setOpenDialog("model");
     },
@@ -194,6 +272,7 @@ export default function HeroSection() {
         vehicleForm.setValue("model", value);
         vehicleForm.setValue("year", "");
         vehicleForm.setValue("variant", "");
+        setVariantId("");
       }
       setOpenDialog("year");
     },
@@ -205,6 +284,7 @@ export default function HeroSection() {
       if (vehicleForm.getValues("year") !== value) {
         vehicleForm.setValue("year", value);
         vehicleForm.setValue("variant", "");
+        setVariantId("");
       }
       setOpenDialog("variant");
     },
@@ -212,11 +292,12 @@ export default function HeroSection() {
   );
 
   const handleVariantSelect = useCallback(
-    (value: string) => {
-      vehicleForm.setValue("variant", value);
+    (label: string) => {
+      vehicleForm.setValue("variant", label);
+      setVariantId(variantLabelMap.get(label) ?? "");
       setOpenDialog(null);
     },
-    [vehicleForm],
+    [vehicleForm, variantLabelMap],
   );
 
   // ── Tyre size handlers ─────────────────────────────────────────────────────
@@ -254,12 +335,30 @@ export default function HeroSection() {
 
   // ── Search submit ──────────────────────────────────────────────────────────
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     if (!canSearch) return;
-    if (activeTab === "vehicle") {
-      console.log("Vehicle search:", vehicleForm.getValues());
-    } else {
-      console.log("Tyre size search:", sizeForm.getValues());
+
+    if (activeTab === "size") {
+      router.push(`/tyres?width=${s.width}&profile=${s.profile}&rim_size=${s.rim}`);
+      return;
+    }
+
+    if (!variantId) return;
+    try {
+      const res = await fetch(
+        `${API}/api/vehicles/fitment?variantId=${variantId}`,
+      );
+      const data = await res.json();
+      if (!data?.length) return;
+
+      const match = (data[0].front_size as string).match(
+        /^(\d+)\/(\d+)[rR](\d+)/,
+      );
+      if (!match) return;
+      const [, width, profile, rim] = match;
+      router.push(`/tyres?width=${width}&profile=${profile}&rim_size=${rim}`);
+    } catch {
+      // silent — user can retry
     }
   };
 
@@ -474,8 +573,8 @@ export default function HeroSection() {
         step="Step 1 of 4"
         title="Select Make"
         subtitle="Choose your vehicle manufacturer"
-        options={Object.keys(MAKES_DATA)}
-        popularOptions={POPULAR_MAKES}
+        options={makes}
+        popularOptions={POPULAR_MAKES.filter((m) => makes.includes(m))}
         selected={v.make}
         onSelect={handleMakeSelect}
       />
@@ -487,7 +586,7 @@ export default function HeroSection() {
         subtitle={
           v.make ? `Choose your ${v.make} model` : "Choose your vehicle model"
         }
-        options={availableModels}
+        options={models}
         selected={v.model}
         onSelect={handleModelSelect}
       />
@@ -497,7 +596,7 @@ export default function HeroSection() {
         step="Step 3 of 4"
         title="Select Year"
         subtitle="Choose the model year"
-        options={YEARS}
+        options={years}
         selected={v.year}
         onSelect={handleYearSelect}
       />
@@ -507,7 +606,7 @@ export default function HeroSection() {
         step="Step 4 of 4"
         title="Select Variant"
         subtitle="Choose the vehicle specification"
-        options={VARIANTS}
+        options={variantDisplayLabels}
         selected={v.variant}
         onSelect={handleVariantSelect}
       />

@@ -5,6 +5,10 @@ import Link from 'next/link'
 import { X, Minus, Plus, ShoppingCart } from 'lucide-react'
 import { useCartStore } from '@/stores/cart.store'
 
+function isAbsoluteUrl(url: string) {
+  return url.startsWith('https://') || url.startsWith('http://')
+}
+
 export default function CartDrawer() {
   const { items, qty, isOpen, closeCart, removeItem, updateQuantity, subtotal, itemCount } = useCartStore()
 
@@ -61,7 +65,7 @@ export default function CartDrawer() {
                   <li key={item.id} className="flex gap-3 py-4">
                     {/* Image */}
                     <div className="w-16 h-16 shrink-0 rounded-lg bg-zinc-100 relative overflow-hidden">
-                      {item.image ? (
+                      {item.image && isAbsoluteUrl(item.image) ? (
                         <Image src={item.image} alt={item.name} fill className="object-contain p-1" sizes="64px" />
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center">

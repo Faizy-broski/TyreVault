@@ -28,6 +28,7 @@ interface Product {
   pattern_short_description: string | null
   application_type:  string | null
   retail_price:      number | null
+  promo_price:       number | null
   total_available_stock: number
   gallery_images:    string[]
   variant_images:    string[] | null
@@ -120,7 +121,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
       name:  `${product.brand_name ?? ''} ${product.pattern_name ?? ''}`.trim(),
       size:  product.tyre_size_display,
       price: product.retail_price ?? 0,
-      image: images[0] ?? null,
+      image: images[0]?.startsWith('http') ? images[0] : null,
       stock: product.total_available_stock,
     }, 1)
     if (result.error === 'out_of_stock') {
@@ -219,7 +220,28 @@ export default function ProductDetailClient({ product }: { product: Product }) {
           <div className="rounded-2xl border border-zinc-200 bg-white p-5 space-y-3">
             <div className="flex items-baseline justify-between">
               {product.retail_price != null ? (
-                <p className="text-3xl font-bold text-zinc-900">${product.retail_price.toFixed(2)}</p>
+                product.promo_price != null && product.promo_price < product.retail_price ? (
+                  <div>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-black text-white">
+                        -{Math.round((1 - product.promo_price / product.retail_price) * 100)}% OFF
+                      </span>
+                    </div>
+                    <p className="text-sm text-zinc-400 line-through leading-none">
+                      ${product.retail_price.toLocaleString()}
+                    </p>
+                    <p className="text-3xl font-bold text-primary">
+                      ${product.promo_price.toLocaleString()}
+                    </p>
+                    <p className="text-xs font-semibold text-green-600 mt-1">
+                      You save ${(product.retail_price - product.promo_price).toLocaleString()}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-3xl font-bold text-zinc-900">
+                    ${product.retail_price.toLocaleString()}
+                  </p>
+                )
               ) : (
                 <p className="text-base text-zinc-500">Price on request</p>
               )}
@@ -239,16 +261,16 @@ export default function ProductDetailClient({ product }: { product: Product }) {
           {/* Size selector */}
           {product.siblings.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2">Other Sizes</p>
+              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2">All Sizes</p>
               <div className="flex flex-wrap gap-2">
-                <span className="rounded-lg border-2 border-primary bg-primary/10 px-3 py-1.5 text-xs font-semibold text-zinc-900">
+                <span className="rounded-lg border-2 border-primary bg-primary px-3 py-1.5 text-xs font-bold text-zinc-900 shadow-sm">
                   {product.tyre_size_display}
                 </span>
                 {product.siblings.map(s => (
                   <Link
                     key={s.product_id}
                     href={s.product_slug ? `/tyres/${s.product_slug}` : '#'}
-                    className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-zinc-500 hover:bg-zinc-50 transition-colors"
+                    className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-primary hover:bg-primary/10 transition-colors"
                   >
                     {s.tyre_size_display}
                     {s.total_available_stock === 0 && <span className="ml-1 text-zinc-400">(OOS)</span>}

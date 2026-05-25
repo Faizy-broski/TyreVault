@@ -29,6 +29,10 @@ export const adminKeys = {
   // Suppliers
   supplierList:  (p: Record<string, string>)  => ['admin', 'suppliers', 'list', p]        as const,
   supplierDetail:(id: string)                 => ['admin', 'suppliers', 'detail', id]     as const,
+
+  // Promotions
+  promotionList:   (p: Record<string, string>) => ['admin', 'promotions', 'list', p]      as const,
+  promotionDetail: (id: string)               => ['admin', 'promotions', 'detail', id]   as const,
 }
 
 export const fitterKeys = {

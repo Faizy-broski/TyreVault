@@ -264,8 +264,8 @@ export default function CustomersPage() {
               <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">ID</th>
               <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Email</th>
               <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Name</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Account & Type</th>
-              {/* <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Type</th> */}
+              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Account</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Type</th>
               <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Status</th>
               <th className="px-5 py-3 text-right text-xs font-semibold text-zinc-500 uppercase tracking-wide">Orders</th>
               <th className="px-5 py-3 text-right text-xs font-semibold text-zinc-500 uppercase tracking-wide">Total Value</th>
@@ -309,8 +309,8 @@ export default function CustomersPage() {
                         {[customer.first_name, customer.last_name].filter(Boolean).join(' ') || '—'}
                       </Link>
                     </td>
-                    <td className="flex flex-col gap-2 px-5 py-3 "><AccountBadge isGuest={!customer.profile_id} /><CustomerTypeBadge type={customer.customer_type ?? null} /></td>
-                    {/* <td className="px-5 py-3"><CustomerTypeBadge type={customer.customer_type ?? null} /></td> */}
+                    <td className="px-5 py-3"><AccountBadge isGuest={!customer.profile_id} /></td>
+                    <td className="px-5 py-3"><CustomerTypeBadge type={customer.customer_type ?? null} /></td>
                     <td className="px-5 py-3"><AccountStatusBadge status={customer.account_status ?? null} /></td>
                     <td className="px-5 py-3 text-right text-sm text-zinc-700">{customer.order_count ?? 0}</td>
                     <td className="px-5 py-3 text-right text-sm font-medium text-zinc-800">{fmtAUD(customer.total_spent ?? 0)}</td>

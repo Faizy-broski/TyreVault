@@ -14,18 +14,17 @@ router.post('/validate', async (req, res, next) => {
 
     const skuIds = items.map(i => i.sku_id)
 
-    // Sum available_stock across all warehouses per SKU
+    // Read the denormalized total_available_stock from skus (kept in sync with product_stock by trigger)
     const { data, error } = await db
-      .from('product_stock')
-      .select('product_id, available_stock')
+      .from('skus')
+      .select('product_id, total_available_stock')
       .in('product_id', skuIds)
 
     if (error) return next(error)
 
-    // Aggregate per product_id
     const stockMap = new Map<string, number>()
     for (const row of (data ?? [])) {
-      stockMap.set(row.product_id, (stockMap.get(row.product_id) ?? 0) + (row.available_stock ?? 0))
+      stockMap.set(row.product_id, row.total_available_stock ?? 0)
     }
 
     const errors: { sku_id: string; available: number }[] = []

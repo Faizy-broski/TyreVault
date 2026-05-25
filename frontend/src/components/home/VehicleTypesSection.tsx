@@ -1,15 +1,16 @@
 "use client";
+import Link from "next/link";
 import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { fadeUp, scaleIn, stagger, viewport } from "./motion-variants";
 
 const vehicleTypes = [
-  { title: "Sedan", image: "/Sedan.svg" },
-  { title: "SUV", image: "/SUV.svg" },
-  { title: "4×4", image: "/4x4.svg" },
-  { title: "Truck", image: "/Truck.svg" },
-  { title: "Sports", image: "/Sports.svg" },
+  { title: "Sedan",  image: "/Sedan.svg",  appType: "PCR" },
+  { title: "SUV",    image: "/SUV.svg",    appType: "4x4" },
+  { title: "4×4",   image: "/4x4.svg",    appType: "4x4" },
+  { title: "Truck",  image: "/Truck.svg",  appType: "TBR" },
+  { title: "Sports", image: "/Sports.svg", appType: "PCR" },
 ];
 
 export default function VehicleTypesSection() {
@@ -32,16 +33,23 @@ export default function VehicleTypesSection() {
         >
           {vehicleTypes.map((item) => (
             <motion.div key={item.title} variants={scaleIn} whileHover={{ y: -5, transition: { duration: 0.18 } }}>
-              <Card className="group overflow-hidden rounded-2xl border border-black/5 bg-white shadow-none transition-all duration-300 hover:border-primary/30 hover:shadow-md">
-                <CardContent className="p-0">
-                  <div className="relative flex h-28 items-center justify-center overflow-hidden sm:h-36">
-                    <Image src={item.image} alt={item.title} fill className="object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
-                  </div>
-                  <div className="py-3 text-center">
-                    <h3 className="text-sm font-bold tracking-tight text-black">{item.title}</h3>
-                  </div>
-                </CardContent>
-              </Card>
+              <Link href={`/tyres?app_type=${item.appType}`}>
+                <Card className="group overflow-hidden rounded-2xl border border-black/5 bg-white shadow-none transition-all duration-300 hover:border-primary/30 hover:shadow-md cursor-pointer">
+                  <CardContent className="p-0">
+                    <div className="relative flex h-28 items-center justify-center overflow-hidden sm:h-36">
+                      <Image
+                        src={item.image}
+                        alt={item.title}
+                        fill
+                        className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                      />
+                    </div>
+                    <div className="py-3 text-center">
+                      <h3 className="text-sm font-bold tracking-tight text-black">{item.title}</h3>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
             </motion.div>
           ))}
         </motion.div>

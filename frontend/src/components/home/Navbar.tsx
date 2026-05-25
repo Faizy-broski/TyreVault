@@ -57,7 +57,7 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
 
           <div className="flex items-center gap-2">
             <div className="hidden items-center gap-1 lg:flex">
-              <Link href="/account">
+              <Link href="/login">
                 <Button size="icon" variant="ghost" aria-label="Account" className="text-white hover:bg-transparent hover:text-primary">
                   <User className="h-5 w-5" />
                 </Button>

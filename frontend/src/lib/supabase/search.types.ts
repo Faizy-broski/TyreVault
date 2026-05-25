@@ -18,6 +18,7 @@ export interface TyreSku {
   xl_reinforced:     boolean
   total_stock:       number
   price_inc_gst:     number | null
+  promo_price:       number | null  // best active promotion price; null = no deal
 }
 
 export interface TyreFacets {
@@ -36,6 +37,7 @@ export interface TyreSearchFilters {
   runflat?:  boolean
   xl?:       boolean
   speed?:    string
+  app_type?: string  // 'PCR' | '4x4' | 'TBR'
   sort?:     'price_asc' | 'price_desc' | 'stock_desc' | 'updated_at_desc'
   page?:     number
 }

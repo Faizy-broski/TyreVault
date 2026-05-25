@@ -39,10 +39,16 @@ function arg(name: string): string {
     console.error(`\nMissing required argument: --${name}\n`)
     console.error(`Usage:\n  npx ts-node src/scripts/seed-catalogue.ts \\`)
     console.error(`    --brands-csv "path/to/csv.csv" \\`)
-    console.error(`    --skus-csv   "path/to/csv_full.csv"\n`)
+    console.error(`    --skus-csv   "path/to/csv_full.csv" \\`)
+    console.error(`    [--limit 20]\n`)
     process.exit(1)
   }
   return process.argv[i + 1]!
+}
+
+function optArg(name: string, fallback: string): string {
+  const i = process.argv.indexOf(`--${name}`)
+  return (i !== -1 && process.argv[i + 1]) ? process.argv[i + 1]! : fallback
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -185,6 +191,7 @@ interface PatternInsert {
 async function seedPatterns(
   rows:     BrandsCsvRow[],
   brandMap: Map<string, string>,
+  limit:    number,
 ): Promise<Map<string, string>> {
   const deduped = new Map<string, PatternInsert>()
 
@@ -210,7 +217,8 @@ async function seedPatterns(
     })
   }
 
-  const toInsert = [...deduped.values()]
+  const all      = [...deduped.values()]
+  const toInsert = limit ? all.slice(0, limit) : all
   console.log(`  ${toInsert.length} distinct patterns found`)
 
   let ok = 0
@@ -243,10 +251,12 @@ async function seedSkus(
   csvPath:    string,
   brandMap:   Map<string, string>,
   patternMap: Map<string, string>,
+  limit:      number,
 ): Promise<void> {
   console.log('  Parsing csv_full.csv...')
-  const rows = parseCsv<SkusCsvRow>(csvPath)
-  console.log(`  ${rows.length.toLocaleString()} rows parsed`)
+  const allRows = parseCsv<SkusCsvRow>(csvPath)
+  const rows    = limit ? allRows.slice(0, limit) : allRows
+  console.log(`  ${allRows.length.toLocaleString()} rows parsed${limit ? `, using first ${rows.length}` : ''}`)
 
   let inserted = 0, skipped = 0, errors = 0
   const batches = chunks(rows, BATCH_SIZE)
@@ -354,6 +364,7 @@ async function seedSkus(
 async function main(): Promise<void> {
   const brandsCsvPath = arg('brands-csv')
   const skusCsvPath   = arg('skus-csv')
+  const limit         = parseInt(optArg('limit', '0'), 10) || 0  // 0 = no limit
 
   for (const p of [brandsCsvPath, skusCsvPath]) {
     if (!fs.existsSync(p)) {
@@ -377,7 +388,9 @@ async function main(): Promise<void> {
   console.log('║   Onyx Tyres — Catalogue Seeder          ║')
   console.log('╚══════════════════════════════════════════╝\n')
   console.log(`brands CSV : ${brandsCsvPath}`)
-  console.log(`skus CSV   : ${skusCsvPath}\n`)
+  console.log(`skus CSV   : ${skusCsvPath}`)
+  if (limit) console.log(`limit      : ${limit} patterns / ${limit} SKUs (test mode)`)
+  console.log()
 
   console.time('Total elapsed')
 
@@ -389,11 +402,11 @@ async function main(): Promise<void> {
 
   // ── Phase 2: Patterns ────────────────────────────────────────────────────────
   console.log('\n── Phase 2: Patterns ──')
-  const patternMap = await seedPatterns(brandRows, brandMap)
+  const patternMap = await seedPatterns(brandRows, brandMap, limit)
 
   // ── Phase 3: SKUs ────────────────────────────────────────────────────────────
   console.log('\n── Phase 3: SKUs ──')
-  await seedSkus(skusCsvPath, brandMap, patternMap)
+  await seedSkus(skusCsvPath, brandMap, patternMap, limit)
 
   console.log('\n── Complete ──')
   console.timeEnd('Total elapsed')

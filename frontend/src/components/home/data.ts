@@ -13,16 +13,6 @@ export const tyreFields = [
   { label: "Rim Size", placeholder: 'e.g. 18"', options: ["16", "17", "18", "19"] },
 ];
 
-export const deals = [
-  { title: "Up to $200 Off", brand: "Nokian Tyres", date: "Mar 15th – Jun 15th 2026", image: "https://images.unsplash.com/photo-1571607388263-1044f9ea01dd?q=80&w=1200&auto=format&fit=crop" },
-  { title: "Up to $200 Off", brand: "Nokian Tyres", date: "Mar 15th – Jun 15th 2026", image: "https://images.unsplash.com/photo-1487754180451-c456f719a1fc?q=80&w=1200&auto=format&fit=crop" },
-  { title: "Up to $200 Off", brand: "Nokian Tyres", date: "Mar 15th – Jun 15th 2026", image: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?q=80&w=1200&auto=format&fit=crop" },
-  { title: "Up to $200 Off", brand: "Nokian Tyres", date: "Mar 15th – Jun 15th 2026", image: "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?q=80&w=1200&auto=format&fit=crop" },
-  { title: "Up to $200 Off", brand: "Nokian Tyres", date: "Mar 15th – Jun 15th 2026", image: "https://images.unsplash.com/photo-1511919884226-fd3cad34687c?q=80&w=1200&auto=format&fit=crop" },
-  { title: "Up to $200 Off", brand: "Nokian Tyres", date: "Mar 15th – Jun 15th 2026", image: "https://images.unsplash.com/photo-1571607388263-1044f9ea01dd?q=80&w=1200&auto=format&fit=crop" },
-  { title: "Up to $200 Off", brand: "Nokian Tyres", date: "Mar 15th – Jun 15th 2026", image: "https://images.unsplash.com/photo-1487754180451-c456f719a1fc?q=80&w=1200&auto=format&fit=crop" },
-  { title: "Up to $200 Off", brand: "Nokian Tyres", date: "Mar 15th – Jun 15th 2026", image: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?q=80&w=1200&auto=format&fit=crop" },
-];
 
 export const tyres = [
   { id: 1, brand: "MICHELIN", name: "Pilot Sport 4", size: "225/45R17", price: "$189", oldPrice: "$236", rating: "4.8", reviews: "(412)", discount: "-20%", image: "/singleTyre.svg" },

@@ -16,6 +16,7 @@ interface Props {
     runflat?:  string
     xl?:       string
     speed?:    string
+    app_type?: string
     page?:     string
     sort?:     string
   }>
@@ -33,6 +34,7 @@ export default async function TyresPage({ searchParams }: Props) {
     runflat:  params.runflat === 'true' ? true : params.runflat === 'false' ? false : undefined,
     xl:       params.xl      === 'true' ? true : params.xl      === 'false' ? false : undefined,
     speed:    params.speed,
+    app_type: params.app_type,
     sort:     params.sort as 'price_asc' | 'price_desc' | 'stock_desc' | 'updated_at_desc' | undefined,
     page:     params.page ? Number(params.page) : 1,
   }
@@ -69,6 +71,7 @@ export default async function TyresPage({ searchParams }: Props) {
         runflat:  filters.runflat,
         xl:       filters.xl,
         speed:    params.speed,
+        app_type: params.app_type,
         sort:     (params.sort ?? 'updated_at_desc') as 'price_asc' | 'price_desc' | 'stock_desc' | 'updated_at_desc',
         page:     filters.page,
       }}
