@@ -153,38 +153,38 @@ export default function InventoryProductRow({ row, accessToken, onApproved, onRe
       {/* ── SUPPLIER MAPPINGS (right / body) ────────────────────── */}
       {hasMappings && !collapsed && (
         <div className="border-t border-zinc-100">
-          <table className="w-full text-xs min-w-[680px]">
+          <table className="w-full text-xs min-w-170">
             <thead>
               <tr className="bg-zinc-50 border-b border-zinc-100">
-                <th className="px-4 py-2 text-left font-medium text-zinc-500">SUPPLIER</th>
-                <th className="px-4 py-2 text-left font-medium text-zinc-500">THEIR SKU</th>
-                <th className="px-4 py-2 text-left font-medium text-zinc-500">THEIR SIZE</th>
-                <th className="px-4 py-2 text-left font-medium text-zinc-500">CONFIDENCE</th>
-                <th className="px-4 py-2 text-left font-medium text-zinc-500">COST (SYNC)</th>
-                <th className="px-4 py-2 text-left font-medium text-zinc-500">QTY (SYNC)</th>
-                <th className="px-4 py-2 text-left font-medium text-zinc-500">STATUS</th>
-                <th className="px-4 py-2 text-left font-medium text-zinc-500">ACTIONS</th>
+                <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Supplier</th>
+                <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Their SKU</th>
+                <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Their Size</th>
+                <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Confidence</th>
+                <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cost (Sync)</th>
+                <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Qty (Sync)</th>
+                <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
+                <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100">
+            <tbody className="divide-y divide-border">
               {row.supplier_mappings.map(m => (
-                <tr key={m.map_id} className="hover:bg-zinc-50 transition-colors">
+                <tr key={m.map_id} className="odd:bg-background even:bg-muted/30 hover:bg-muted/60 transition-colors">
                   {/* Supplier name + connection */}
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-1.5">
                       <ConnectionBadge type={m.connection_type} />
-                      <span className="font-medium text-zinc-800">{m.supplier_name}</span>
+                      <span className="font-medium text-foreground">{m.supplier_name}</span>
                     </div>
                   </td>
 
                   {/* Their SKU */}
-                  <td className="px-4 py-2.5 font-mono text-zinc-600">{m.supplier_sku ?? '—'}</td>
+                  <td className="px-4 py-2.5 font-mono text-muted-foreground">{m.supplier_sku ?? '—'}</td>
 
                   {/* Their size */}
-                  <td className="px-4 py-2.5 text-zinc-600">
+                  <td className="px-4 py-2.5 text-muted-foreground">
                     {m.supplier_size_raw ?? '—'}
                     {m.supplier_brand_name && (
-                      <span className="block text-zinc-400">
+                      <span className="block text-muted-foreground/60">
                         {m.supplier_brand_name}{m.supplier_pattern_name ? ` · ${m.supplier_pattern_name}` : ''}
                       </span>
                     )}
@@ -194,20 +194,20 @@ export default function InventoryProductRow({ row, accessToken, onApproved, onRe
                   <td className="px-4 py-2.5"><ConfidenceBadge score={m.match_confidence} /></td>
 
                   {/* Synced cost */}
-                  <td className="px-4 py-2.5 text-zinc-700">
+                  <td className="px-4 py-2.5 text-foreground">
                     {m.synced_price != null
                       ? `$${m.synced_price.toFixed(2)}`
                       : m.supplier_price != null
-                        ? <span className="text-zinc-400">${m.supplier_price.toFixed(2)}</span>
+                        ? <span className="text-muted-foreground">${m.supplier_price.toFixed(2)}</span>
                         : '—'}
                   </td>
 
                   {/* Synced qty */}
-                  <td className="px-4 py-2.5 text-zinc-700 tabular-nums">
+                  <td className="px-4 py-2.5 text-foreground tabular-nums">
                     {m.synced_qty != null
                       ? m.synced_qty
                       : m.supplier_stock != null
-                        ? <span className="text-zinc-400">{m.supplier_stock}</span>
+                        ? <span className="text-muted-foreground">{m.supplier_stock}</span>
                         : '—'}
                   </td>
 

@@ -135,19 +135,19 @@ export default function WheelsPage() {
       ) : (
         <div className="mt-6 rounded-xl border border-zinc-200 overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-zinc-50 text-zinc-500 text-xs uppercase tracking-wide">
-              <tr>
-                <th className="px-4 py-3 text-left">Model</th>
-                <th className="px-4 py-3 text-left">Brand</th>
-                <th className="px-4 py-3 text-left">Style</th>
-                <th className="px-4 py-3 text-left">Finish / Colour</th>
-                <th className="px-4 py-3 text-right">Variants</th>
-                <th className="px-4 py-3 text-left">Status</th>
+            <thead>
+              <tr className="border-b border-zinc-100 bg-zinc-50">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Model</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Brand</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Style</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Finish / Colour</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Variants</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-300">
+            <tbody className="divide-y divide-border">
               {wheels.map(w => (
-                <tr key={w.wheel_id} className="odd:bg-white even:bg-zinc-200 [&:hover]:bg-amber-100 transition-colors duration-150 cursor-pointer" onClick={() => router.push(`/admin/wheels/${w.wheel_id}`)}>
+                <tr key={w.wheel_id} className="odd:bg-background even:bg-muted/30 hover:bg-muted/60 transition-colors cursor-pointer" onClick={() => router.push(`/admin/wheels/${w.wheel_id}`)}>
                   <td className="px-4 py-3 font-medium text-zinc-900">
                     <div className="flex items-center gap-3">
                       {w.main_image && (

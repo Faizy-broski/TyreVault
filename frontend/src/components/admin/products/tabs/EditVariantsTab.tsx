@@ -126,17 +126,17 @@ export default function EditVariantsTab({
           </div>
         ) : (
           <div className="border border-zinc-200 rounded-xl overflow-x-auto">
-            <table className="w-full text-sm min-w-128">
+            <table className="w-full text-sm min-w-lg">
               <thead>
-                <tr className="border-b border-zinc-200 bg-zinc-50">
+                <tr className="border-b border-zinc-100 bg-zinc-50">
                   {['Tire Size', 'SKU', 'Stock', 'Status', ''].map(h => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-medium text-zinc-500">{h}</th>
+                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-100 [&_tr:nth-child(even)]:bg-zinc-100 [&_tr:nth-child(odd)]:bg-white [&_tr:hover]:bg-amber-50 [&_tr]:transition-colors">
+              <tbody className="divide-y divide-border">
                 {existingSkus.map(sku => (
-                  <tr key={sku.product_id} className="even:bg-zinc-50/50 hover:bg-amber-50/40 transition-colors">
+                  <tr key={sku.product_id} className="odd:bg-background even:bg-muted/30 hover:bg-muted/60 transition-colors">
                     <td className="px-4 py-3 font-medium text-zinc-800">{sku.tyre_size_display}</td>
                     <td className="px-4 py-3 text-zinc-500 text-xs">{sku.sku}</td>
                     <td className="px-4 py-3 text-zinc-600">{sku.total_available_stock} units</td>
@@ -201,22 +201,22 @@ export default function EditVariantsTab({
           <div className="border border-zinc-200 rounded-xl overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-zinc-200 bg-zinc-50">
+                <tr className="border-b border-zinc-100 bg-zinc-50">
                   <th className="w-8 px-2 py-3" />
                   {[
                     'Tire Size', 'SKU', 'Width', 'Ratio', 'Rim', 'Build',
                     'Speed', 'Load Idx', 'Fuel', 'Wet', 'Noise', 'Run Flat',
                     'Country *', 'Action',
                   ].map(h => (
-                    <th key={h} className="px-3 py-3 text-left font-medium text-zinc-500 whitespace-nowrap text-xs">{h}</th>
+                    <th key={h} className="px-3 py-3 text-left font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap text-xs">{h}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-100 [&_tr:nth-child(even)]:bg-zinc-100 [&_tr:nth-child(odd)]:bg-white [&_tr:hover]:bg-amber-50 [&_tr]:transition-colors">
+              <tbody className="divide-y divide-border">
                 {fields.map((field, index) => (
                   <Fragment key={field.id}>
                     {/* ── Summary row ────────────────────────────── */}
-                    <tr className={expanded.has(index) ? 'bg-amber-50/60' : 'even:bg-zinc-50/50 hover:bg-amber-50/40 transition-colors'}>
+                    <tr className={expanded.has(index) ? 'bg-muted/50' : 'odd:bg-background even:bg-muted/30 hover:bg-muted/60 transition-colors'}>
                       {/* Expand toggle */}
                       <td className="px-2 py-2 text-center">
                         <button

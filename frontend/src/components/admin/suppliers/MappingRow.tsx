@@ -69,7 +69,7 @@ export default function MappingRow({ row, onApprove, onReject, onManualMap }: Pr
   const canApprove = row.status === 'pending_review' && row.product_id != null
 
   return (
-    <tr className="border-b border-zinc-100 hover:bg-amber-50/30 transition-colors">
+    <tr className="border-b border-zinc-100 odd:bg-background even:bg-muted/30 hover:bg-muted/60 transition-colors">
       {/* LEFT — Our internal product */}
       <td className="px-4 py-3 align-top w-[280px]">
         {row.skus ? (

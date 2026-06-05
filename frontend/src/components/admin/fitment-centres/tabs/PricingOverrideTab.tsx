@@ -189,36 +189,36 @@ export default function PricingOverrideTab({ centreId, initialRows, accessToken 
                 <div className="overflow-x-auto">
                 <Table className="w-full text-sm">
                   <TableHeader>
-                    <TableRow className="border-b border-zinc-100 hover:bg-transparent">
-                      <TableHead className="py-3 text-left text-xs font-medium text-zinc-500 w-28">Rim Size Range</TableHead>
-                      <TableHead className="py-3 text-center text-xs font-medium text-zinc-500">Per Tyre ($)</TableHead>
-                      <TableHead className="py-3 text-center text-xs font-medium text-zinc-500">Per Pair ($)</TableHead>
-                      <TableHead className="py-3 text-center text-xs font-medium text-zinc-500">Per Set of 4 ($)</TableHead>
-                      <TableHead className="py-3 text-center text-xs font-medium text-zinc-500">Callout Fee ($)</TableHead>
-                      <TableHead className="py-3 w-8" />
+                    <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50 odd:bg-zinc-50 even:bg-zinc-50">
+                      <TableHead className="text-center w-28">Rim Size Range</TableHead>
+                      <TableHead className="text-center">Per Tyre ($)</TableHead>
+                      <TableHead className="text-center">Per Pair ($)</TableHead>
+                      <TableHead className="text-center">Per Set of 4 ($)</TableHead>
+                      <TableHead className="text-center">Callout Fee ($)</TableHead>
+                      <TableHead className="w-8" />
                     </TableRow>
                   </TableHeader>
-                  <TableBody className="divide-y divide-zinc-50">
+                  <TableBody className="divide-y divide-border">
                     {RIM_RANGES.map(rim => {
                       const cell = matrix[tyreType.key][rim.key]
                       return (
                         <TableRow key={rim.key}>
-                          <TableCell className="py-2.5 text-xs font-medium text-zinc-700">{rim.label}</TableCell>
+                          <TableCell className="text-xs font-medium text-foreground">{rim.label}</TableCell>
                           {(['per_tyre', 'per_pair', 'per_set_of_4', 'callout_fee'] as const).map(field => (
-                            <TableCell key={field} className="py-2.5 px-2">
+                            <TableCell key={field} className="px-2">
                               {editing ? (
                                 <PriceInput
                                   value={cell[field]}
                                   onChange={v => handleChange(tyreType.key, rim.key, field, v)}
                                 />
                               ) : (
-                                <span className="block text-xs text-right text-zinc-700 px-2">
+                                <span className="block text-xs text-right text-foreground px-2">
                                   {cell[field] ? `$${parseFloat(cell[field]).toFixed(2)}` : '—'}
                                 </span>
                               )}
                             </TableCell>
                           ))}
-                          <TableCell className="py-2.5 px-1">
+                          <TableCell className="px-1">
                             {editing && (
                               <Button
                                 type="button"

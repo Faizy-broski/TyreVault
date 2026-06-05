@@ -478,17 +478,17 @@ export default function CategoriesPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-zinc-100 bg-zinc-50">
-              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Name</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Slug</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Type</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Parent</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Description</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Order</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Status</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Name</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Slug</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Type</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Parent</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Order</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
               <th className="px-5 py-3 w-20" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-300">
+          <tbody className="divide-y divide-border">
             {loading ? (
               <>
                 {[1,2,3,4].map(i => (
@@ -508,7 +508,7 @@ export default function CategoriesPage() {
               </tr>
             ) : (
               displayed.map(c => (
-                <tr key={c.category_id} className="odd:bg-white even:bg-zinc-200 [&:hover]:bg-amber-100 transition-colors duration-150">
+                <tr key={c.category_id} className="odd:bg-background even:bg-muted/30 hover:bg-muted/60 transition-colors">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-2.5">
                       {c.image && (

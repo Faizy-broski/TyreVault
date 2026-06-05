@@ -317,28 +317,28 @@ export default function SuppliersClient({ initialSuppliers, accessToken }: Props
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-zinc-100 bg-zinc-50">
-                <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Supplier</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Type</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Stock Access</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">API</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Added</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Supplier</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Type</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Stock Access</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">API</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Added</th>
                 <th className="px-5 py-3 w-28" scope="col"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-300">
+            <tbody className="divide-y divide-border">
               {loading ? (
                 [1,2,3].map(i => (
                   <tr key={i}>
-                    {[1,2,3,4,5,6].map(j => <td key={j} className="px-5 py-3"><div className="h-4 w-full bg-zinc-100 rounded animate-pulse" /></td>)}
+                    {[1,2,3,4,5,6].map(j => <td key={j} className="px-5 py-3"><div className="h-4 w-full bg-muted rounded animate-pulse" /></td>)}
                   </tr>
                 ))
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-16 text-center text-zinc-400 text-sm">No suppliers found</td>
+                  <td colSpan={6} className="px-5 py-16 text-center text-muted-foreground text-sm">No suppliers found</td>
                 </tr>
               ) : (
                 filtered.map(s => (
-                  <tr key={s.supplier_id} className="odd:bg-white even:bg-zinc-200 [&:hover]:bg-amber-100 transition-colors duration-150">
+                  <tr key={s.supplier_id} className="odd:bg-background even:bg-muted/30 hover:bg-muted/60 transition-colors">
                     <td className="px-5 py-3">
                       <p className="font-medium text-zinc-900">{s.supplier_name}</p>
                       <p className="text-xs text-zinc-400">{s.email ?? '—'}</p>

@@ -277,45 +277,45 @@ export default function PaymentSettlementTab({
         <div className="overflow-x-auto">
         <Table className="w-full text-sm">
           <TableHeader>
-            <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50">
-              <TableHead className="px-5 py-3 text-left text-xs font-medium text-zinc-500 whitespace-nowrap">Period</TableHead>
-              <TableHead className="px-5 py-3 text-right text-xs font-medium text-zinc-500">Orders</TableHead>
-              <TableHead className="px-5 py-3 text-right text-xs font-medium text-zinc-500">Gross</TableHead>
-              <TableHead className="px-5 py-3 text-right text-xs font-medium text-zinc-500">Adjustments</TableHead>
-              <TableHead className="px-5 py-3 text-right text-xs font-medium text-zinc-500">Net Payout</TableHead>
-              <TableHead className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Status</TableHead>
-              <TableHead className="px-5 py-3 text-left text-xs font-medium text-zinc-500 whitespace-nowrap">Payment Date</TableHead>
-              <TableHead className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Reference</TableHead>
-              <TableHead className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Invoice</TableHead>
+            <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50 odd:bg-zinc-50 even:bg-zinc-50">
+              <TableHead>Period</TableHead>
+              <TableHead className="text-right">Orders</TableHead>
+              <TableHead className="text-right">Gross</TableHead>
+              <TableHead className="text-right">Adjustments</TableHead>
+              <TableHead className="text-right">Net Payout</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Payment Date</TableHead>
+              <TableHead>Reference</TableHead>
+              <TableHead>Invoice</TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody className="divide-y divide-zinc-100">
+          <TableBody className="divide-y divide-border">
             {loading ? (
-              <TableRow><TableCell colSpan={9} className="px-5 py-8 text-center text-sm text-zinc-400">Loading...</TableCell></TableRow>
+              <TableRow className="hover:bg-transparent"><TableCell colSpan={9} className="py-8 text-center text-muted-foreground">Loading...</TableCell></TableRow>
             ) : history.length === 0 ? (
-              <TableRow><TableCell colSpan={9} className="px-5 py-8 text-center text-sm text-zinc-400">No payment history.</TableCell></TableRow>
+              <TableRow className="hover:bg-transparent"><TableCell colSpan={9} className="py-8 text-center text-muted-foreground">No payment history.</TableCell></TableRow>
             ) : (
               history.map(row => (
-                <TableRow key={row.id} className="even:bg-zinc-100 hover:bg-amber-50 transition-colors">
-                  <TableCell className="px-5 py-3 text-xs text-zinc-600 whitespace-nowrap">
+                <TableRow key={row.id}>
+                  <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                     {fmtDate(row.period_start)} → {fmtDate(row.period_end)}
                   </TableCell>
-                  <TableCell className="px-5 py-3 text-xs text-right text-zinc-700">{row.order_count}</TableCell>
-                  <TableCell className="px-5 py-3 text-xs text-right text-zinc-700">{fmtAUD(row.gross_amount)}</TableCell>
-                  <TableCell className="px-5 py-3 text-xs text-right">
-                    <span className={row.adjustments < 0 ? 'text-red-600' : 'text-zinc-700'}>
+                  <TableCell className="text-xs text-right text-foreground">{row.order_count}</TableCell>
+                  <TableCell className="text-xs text-right text-foreground">{fmtAUD(row.gross_amount)}</TableCell>
+                  <TableCell className="text-xs text-right">
+                    <span className={row.adjustments < 0 ? 'text-red-600' : 'text-foreground'}>
                       {row.adjustments !== 0 ? fmtAUD(row.adjustments) : '—'}
                     </span>
                   </TableCell>
-                  <TableCell className="px-5 py-3 text-xs text-right font-semibold">
-                    <span className={row.status === 'completed' ? 'text-green-600' : 'text-zinc-800'}>
+                  <TableCell className="text-xs text-right font-semibold">
+                    <span className={row.status === 'completed' ? 'text-green-600' : 'text-foreground'}>
                       {fmtAUD(row.net_payout)}
                     </span>
                   </TableCell>
-                  <TableCell className="px-5 py-3"><StatusBadge status={row.status} /></TableCell>
-                  <TableCell className="px-5 py-3 text-xs text-zinc-500">{fmtDate(row.payment_date)}</TableCell>
-                  <TableCell className="px-5 py-3 text-xs text-zinc-500 font-mono">{row.reference ?? '—'}</TableCell>
-                  <TableCell className="px-5 py-3">
+                  <TableCell><StatusBadge status={row.status} /></TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{fmtDate(row.payment_date)}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground font-mono">{row.reference ?? '—'}</TableCell>
+                  <TableCell>
                     {row.invoice_url ? (
                       <a
                         href={row.invoice_url}
@@ -329,7 +329,7 @@ export default function PaymentSettlementTab({
                         Download
                       </a>
                     ) : (
-                      <span className="text-xs text-zinc-300">—</span>
+                      <span className="text-xs text-muted-foreground/40">—</span>
                     )}
                   </TableCell>
                 </TableRow>
@@ -339,7 +339,7 @@ export default function PaymentSettlementTab({
         </Table>
 
         </div>
-        <div className="flex items-center justify-between px-5 py-3 border-t border-zinc-100 text-xs text-zinc-500">
+        <div className="flex items-center justify-between px-5 py-3 border-t border-zinc-100 text-xs text-muted-foreground">
           <span>{history.length} of {total} records</span>
           <div className="flex gap-1">
             <Button

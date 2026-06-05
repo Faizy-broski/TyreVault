@@ -146,15 +146,15 @@ export default function StockTab({ productId, patternId }: Props) {
           <div className="rounded-lg border border-zinc-200 overflow-x-auto">
             <table className="w-full text-sm min-w-64">
               <thead>
-                <tr className="bg-zinc-50 border-b border-zinc-200">
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-zinc-500">Supplier</th>
-                  <th className="px-4 py-2.5 text-right text-xs font-medium text-zinc-500">Units</th>
-                  <th className="px-4 py-2.5 text-right text-xs font-medium text-zinc-500">% of Total</th>
+                <tr className="bg-zinc-50 border-b border-zinc-100">
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Supplier</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Units</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">% of Total</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-100 [&_tr:nth-child(even)]:bg-zinc-100 [&_tr:nth-child(odd)]:bg-white [&_tr:hover]:bg-amber-50 [&_tr]:transition-colors">
+              <tbody className="divide-y divide-border">
                 {data!.suppliers.map(s => (
-                  <tr key={s.supplier_id} className="even:bg-zinc-50/50 hover:bg-amber-50/40 transition-colors">
+                  <tr key={s.supplier_id} className="odd:bg-background even:bg-muted/30 hover:bg-muted/60 transition-colors">
                     <td className="px-4 py-2.5 text-sm text-zinc-700">{s.supplier_name}</td>
                     <td className="px-4 py-2.5 text-sm text-right text-zinc-700 tabular-nums">{s.stock}</td>
                     <td className="px-4 py-2.5 text-sm text-right text-zinc-500 tabular-nums">{s.percentage}%</td>
@@ -187,25 +187,25 @@ export default function StockTab({ productId, patternId }: Props) {
           </p>
         ) : (
           <div className="rounded-lg border border-zinc-200 overflow-x-auto">
-            <table className="w-full text-sm min-w-[700px]">
+            <table className="w-full text-sm min-w-175">
               <thead>
-                <tr className="bg-zinc-50 border-b border-zinc-200">
-                  <th className="px-4 py-2.5 text-left text-xs font-medium text-zinc-500">Warehouse</th>
-                  <th className="px-4 py-2.5 text-right text-xs font-medium text-zinc-500">Available</th>
-                  <th className="px-4 py-2.5 text-right text-xs font-medium text-zinc-500">Reserved</th>
-                  <th className="px-4 py-2.5 text-right text-xs font-medium text-zinc-500">Incoming</th>
-                  <th className="px-4 py-2.5 text-right text-xs font-medium text-zinc-500">In Transit</th>
-                  <th className="px-4 py-2.5 text-right text-xs font-medium text-zinc-500">Damaged</th>
-                  <th className="px-4 py-2.5 text-right text-xs font-medium text-zinc-500">Min Level</th>
-                  <th className="px-4 py-2.5 text-right text-xs font-medium text-zinc-500">Last Purchase ($)</th>
-                  <th className="px-4 py-2.5 text-right text-xs font-medium text-zinc-500">Last Updated</th>
+                <tr className="bg-zinc-50 border-b border-zinc-100">
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Warehouse</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Available</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Reserved</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Incoming</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">In Transit</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Damaged</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Min Level</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Last Purchase ($)</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Last Updated</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-100 [&_tr:nth-child(even)]:bg-zinc-100 [&_tr:nth-child(odd)]:bg-white [&_tr:hover]:bg-amber-50 [&_tr]:transition-colors">
+              <tbody className="divide-y divide-border">
                 {data!.warehouses.map(w => {
                   const row = local[w.warehouse_id]
                   return (
-                    <tr key={w.warehouse_id} className="even:bg-zinc-50/50 hover:bg-amber-50/40 transition-colors">
+                    <tr key={w.warehouse_id} className="odd:bg-background even:bg-muted/30 hover:bg-muted/60 transition-colors">
                       <td className="px-4 py-2.5 text-sm text-zinc-700 font-medium">{w.warehouse_name}</td>
 
                       {/* Available — editable */}

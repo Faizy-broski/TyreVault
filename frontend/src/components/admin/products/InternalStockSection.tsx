@@ -110,18 +110,18 @@ export default function InternalStockSection({ variantId, patternId, retailPrice
   return (
     <div>
       <div className="rounded-lg border border-zinc-200 overflow-x-auto">
-        <table className="w-full text-sm min-w-[640px]">
+        <table className="w-full text-sm min-w-160">
           <thead>
             <tr className="bg-zinc-50 border-b border-zinc-100">
-              <th className="px-4 py-2.5 text-left text-xs font-medium text-zinc-500 w-40">BRANCH</th>
-              <th className="px-4 py-2.5 text-left text-xs font-medium text-zinc-500">STOCK QTY (READ ONLY)</th>
-              <th className="px-4 py-2.5 text-left text-xs font-medium text-zinc-500">LAST PURCHASE PRICE (READ ONLY)</th>
-              <th className="px-4 py-2.5 text-left text-xs font-medium text-zinc-500">RETAIL PRICE ($)</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide w-40">Branch</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Stock Qty (read only)</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Last Purchase Price (read only)</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Retail Price ($)</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-100">
+          <tbody className="divide-y divide-border">
             {rows.map(row => (
-              <tr key={row.warehouse_id} className="hover:bg-zinc-50 transition-colors">
+              <tr key={row.warehouse_id} className="odd:bg-background even:bg-muted/30 hover:bg-muted/60 transition-colors">
                 <td className="px-4 py-3">
                   <span className="text-sm font-semibold text-teal-600">{row.warehouse_name}</span>
                 </td>

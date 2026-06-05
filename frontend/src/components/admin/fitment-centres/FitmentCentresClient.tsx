@@ -167,63 +167,63 @@ export default function FitmentCentresClient({
         <div className="overflow-x-auto">
         <Table className="w-full text-sm">
           <TableHeader>
-            <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50">
-              <TableHead className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Centre</TableHead>
-              <TableHead className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Partner ID</TableHead>
-              <TableHead className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Contact</TableHead>
-              <TableHead className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">ABN</TableHead>
-              <TableHead className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Status</TableHead>
-              <TableHead className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Joined</TableHead>
-              <TableHead className="px-5 py-3 w-10" />
+            <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50 odd:bg-zinc-50 even:bg-zinc-50">
+              <TableHead>Centre</TableHead>
+              <TableHead>Partner ID</TableHead>
+              <TableHead>Contact</TableHead>
+              <TableHead>ABN</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Joined</TableHead>
+              <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
-          <TableBody className="divide-y divide-zinc-300">
+          <TableBody className="divide-y divide-border">
             {loading ? (
               <>
                 {[1,2,3,4,5].map(i => (
                   <TableRow key={i}>
-                    <TableCell className="px-5 py-3"><div className="h-4 w-36 bg-zinc-100 rounded animate-pulse" /></TableCell>
-                    <TableCell className="px-5 py-3"><div className="h-4 w-20 bg-zinc-100 rounded animate-pulse" /></TableCell>
-                    <TableCell className="px-5 py-3"><div className="h-4 w-24 bg-zinc-100 rounded animate-pulse" /></TableCell>
-                    <TableCell className="px-5 py-3"><div className="h-4 w-24 bg-zinc-100 rounded animate-pulse" /></TableCell>
-                    <TableCell className="px-5 py-3"><div className="h-5 w-16 bg-zinc-100 rounded-full animate-pulse" /></TableCell>
-                    <TableCell className="px-5 py-3"><div className="h-4 w-20 bg-zinc-100 rounded animate-pulse" /></TableCell>
-                    <TableCell className="px-5 py-3" />
+                    <TableCell><div className="h-4 w-36 bg-muted rounded animate-pulse" /></TableCell>
+                    <TableCell><div className="h-4 w-20 bg-muted rounded animate-pulse" /></TableCell>
+                    <TableCell><div className="h-4 w-24 bg-muted rounded animate-pulse" /></TableCell>
+                    <TableCell><div className="h-4 w-24 bg-muted rounded animate-pulse" /></TableCell>
+                    <TableCell><div className="h-5 w-16 bg-muted rounded-full animate-pulse" /></TableCell>
+                    <TableCell><div className="h-4 w-20 bg-muted rounded animate-pulse" /></TableCell>
+                    <TableCell className="px-5" />
                   </TableRow>
                 ))}
               </>
             ) : centres.length === 0 ? (
-              <TableRow>
+              <TableRow className="hover:bg-transparent">
                 <TableCell colSpan={7} className="px-5 py-16 text-center">
                   <div className="flex flex-col items-center gap-2 mx-auto">
-                    <svg className="w-10 h-10 text-zinc-200" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                    <svg className="w-10 h-10 text-muted-foreground/30" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205l3 1m1.5.5l-1.5-.5M6.75 7.364V3h-3v18m3-13.636l10.5-3.819" />
                     </svg>
-                    <p className="text-sm font-medium text-zinc-400">No fitment centres found.</p>
+                    <p className="text-sm font-medium text-muted-foreground">No fitment centres found.</p>
                   </div>
                 </TableCell>
               </TableRow>
             ) : (
               centres.map((c) => (
-                <TableRow key={c.fitment_centre_id} className="odd:bg-white even:bg-zinc-200 [&:hover]:bg-amber-100 transition-colors duration-150">
-                  <TableCell className="px-5 py-3">
+                <TableRow key={c.fitment_centre_id}>
+                  <TableCell>
                     <Link href={`/admin/fitters/${c.fitment_centre_id}`} className="flex flex-col group">
                       <span className="font-medium text-primary w-fit group-hover:underline">
                         {c.business_name}
                       </span>
-                      <span className="text-zinc-400 text-xs w-fit group-hover:text-zinc-400 group-hover:underline">
+                      <span className="text-muted-foreground text-xs w-fit group-hover:underline">
                         {c?.email ?? "—"}
                       </span>
                     </Link>
                   </TableCell>
-                  <TableCell className="px-5 py-3 text-xs font-mono text-zinc-600">{c.partner_id}</TableCell>
-                  <TableCell className="px-5 py-3 text-xs text-zinc-600">{c.contact_phone ?? "—"}</TableCell>
-                  <TableCell className="px-5 py-3 text-xs text-zinc-600">{c.business_number ?? "—"}</TableCell>
-                  <TableCell className="px-5 py-3">
+                  <TableCell className="text-xs font-mono text-muted-foreground">{c.partner_id}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{c.contact_phone ?? "—"}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{c.business_number ?? "—"}</TableCell>
+                  <TableCell>
                     <StatusBadge active={c.is_active} />
                   </TableCell>
-                  <TableCell className="px-5 py-3 text-xs text-zinc-500">{fmtDate(c.created_at)}</TableCell>
-                  <TableCell className="px-5 py-3">
+                  <TableCell className="text-xs text-muted-foreground">{fmtDate(c.created_at)}</TableCell>
+                  <TableCell>
                     <FitmentCentreRowMenu
                       centre={c}
                       accessToken={accessToken}
@@ -247,7 +247,7 @@ export default function FitmentCentresClient({
         </Table>
         </div>
 
-        <div className="flex items-center justify-between px-5 py-3 border-t border-zinc-100 text-xs text-zinc-500">
+        <div className="flex items-center justify-between px-5 py-3 border-t border-zinc-100 text-xs text-muted-foreground">
           <span>
             Showing {centres.length} of {total}
           </span>

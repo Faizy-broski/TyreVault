@@ -322,16 +322,16 @@ export default function PatternsPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-zinc-100 bg-zinc-50">
-              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Pattern</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Brand</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Application</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Season</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Status</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Website</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Pattern</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Brand</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Application</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Season</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Website</th>
               <th className="px-5 py-3 w-16" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-300">
+          <tbody className="divide-y divide-border">
             {loading ? (
               [1,2,3,4,5].map(i => (
                 <tr key={i}>
@@ -353,7 +353,7 @@ export default function PatternsPage() {
               displayed.map(p => (
                 <tr
                   key={p.pattern_id}
-                  className="odd:bg-white even:bg-zinc-200 [&:hover]:bg-amber-100 transition-colors duration-150 cursor-pointer"
+                  className="odd:bg-background even:bg-muted/30 hover:bg-muted/60 transition-colors cursor-pointer"
                   onClick={() => router.push(`/admin/products/brands/${p.brand_id}/patterns/${p.pattern_id}`)}
                 >
                   <td className="px-5 py-3">

@@ -196,18 +196,18 @@ export default function ComplianceDocTab({ centreId, initialDocs, accessToken }:
         <table className="w-full text-sm min-w-160">
           <thead>
             <tr className="border-b border-zinc-100 bg-zinc-50">
-              <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Policy Type</th>
-              <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Provider</th>
-              <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Policy Number</th>
-              <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Expiry</th>
-              <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Status</th>
-              <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Action</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Policy Type</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Provider</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Policy Number</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Expiry</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Action</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-100 [&_tr:nth-child(even)]:bg-zinc-100 [&_tr:nth-child(odd)]:bg-white [&_tr:hover]:bg-amber-50 [&_tr]:transition-colors">
+          <tbody className="divide-y divide-border [&_tr]:transition-colors [&_tr:nth-child(even)]:bg-muted/30 [&_tr:hover]:bg-muted/60">
             {docs.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-5 py-10 text-center text-sm text-zinc-400">
+                <td colSpan={6} className="px-5 py-10 text-center text-sm text-muted-foreground">
                   No compliance documents on file.
                 </td>
               </tr>
@@ -216,14 +216,14 @@ export default function ComplianceDocTab({ centreId, initialDocs, accessToken }:
                 const expired = isExpired(doc.expiry_date)
                 const soon    = isExpiringSoon(doc.expiry_date)
                 return (
-                  <tr key={doc.id} className={`even:bg-zinc-50/50 hover:bg-amber-50/40 transition-colors ${expired ? '!bg-red-50/40' : ''}`}>
-                    <td className="px-5 py-3 text-sm font-medium text-zinc-800">
+                  <tr key={doc.id} className={expired ? '!bg-red-50/40' : ''}>
+                    <td className="px-5 py-3 text-sm font-medium text-foreground">
                       {POLICY_LABELS[doc.policy_type] ?? doc.policy_type}
                     </td>
-                    <td className="px-5 py-3 text-sm text-zinc-600">{doc.provider ?? '—'}</td>
-                    <td className="px-5 py-3 text-sm font-mono text-zinc-600">{doc.policy_number ?? '—'}</td>
+                    <td className="px-5 py-3 text-sm text-muted-foreground">{doc.provider ?? '—'}</td>
+                    <td className="px-5 py-3 text-sm font-mono text-muted-foreground">{doc.policy_number ?? '—'}</td>
                     <td className="px-5 py-3">
-                      <span className={`text-sm ${expired ? 'text-red-600 font-semibold' : soon ? 'text-amber-600' : 'text-zinc-600'}`}>
+                      <span className={`text-sm ${expired ? 'text-red-600 font-semibold' : soon ? 'text-amber-600' : 'text-muted-foreground'}`}>
                         {fmtDate(doc.expiry_date)}
                         {soon && !expired && <span className="ml-1 text-xs">(soon)</span>}
                       </span>

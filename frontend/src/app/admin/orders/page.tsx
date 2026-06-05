@@ -406,11 +406,11 @@ export default function OrdersPage() {
             <thead>
               <tr className="border-b border-zinc-100 bg-zinc-50">
                 {['Order #', 'Created ↓', 'Customer', 'Address', 'Delivery Type', 'Payment', 'Fulfillment', 'Items', 'Order Total', 'Actions'].map(h => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-300">
+            <tbody className="divide-y divide-border">
               {loading ? (
                 <>
                   {[1,2,3,4,5,6,7,8].map(i => (
@@ -445,7 +445,7 @@ export default function OrdersPage() {
                   ? [o.customers.first_name, o.customers.last_name].filter(Boolean).join(' ') || o.customers.email
                   : '—'
                 return (
-                  <tr key={o.order_id} className="odd:bg-white even:bg-zinc-200 [&:hover]:bg-amber-100 transition-colors duration-150">
+                  <tr key={o.order_id} className="odd:bg-background even:bg-muted/30 hover:bg-muted/60 transition-colors">
                     <td className="px-4 py-3">
                       <Link href={`/admin/orders/${o.order_id}`} className="font-medium text-primary hover:underline">
                         {o.order_number}

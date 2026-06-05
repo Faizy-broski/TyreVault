@@ -114,20 +114,20 @@ export default function VehiclesPage() {
       ) : (
         <div className="mt-6 rounded-xl border border-zinc-200 overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-zinc-50 text-zinc-500 text-xs uppercase tracking-wide">
-              <tr>
-                <th className="px-4 py-3 text-left">Make</th>
-                <th className="px-4 py-3 text-left">Model</th>
-                <th className="px-4 py-3 text-left">Series / Variant</th>
-                <th className="px-4 py-3 text-left">Years</th>
-                <th className="px-4 py-3 text-left">Body Type</th>
+            <thead>
+              <tr className="border-b border-zinc-100 bg-zinc-50">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Make</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Model</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Series / Variant</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Years</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Body Type</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-300">
+            <tbody className="divide-y divide-border">
               {vehicles.map(v => (
                 <tr
                   key={v.vehicle_id}
-                  className="odd:bg-white even:bg-zinc-200 [&:hover]:bg-amber-100 transition-colors duration-150 cursor-pointer"
+                  className="odd:bg-background even:bg-muted/30 hover:bg-muted/60 transition-colors cursor-pointer"
                   onClick={() => router.push(`/admin/vehicles/${v.vehicle_id}`)}
                 >
                   <td className="px-4 py-3 font-medium text-zinc-900">{v.make}</td>

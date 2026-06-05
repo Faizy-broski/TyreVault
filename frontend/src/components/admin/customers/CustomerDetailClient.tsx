@@ -439,7 +439,7 @@ export default function CustomerDetailClient({
             <div className="overflow-x-auto">
               <Table className="w-full text-sm">
                 <TableHeader>
-                  <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50">
+                  <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50 odd:bg-zinc-50 even:bg-zinc-50">
                     {[
                       "Order #",
                       "Delivery Type",
@@ -450,29 +450,26 @@ export default function CustomerDetailClient({
                       "Type",
                       "Order Total",
                     ].map((heading) => (
-                      <TableHead
-                        key={heading}
-                        className="whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-zinc-500"
-                      >
+                      <TableHead key={heading}>
                         {heading}
                       </TableHead>
                     ))}
                   </TableRow>
                 </TableHeader>
-                <TableBody className="divide-y divide-zinc-100">
+                <TableBody className="divide-y divide-border">
                   {filteredOrders.length === 0 ? (
-                    <TableRow>
+                    <TableRow className="hover:bg-transparent">
                       <TableCell
                         colSpan={8}
-                        className="px-4 py-8 text-center text-sm text-zinc-400"
+                        className="py-8 text-center text-muted-foreground"
                       >
                         No orders found.
                       </TableCell>
                     </TableRow>
                   ) : (
                     filteredOrders.map((order) => (
-                      <TableRow key={order.order_id} className="even:bg-zinc-100 hover:bg-amber-50 transition-colors">
-                        <TableCell className="px-4 py-3">
+                      <TableRow key={order.order_id}>
+                        <TableCell>
                           <Link
                             href={`/admin/orders/${order.order_id}`}
                             className="whitespace-nowrap font-medium text-primary hover:underline"
@@ -480,28 +477,28 @@ export default function CustomerDetailClient({
                             {order.order_number}
                           </Link>
                         </TableCell>
-                        <TableCell className="px-4 py-3">
+                        <TableCell>
                           <DeliveryTypeCell
                             orderType={order.order_type}
                             fitmentId={order.fitment_id ?? null}
                           />
                         </TableCell>
-                        <TableCell className="whitespace-nowrap px-4 py-3 text-xs text-zinc-500">
+                        <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                           {fmtDateTime(order.created_at)}
                         </TableCell>
-                        <TableCell className="px-4 py-3">
+                        <TableCell>
                           <PaymentDot status={order.payment_status} />
                         </TableCell>
-                        <TableCell className="px-4 py-3">
+                        <TableCell>
                           <OrderStatusBadge status={order.order_status} />
                         </TableCell>
-                        <TableCell className="px-4 py-3 text-center text-zinc-600">
+                        <TableCell className="text-center text-muted-foreground">
                           {order.item_count}
                         </TableCell>
-                        <TableCell className="px-4 py-3 text-xs capitalize text-zinc-600">
+                        <TableCell className="text-xs capitalize text-muted-foreground">
                           {order.payment_method?.replace(/_/g, " ") ?? "—"}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap px-4 py-3 font-medium text-zinc-800">
+                        <TableCell className="whitespace-nowrap font-medium text-foreground">
                           {fmtMoney(order.total_amount)}
                         </TableCell>
                       </TableRow>
@@ -511,7 +508,7 @@ export default function CustomerDetailClient({
               </Table>
             </div>
 
-            <div className="flex items-center justify-between border-t border-zinc-100 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">
+            <div className="flex items-center justify-between border-t border-zinc-100 bg-zinc-50 px-5 py-3 text-xs text-muted-foreground">
               <span>
                 Showing {filteredOrders.length} of {orders.length} orders
               </span>
@@ -578,31 +575,31 @@ export default function CustomerDetailClient({
             <div className="overflow-x-auto">
             <Table className="w-full text-sm">
               <TableHeader>
-                <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50">
-                  <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Group Name</TableHead>
-                  <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Members</TableHead>
-                  <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Created</TableHead>
-                  <TableHead className="w-20 px-4 py-3" />
+                <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50 odd:bg-zinc-50 even:bg-zinc-50">
+                  <TableHead>Group Name</TableHead>
+                  <TableHead>Members</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead className="w-20" />
                 </TableRow>
               </TableHeader>
-              <TableBody className="divide-y divide-zinc-100">
+              <TableBody className="divide-y divide-border">
                 {localGroups.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="px-4 py-8 text-center text-sm text-zinc-400">
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
                       Not in any group.
                     </TableCell>
                   </TableRow>
                 ) : (
                   localGroups.map((group) => (
-                    <TableRow key={group.group_id} className="even:bg-zinc-100 hover:bg-amber-50 transition-colors">
-                      <TableCell className="px-4 py-3 font-medium text-zinc-800">
+                    <TableRow key={group.group_id}>
+                      <TableCell className="font-medium text-foreground">
                         <Link href={`/admin/customers/groups/${group.group_id}`} className="hover:underline">
                           {group.group_name}
                         </Link>
                       </TableCell>
-                      <TableCell className="px-4 py-3 text-zinc-600">{group.customer_count}</TableCell>
-                      <TableCell className="px-4 py-3 text-xs text-zinc-500">{fmtDate(group.created_at)}</TableCell>
-                      <TableCell className="px-4 py-3 text-right">
+                      <TableCell className="text-muted-foreground">{group.customer_count}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{fmtDate(group.created_at)}</TableCell>
+                      <TableCell className="text-right">
                         <Button
                           type="button"
                           variant="ghost"

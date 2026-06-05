@@ -167,7 +167,7 @@ export default function VariantsTab() {
         <div className="border border-zinc-200 rounded-xl overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-200 bg-zinc-50">
+              <tr className="border-b border-zinc-100 bg-zinc-50">
                 <th className="w-8 px-2 py-3" />
                 {[
                   'Tire Size', 'SKU', 'Barcode (EAN)', 'Special Size',
@@ -175,17 +175,17 @@ export default function VariantsTab() {
                   'Speed Rating', 'Load Index', 'Fuel Rating', 'Wet', 'Noise',
                   'Run Flat', 'XL', 'LT', 'Country of Origin *', 'Action',
                 ].map(h => (
-                  <th key={h} className="px-3 py-3 text-left font-medium text-zinc-500 whitespace-nowrap text-xs">
+                  <th key={h} className="px-3 py-3 text-left font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap text-xs">
                     {h}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100 [&_tr:nth-child(even)]:bg-zinc-100 [&_tr:nth-child(odd)]:bg-white [&_tr:hover]:bg-amber-50 [&_tr]:transition-colors">
+            <tbody className="divide-y divide-border">
               {fields.map((field, index) => (
                 <Fragment key={field.id}>
                   {/* ── Summary row ──────────────────────────────── */}
-                  <tr className={expanded.has(index) ? 'bg-amber-50/60' : 'even:bg-zinc-50/50 hover:bg-amber-50/40 transition-colors'}>
+                  <tr className={expanded.has(index) ? 'bg-muted/50' : 'odd:bg-background even:bg-muted/30 hover:bg-muted/60 transition-colors'}>
                     {/* Expand toggle */}
                     <td className="px-2 py-2 text-center">
                       <button

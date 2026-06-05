@@ -478,30 +478,30 @@ export default function OrderDetailClient({
             <div className="overflow-x-auto">
               <Table className="w-full text-sm">
                 <TableHeader>
-                  <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50">
+                  <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50 odd:bg-zinc-50 even:bg-zinc-50">
                     {['Name', 'SKU', 'Quantity', 'Price', 'VAT', 'Order Total'].map(h => (
-                      <TableHead key={h} className={`px-4 py-3 text-xs font-medium text-zinc-500 ${h === 'Order Total' ? 'text-right' : 'text-left'}`}>
+                      <TableHead key={h} className={h === 'Order Total' ? 'text-right' : ''}>
                         {h}
                       </TableHead>
                     ))}
                   </TableRow>
                 </TableHeader>
-                <TableBody className="divide-y divide-zinc-100">
+                <TableBody className="divide-y divide-border">
                   {order.order_items.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="px-4 py-6 text-center text-sm text-zinc-400">No items.</TableCell>
+                    <TableRow className="hover:bg-transparent">
+                      <TableCell colSpan={6} className="py-6 text-center text-sm text-muted-foreground">No items.</TableCell>
                     </TableRow>
                   ) : (
                     order.order_items.map(item => {
                       const lineTotal = item.quantity * item.unit_price
                       return (
-                        <TableRow key={item.order_item_id} className="even:bg-zinc-100 hover:bg-amber-50 transition-colors">
-                          <TableCell className="px-4 py-3 text-zinc-800 font-medium">{item.skus?.tyre_size_display ?? 'Product'}</TableCell>
-                          <TableCell className="px-4 py-3 font-mono text-xs text-zinc-500">#{item.skus?.sku ?? '—'}</TableCell>
-                          <TableCell className="px-4 py-3 text-zinc-600">{item.quantity}x</TableCell>
-                          <TableCell className="px-4 py-3 text-zinc-700">{fmtCurrency(item.unit_price, order.currency)}</TableCell>
-                          <TableCell className="px-4 py-3 text-zinc-500">{fmtCurrency(lineTotal * 0.1, order.currency)}</TableCell>
-                          <TableCell className="px-4 py-3 text-right font-medium text-zinc-900">{fmtCurrency(lineTotal, order.currency)}</TableCell>
+                        <TableRow key={item.order_item_id}>
+                          <TableCell className="text-foreground font-medium">{item.skus?.tyre_size_display ?? 'Product'}</TableCell>
+                          <TableCell className="font-mono text-xs text-muted-foreground">#{item.skus?.sku ?? '—'}</TableCell>
+                          <TableCell className="text-muted-foreground">{item.quantity}x</TableCell>
+                          <TableCell className="text-foreground">{fmtCurrency(item.unit_price, order.currency)}</TableCell>
+                          <TableCell className="text-muted-foreground">{fmtCurrency(lineTotal * 0.1, order.currency)}</TableCell>
+                          <TableCell className="text-right font-medium text-foreground">{fmtCurrency(lineTotal, order.currency)}</TableCell>
                         </TableRow>
                       )
                     })
@@ -634,17 +634,17 @@ export default function OrderDetailClient({
                 </span>
               </div>
               <Table className="w-full text-sm">
-                <TableBody className="divide-y divide-zinc-100">
+                <TableBody className="divide-y divide-border">
                   {order.order_payments.map(p => (
-                    <TableRow key={p.payment_id} className="even:bg-zinc-100 hover:bg-amber-50 transition-colors">
-                      <TableCell className="px-4 py-3">
-                        <p className="font-mono text-xs font-medium text-zinc-700">#{p.payment_reference ?? p.payment_id.slice(0, 8).toUpperCase()}</p>
-                        <p className="text-xs text-zinc-400 mt-0.5">{fmt(p.created_at)}</p>
+                    <TableRow key={p.payment_id}>
+                      <TableCell>
+                        <p className="font-mono text-xs font-medium text-foreground">#{p.payment_reference ?? p.payment_id.slice(0, 8).toUpperCase()}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{fmt(p.created_at)}</p>
                       </TableCell>
-                      <TableCell className="px-4 py-3 text-xs text-zinc-600 capitalize">
+                      <TableCell className="text-xs text-muted-foreground capitalize">
                         {p.payment_method.replace(/_/g, ' ')}
                       </TableCell>
-                      <TableCell className="px-4 py-3">
+                      <TableCell>
                         <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${
                           p.status === 'paid' ? 'text-green-700' : p.status === 'failed' ? 'text-red-600' : 'text-amber-600'
                         }`}>
@@ -654,10 +654,10 @@ export default function OrderDetailClient({
                           {p.status === 'paid' ? 'Paid' : p.status}
                         </span>
                       </TableCell>
-                      <TableCell className="px-4 py-3 font-medium text-zinc-900">
+                      <TableCell className="font-medium text-foreground">
                         {fmtCurrency(p.amount, p.currency)}
                       </TableCell>
-                      <TableCell className="px-4 py-3">
+                      <TableCell>
                         <Button type="button" variant="ghost" size="icon-sm" className="text-zinc-400 hover:text-zinc-700">
                           <MoreVertical className="w-4 h-4" />
                         </Button>

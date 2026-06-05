@@ -206,19 +206,19 @@ export default function ShippingMethodsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-zinc-100 bg-zinc-50">
-                <th className="px-4 py-3 text-left font-medium text-zinc-500">Method Name</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-500">Type</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-500">API / Provider</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-500">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Method Name</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Type</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">API / Provider</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-300">
+            <tbody className="divide-y divide-border">
               {methods.length === 0 && (
                 <tr><td colSpan={5} className="px-4 py-8 text-center text-zinc-400">No shipping methods yet</td></tr>
               )}
               {methods.map(m => (
-                <tr key={m.shipping_method_id} className="odd:bg-white even:bg-zinc-200 [&:hover]:bg-amber-100 transition-colors duration-150">
+                <tr key={m.shipping_method_id} className="odd:bg-background even:bg-muted/30 hover:bg-muted/60 transition-colors">
                   <td className="px-4 py-3 font-medium text-zinc-900">{m.method_name}</td>
                   <td className="px-4 py-3">
                     {m.method_type ? (

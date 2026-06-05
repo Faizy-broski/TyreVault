@@ -88,7 +88,7 @@ function SimpleBarChart({ data }: { data: { month: string; amount: number }[] })
       {data.map(d => (
         <div key={d.month} className="flex-1 flex flex-col items-center gap-0.5" title={`${d.month}: $${d.amount.toFixed(0)}`}>
           <div
-            className="w-full bg-primary rounded-sm min-h-[2px]"
+            className="w-full bg-primary rounded-sm min-h-0.5"
             style={{ height: `${(d.amount / max) * 96}px` }}
           />
           <span className="text-[9px] text-zinc-400 rotate-45 origin-left translate-y-2">{d.month.slice(5)}</span>
@@ -162,9 +162,9 @@ export default function FitmentOrdersTab({
     jobs.filter(j => j.job_status === s).length
 
   return (
-    <div className="divide-y divide-zinc-100">
+    <div className="divide-y divide-border">
       {/* KPI cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-zinc-100">
+      <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-border">
         <KpiCard
           label="Active Now"
           value={kpis?.activeJobs ?? 0}
@@ -239,49 +239,49 @@ export default function FitmentOrdersTab({
       <div className="overflow-x-auto">
       <Table className="w-full text-sm">
         <TableHeader>
-          <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50">
-            <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500 whitespace-nowrap">Order ID</TableHead>
-            <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500 whitespace-nowrap">Fitment ID</TableHead>
-            <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500 whitespace-nowrap">Date & Time</TableHead>
-            <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Customer</TableHead>
-            <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Services</TableHead>
-            <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Tyre</TableHead>
-            <TableHead className="px-4 py-3 text-right text-xs font-medium text-zinc-500">Fitment</TableHead>
-            <TableHead className="px-4 py-3 text-right text-xs font-medium text-zinc-500">Total</TableHead>
-            <TableHead className="px-4 py-3 text-right text-xs font-medium text-zinc-500">Commission</TableHead>
-            <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Status</TableHead>
-            <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Payment</TableHead>
+          <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50 odd:bg-zinc-50 even:bg-zinc-50">
+            <TableHead>Order ID</TableHead>
+            <TableHead>Fitment ID</TableHead>
+            <TableHead>Date & Time</TableHead>
+            <TableHead>Customer</TableHead>
+            <TableHead>Services</TableHead>
+            <TableHead>Tyre</TableHead>
+            <TableHead className="text-right">Fitment</TableHead>
+            <TableHead className="text-right">Total</TableHead>
+            <TableHead className="text-right">Commission</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Payment</TableHead>
           </TableRow>
         </TableHeader>
-        <TableBody className="divide-y divide-zinc-50">
+        <TableBody className="divide-y divide-border">
           {loading ? (
-            <TableRow><TableCell colSpan={11} className="px-4 py-8 text-center text-sm text-zinc-400">Loading...</TableCell></TableRow>
+            <TableRow className="hover:bg-transparent"><TableCell colSpan={11} className="py-8 text-center text-muted-foreground">Loading...</TableCell></TableRow>
           ) : jobs.length === 0 ? (
-            <TableRow><TableCell colSpan={11} className="px-4 py-8 text-center text-sm text-zinc-400">No orders found.</TableCell></TableRow>
+            <TableRow className="hover:bg-transparent"><TableCell colSpan={11} className="py-8 text-center text-muted-foreground">No orders found.</TableCell></TableRow>
           ) : (
             jobs.map(job => {
               const total      = job.earnings_amount ?? 0
               const fitment    = total * 0.1
               const commission = total * COMMISSION_RATE
               return (
-                <TableRow key={job.job_id} className="even:bg-zinc-100 hover:bg-amber-50 transition-colors">
-                  <TableCell className="px-4 py-3 text-xs font-mono text-zinc-600 whitespace-nowrap">OD-{job.task_number}</TableCell>
-                  <TableCell className="px-4 py-3 text-xs font-mono text-zinc-600 whitespace-nowrap">FD-{job.task_number}</TableCell>
-                  <TableCell className="px-4 py-3 text-xs text-zinc-500 whitespace-nowrap">{fmtDateTime(job.scheduled_date, job.scheduled_time)}</TableCell>
-                  <TableCell className="px-4 py-3">
-                    <p className="text-sm font-medium text-zinc-800 whitespace-nowrap">{job.customer_name}</p>
-                    <p className="text-xs text-zinc-400">{job.customer_phone ?? '—'}</p>
+                <TableRow key={job.job_id}>
+                  <TableCell className="text-xs font-mono text-muted-foreground">OD-{job.task_number}</TableCell>
+                  <TableCell className="text-xs font-mono text-muted-foreground">FD-{job.task_number}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">{fmtDateTime(job.scheduled_date, job.scheduled_time)}</TableCell>
+                  <TableCell>
+                    <p className="text-sm font-medium text-foreground whitespace-nowrap">{job.customer_name}</p>
+                    <p className="text-xs text-muted-foreground">{job.customer_phone ?? '—'}</p>
                   </TableCell>
-                  <TableCell className="px-4 py-3 text-xs text-zinc-600">{job.vehicle_model ?? '—'}</TableCell>
-                  <TableCell className="px-4 py-3 text-xs text-zinc-600">
+                  <TableCell className="text-xs text-muted-foreground">{job.vehicle_model ?? '—'}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
                     {job.tyre_size ? `${job.tyre_size} × ${job.quantity}` : '—'}
-                    {job.tyre_pattern && <p className="text-zinc-400">{job.tyre_pattern}</p>}
+                    {job.tyre_pattern && <p className="text-muted-foreground/70">{job.tyre_pattern}</p>}
                   </TableCell>
-                  <TableCell className="px-4 py-3 text-right text-xs text-zinc-700">{fmtAUD(fitment)}</TableCell>
-                  <TableCell className="px-4 py-3 text-right text-xs font-semibold text-zinc-800">{fmtAUD(total)}</TableCell>
-                  <TableCell className="px-4 py-3 text-right text-xs text-zinc-700">{fmtAUD(commission)}</TableCell>
-                  <TableCell className="px-4 py-3"><StatusPill status={job.job_status} /></TableCell>
-                  <TableCell className="px-4 py-3">
+                  <TableCell className="text-right text-xs text-foreground">{fmtAUD(fitment)}</TableCell>
+                  <TableCell className="text-right text-xs font-semibold text-foreground">{fmtAUD(total)}</TableCell>
+                  <TableCell className="text-right text-xs text-foreground">{fmtAUD(commission)}</TableCell>
+                  <TableCell><StatusPill status={job.job_status} /></TableCell>
+                  <TableCell>
                     <span className={`text-xs font-semibold ${
                       job.job_status === 'completed' ? 'text-green-600' : 'text-amber-600'
                     }`}>
@@ -322,7 +322,7 @@ export default function FitmentOrdersTab({
       </div>
 
       {/* Purchase in 12 months + Login History */}
-      <div className="grid grid-cols-1 gap-0 divide-y lg:grid-cols-[1fr_320px] lg:divide-y-0 lg:divide-x divide-zinc-100">
+      <div className="grid grid-cols-1 gap-0 divide-y lg:grid-cols-[1fr_320px] lg:divide-y-0 lg:divide-x divide-border">
         <div className="p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-zinc-900">Purchase in 12 months</h3>
@@ -343,18 +343,18 @@ export default function FitmentOrdersTab({
           ) : (
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-zinc-100">
-                  <th className="py-2 text-left font-medium text-zinc-500">Month</th>
-                  <th className="py-2 text-right font-medium text-zinc-500">Amount</th>
+                <tr className="border-b border-zinc-100 bg-zinc-50">
+                  <th className="px-2 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Month</th>
+                  <th className="px-2 py-2 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Amount</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-50">
+              <tbody className="divide-y divide-border">
                 {stats.purchase12Months.length === 0
-                  ? <tr><td colSpan={2} className="py-4 text-center text-zinc-400">No data</td></tr>
+                  ? <tr><td colSpan={2} className="py-4 text-center text-muted-foreground">No data</td></tr>
                   : stats.purchase12Months.map(d => (
-                    <tr key={d.month} className="even:bg-zinc-50/50 hover:bg-amber-50/40 transition-colors">
-                      <td className="py-1.5 text-zinc-600">{d.month}</td>
-                      <td className="py-1.5 text-right font-medium text-zinc-800">
+                    <tr key={d.month} className="even:bg-muted/30 hover:bg-muted/60 transition-colors">
+                      <td className="py-1.5 text-muted-foreground">{d.month}</td>
+                      <td className="py-1.5 text-right font-medium text-foreground">
                         {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(d.amount)}
                       </td>
                     </tr>
@@ -366,24 +366,24 @@ export default function FitmentOrdersTab({
         </div>
 
         <div className="p-5">
-          <h3 className="text-sm font-semibold text-zinc-900 mb-4">Login History</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-4">Login History</h3>
           {stats.loginHistory.length === 0 ? (
-            <p className="text-xs text-zinc-400">No data</p>
+            <p className="text-xs text-muted-foreground">No data</p>
           ) : (
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-zinc-100">
-                  <th className="py-2 text-left font-medium text-zinc-500">IP</th>
-                  <th className="py-2 text-left font-medium text-zinc-500">Date</th>
-                  <th className="py-2 text-left font-medium text-zinc-500">Area</th>
+                <tr className="border-b border-zinc-100 bg-zinc-50">
+                  <th className="px-2 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">IP</th>
+                  <th className="px-2 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Date</th>
+                  <th className="px-2 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Area</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-50">
+              <tbody className="divide-y divide-border">
                 {stats.loginHistory.map((l, i) => (
-                  <tr key={i} className="even:bg-zinc-50/50 hover:bg-amber-50/40 transition-colors">
-                    <td className="py-1.5 font-mono text-zinc-600">{l.ip}</td>
-                    <td className="py-1.5 text-zinc-500">{l.date}</td>
-                    <td className="py-1.5 text-zinc-500">{l.area}</td>
+                  <tr key={i} className="even:bg-muted/30 hover:bg-muted/60 transition-colors">
+                    <td className="py-1.5 font-mono text-muted-foreground">{l.ip}</td>
+                    <td className="py-1.5 text-muted-foreground">{l.date}</td>
+                    <td className="py-1.5 text-muted-foreground">{l.area}</td>
                   </tr>
                 ))}
               </tbody>
