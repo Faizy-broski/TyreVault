@@ -85,6 +85,7 @@ export default function EditProductWizard({
         tyreSpecSheet:       values.tyreSpecSheet || undefined,
         faqList:             values.faqList ?? [],
         defaultCountryOfOrigin: values.defaultCountryOfOrigin || undefined,
+        isActive:            values.isActive,
         showOnWebsite:       values.showOnWebsite,
         seoTitle:            values.seoTitle || undefined,
         seoDescription:      values.seoDescription || undefined,
@@ -319,3 +320,4 @@ export default function EditProductWizard({
     </FormProvider>
   )
 }
+

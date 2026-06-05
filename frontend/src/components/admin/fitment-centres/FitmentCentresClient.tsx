@@ -177,7 +177,7 @@ export default function FitmentCentresClient({
               <TableHead className="px-5 py-3 w-10" />
             </TableRow>
           </TableHeader>
-          <TableBody className="divide-y divide-zinc-100">
+          <TableBody className="divide-y divide-zinc-300">
             {loading ? (
               <>
                 {[1,2,3,4,5].map(i => (
@@ -205,7 +205,7 @@ export default function FitmentCentresClient({
               </TableRow>
             ) : (
               centres.map((c) => (
-                <TableRow key={c.fitment_centre_id} className="even:bg-zinc-50/40 hover:bg-amber-50/30 transition-colors duration-150">
+                <TableRow key={c.fitment_centre_id} className="odd:bg-white even:bg-zinc-200 [&:hover]:bg-amber-100 transition-colors duration-150">
                   <TableCell className="px-5 py-3">
                     <Link href={`/admin/fitters/${c.fitment_centre_id}`} className="flex flex-col group">
                       <span className="font-medium text-primary w-fit group-hover:underline">
@@ -234,6 +234,10 @@ export default function FitmentCentresClient({
                           ),
                         )
                       }
+                      onDeleted={(id) => {
+                        setCentres(prev => prev.filter(x => x.fitment_centre_id !== id))
+                        setTotal(t => Math.max(0, t - 1))
+                      }}
                     />
                   </TableCell>
                 </TableRow>
@@ -277,3 +281,4 @@ export default function FitmentCentresClient({
     </div>
   );
 }
+

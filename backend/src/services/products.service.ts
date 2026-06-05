@@ -20,6 +20,7 @@ export type CreateProductPayload = {
 
   // SEO + Visibility
   defaultCountryOfOrigin?: string
+  isActive?: boolean
   showOnWebsite?: boolean
   seoTitle?: string
   seoDescription?: string
@@ -51,6 +52,9 @@ export type VariantPayload = {
   width?: number
   profile?: number
   rimSize: number
+  specialSize?: string
+  barcodeEan?: string
+  ltSizing?: boolean
   constructionType?: string
   loadIndex?: string
   loadSpeedRating?: string
@@ -79,6 +83,8 @@ export type VariantPayload = {
   dotCode?: string
   utqg?: string
   variantImages?: string[]
+  status?: 'active' | 'inactive' | 'discontinued'
+  replacementProductId?: string
 }
 
 export type PricingPayload = {
@@ -93,7 +99,9 @@ export type PricingPayload = {
 export type ProductListFilters = {
   search?: string
   brandId?: string
+  patternId?: string
   status?: string
+  stock?: string
   page?: number
   limit?: number
   sortBy?: 'updated_at' | 'created_at' | 'pattern_name' | 'show_on_website' | 'brand_name' | 'variant_count'
@@ -105,7 +113,7 @@ export type ProductListFilters = {
 // ============================================================
 export async function listProducts(filters: ProductListFilters) {
   const {
-    search, brandId, status = 'active',
+    search, brandId, patternId, status = 'active', stock,
     page = 1, limit = 20, sortBy = 'updated_at', sortOrder = 'desc',
   } = filters
 
@@ -124,7 +132,7 @@ export async function listProducts(filters: ProductListFilters) {
       created_at,
       brands!inner ( brand_id, brand_name, brand_slug ),
       collections ( collection_name ),
-      skus ( product_id, status )
+      skus ( product_id, status, total_available_stock )
     `, { count: 'exact' })
 
   // brand_name and variant_count are computed/joined — sort client-side; fall back to updated_at
@@ -138,16 +146,28 @@ export async function listProducts(filters: ProductListFilters) {
 
   query = query.range((page - 1) * limit, page * limit - 1)
 
-  if (search) query = query.ilike('pattern_name', `%${search}%`)
-  if (brandId) query = query.eq('brand_id', brandId)
+  if (search)    query = query.ilike('pattern_name', `%${search}%`)
+  if (brandId)   query = query.eq('brand_id', brandId)
+  if (patternId) query = query.eq('pattern_id', patternId)
   if (status === 'published') query = query.eq('show_on_website', true)
   if (status === 'draft')     query = query.eq('show_on_website', false)
 
   const { data, error, count } = await query
+  // Apply stock filter client-side (SKU aggregation not filterable server-side with count)
+  const rawData = data ?? []
+  const filteredData = stock
+    ? rawData.filter(row => {
+        const skus = Array.isArray(row.skus) ? row.skus as { total_available_stock: number }[] : []
+        const totalStock = skus.reduce((s, sku) => s + (sku.total_available_stock ?? 0), 0)
+        if (stock === 'in_stock')  return totalStock > 0
+        if (stock === 'no_stock')  return totalStock === 0
+        return true
+      })
+    : rawData
   if (error) throw error
 
   return {
-    data: (data ?? []).map(row => ({
+    data: filteredData.map(row => ({
       id: row.pattern_id,
       name: row.pattern_name,
       slug: row.pattern_slug,
@@ -191,8 +211,8 @@ export async function getProduct(patternId: string) {
     .from('skus')
     .select(`
       *,
-      product_prices ( price_id, price_type, price_inc_gst, price_ex_gst, is_active, customer_group_id ),
-      product_stock ( stock_id, warehouse_id, available_stock, reserved_stock, minimum_stock_level, warehouses ( warehouse_name ) )
+      product_prices ( price_id, price_type, price_inc_gst, price_ex_gst, is_active, customer_group_id, warehouse_id, start_date, end_date, customer_groups ( group_name ), warehouses ( warehouse_name ) ),
+      product_stock ( stock_id, warehouse_id, available_stock, reserved_stock, incoming_stock, in_transit_stock, damaged_stock, minimum_stock_level, last_purchase_price, last_stock_update, warehouses ( warehouse_name ) )
     `)
     .eq('pattern_id', patternId)
     .order('rim_size', { ascending: true })
@@ -234,7 +254,7 @@ export async function createProduct(payload: CreateProductPayload) {
       seo_description: payload.seoDescription ?? null,
       tread_image: payload.treadImage ?? null,
       default_country_of_origin: payload.defaultCountryOfOrigin ?? null,
-      is_active: true,
+      is_active: payload.isActive ?? true,
       show_on_website: payload.showOnWebsite ?? false,
     })
     .select('pattern_id')
@@ -271,6 +291,9 @@ export async function createProduct(payload: CreateProductPayload) {
         width: v.width ?? null,
         profile: v.profile ?? null,
         rim_size: v.rimSize,
+        special_size: v.specialSize ?? null,
+        barcode_ean: v.barcodeEan ?? null,
+        lt_sizing: v.ltSizing ?? false,
         construction_type: v.constructionType ?? null,
         load_index: v.loadIndex ?? null,
         load_speed_rating: v.loadSpeedRating ?? null,
@@ -299,10 +322,11 @@ export async function createProduct(payload: CreateProductPayload) {
         dot_code: v.dotCode ?? null,
         utqg: v.utqg ?? null,
         variant_images: v.variantImages ?? [],
+        status: v.status ?? 'active',
+        replacement_product_id: v.replacementProductId ?? null,
         compare_at_price: p.compareAtPrice ?? null,
         cost_price: p.costPrice ?? null,
         low_stock_alert: p.lowStockAlert ?? 10,
-        status: 'active',
         total_available_stock: 0,
       })
       .select('product_id')
@@ -326,10 +350,13 @@ export async function createProduct(payload: CreateProductPayload) {
     // 4b. Create initial stock row (if warehouse provided)
     if (p.warehouseId && (p.inventory ?? 0) > 0) {
       await supabase.from('product_stock').insert({
-        product_id: sku.product_id,
-        warehouse_id: p.warehouseId,
-        available_stock: p.inventory ?? 0,
-        reserved_stock: 0,
+        product_id:          sku.product_id,
+        warehouse_id:        p.warehouseId,
+        available_stock:     p.inventory ?? 0,
+        reserved_stock:      0,
+        incoming_stock:      0,
+        in_transit_stock:    0,
+        damaged_stock:       0,
         minimum_stock_level: p.lowStockAlert ?? 10,
       })
     }
@@ -370,6 +397,7 @@ export async function updateProduct(patternId: string, payload: Partial<CreatePr
   if (payload.shoulderType !== undefined) updates.shoulder_type = payload.shoulderType
   if (payload.terrainType !== undefined) updates.terrain_type = payload.terrainType
   if (payload.warrantyKm !== undefined) updates.warranty_km = payload.warrantyKm
+  if (payload.isActive !== undefined) updates.is_active = payload.isActive
   if (payload.showOnWebsite !== undefined) updates.show_on_website = payload.showOnWebsite
   if (payload.seoTitle !== undefined) updates.seo_title = payload.seoTitle
   if (payload.seoDescription !== undefined) updates.seo_description = payload.seoDescription
@@ -432,6 +460,9 @@ export async function addVariant(patternId: string, variant: VariantPayload, pri
     width: variant.width ?? null,
     profile: variant.profile ?? null,
     rim_size: variant.rimSize,
+    special_size: variant.specialSize ?? null,
+    barcode_ean: variant.barcodeEan ?? null,
+    lt_sizing: variant.ltSizing ?? false,
     construction_type: variant.constructionType ?? null,
     load_index: variant.loadIndex ?? null,
     load_speed_rating: variant.loadSpeedRating ?? null,
@@ -459,10 +490,12 @@ export async function addVariant(patternId: string, variant: VariantPayload, pri
     e_mark: variant.eMark ?? null,
     dot_code: variant.dotCode ?? null,
     utqg: variant.utqg ?? null,
+    variant_images: variant.variantImages ?? [],
+    status: variant.status ?? 'active',
+    replacement_product_id: variant.replacementProductId ?? null,
     compare_at_price: pricing.compareAtPrice ?? null,
     cost_price: pricing.costPrice ?? null,
     low_stock_alert: pricing.lowStockAlert ?? 10,
-    status: 'active',
     total_available_stock: 0,
   }).select('product_id').single()
 
@@ -470,15 +503,80 @@ export async function addVariant(patternId: string, variant: VariantPayload, pri
 
   if (pricing.priceIncGst) {
     await supabase.from('product_prices').insert({
-      product_id: sku.product_id,
-      price_type: 'retail',
+      product_id:    sku.product_id,
+      price_type:    'retail',
       price_inc_gst: pricing.priceIncGst,
-      price_ex_gst: parseFloat((pricing.priceIncGst / 1.1).toFixed(2)),
-      is_active: true,
+      price_ex_gst:  parseFloat((pricing.priceIncGst / 1.1).toFixed(2)),
+      is_active:     true,
     })
   }
 
+  if (pricing.warehouseId && (pricing.inventory ?? 0) > 0) {
+    await supabase.from('product_stock').insert({
+      product_id:          sku.product_id,
+      warehouse_id:        pricing.warehouseId,
+      available_stock:     pricing.inventory ?? 0,
+      reserved_stock:      0,
+      incoming_stock:      0,
+      in_transit_stock:    0,
+      damaged_stock:       0,
+      minimum_stock_level: pricing.lowStockAlert ?? 10,
+    })
+    await supabase.from('skus').update({ total_available_stock: pricing.inventory ?? 0 }).eq('product_id', sku.product_id)
+  }
+
   return sku.product_id
+}
+
+// ============================================================
+// VARIANT — patch (edit) an existing SKU
+// ============================================================
+export async function patchVariant(variantId: string, variant: Partial<VariantPayload>) {
+  const updates: Record<string, unknown> = {}
+  if (variant.sku               !== undefined) updates.sku                  = variant.sku
+  if (variant.tyreSizeDisplay   !== undefined) { updates.tyre_size_display = variant.tyreSizeDisplay; updates.normalized_size_code = normalizeTyreSize(variant.tyreSizeDisplay) }
+  if (variant.width             !== undefined) updates.width               = variant.width ?? null
+  if (variant.profile           !== undefined) updates.profile             = variant.profile ?? null
+  if (variant.rimSize           !== undefined) updates.rim_size            = variant.rimSize
+  if (variant.specialSize       !== undefined) updates.special_size        = variant.specialSize ?? null
+  if (variant.barcodeEan        !== undefined) updates.barcode_ean         = variant.barcodeEan ?? null
+  if (variant.ltSizing          !== undefined) updates.lt_sizing           = variant.ltSizing
+  if (variant.constructionType  !== undefined) updates.construction_type   = variant.constructionType ?? null
+  if (variant.loadIndex         !== undefined) updates.load_index          = variant.loadIndex ?? null
+  if (variant.loadSpeedRating   !== undefined) updates.load_speed_rating   = variant.loadSpeedRating ?? null
+  if (variant.speedRating       !== undefined) updates.speed_rating        = variant.speedRating ?? null
+  if (variant.fuelRating        !== undefined) updates.fuel_rating         = variant.fuelRating ?? null
+  if (variant.wetGrip           !== undefined) updates.wet_grip            = variant.wetGrip ?? null
+  if (variant.noiseDb           !== undefined) updates.noise_db            = variant.noiseDb ?? null
+  if (variant.noiseClass        !== undefined) updates.noise_class         = variant.noiseClass ?? null
+  if (variant.runflat           !== undefined) updates.runflat             = variant.runflat
+  if (variant.xlReinforced      !== undefined) updates.xl_reinforced       = variant.xlReinforced
+  if (variant.plyRating         !== undefined) updates.ply_rating          = variant.plyRating ?? null
+  if (variant.loadRange         !== undefined) updates.load_range          = variant.loadRange ?? null
+  if (variant.sidewall          !== undefined) updates.sidewall            = variant.sidewall ?? null
+  if (variant.tubeType          !== undefined) updates.tube_type           = variant.tubeType ?? null
+  if (variant.countryOfOrigin   !== undefined) updates.country_of_origin   = variant.countryOfOrigin
+  if (variant.manufacturerName  !== undefined) updates.manufacturer_name   = variant.manufacturerName ?? null
+  if (variant.factoryName       !== undefined) updates.factory_name        = variant.factoryName ?? null
+  if (variant.factoryCountry    !== undefined) updates.factory_country     = variant.factoryCountry ?? null
+  if (variant.sectionWidth      !== undefined) updates.section_width       = variant.sectionWidth ?? null
+  if (variant.treadDepth        !== undefined) updates.tread_depth         = variant.treadDepth ?? null
+  if (variant.tyreWeight        !== undefined) updates.tyre_weight         = variant.tyreWeight ?? null
+  if (variant.overallDiameter   !== undefined) updates.overall_diameter    = variant.overallDiameter ?? null
+  if (variant.maxLoad           !== undefined) updates.max_load            = variant.maxLoad ?? null
+  if (variant.maxPressure       !== undefined) updates.max_pressure        = variant.maxPressure ?? null
+  if (variant.eMark             !== undefined) updates.e_mark              = variant.eMark ?? null
+  if (variant.dotCode           !== undefined) updates.dot_code            = variant.dotCode ?? null
+  if (variant.utqg              !== undefined) updates.utqg                = variant.utqg ?? null
+  if (variant.status            !== undefined) updates.status              = variant.status
+  if ((variant as { compareAtPrice?: number | null }).compareAtPrice !== undefined) updates.compare_at_price = (variant as { compareAtPrice?: number | null }).compareAtPrice ?? null
+  if ((variant as { costPrice?: number | null }).costPrice           !== undefined) updates.cost_price       = (variant as { costPrice?: number | null }).costPrice ?? null
+  if ((variant as { lowStockAlert?: number | null }).lowStockAlert   !== undefined) updates.low_stock_alert  = (variant as { lowStockAlert?: number | null }).lowStockAlert ?? null
+  if ((variant as { replacementProductId?: string | null }).replacementProductId !== undefined) updates.replacement_product_id = (variant as { replacementProductId?: string | null }).replacementProductId ?? null
+
+  if (Object.keys(updates).length === 0) return
+  const { error } = await supabase.from('skus').update(updates).eq('product_id', variantId)
+  if (error) throw error
 }
 
 // ============================================================
@@ -584,48 +682,135 @@ export async function updateVariantPrices(
 }
 
 // ============================================================
+// PRICE CRUD — add / update / delete individual price rows
+// ============================================================
+
+export type PricePayload = {
+  price_type: string
+  price_inc_gst: number
+  customer_group_id?: string | null
+  warehouse_id?: string | null
+  start_date?: string | null
+  end_date?: string | null
+  is_active?: boolean
+}
+
+export async function addVariantPrice(productId: string, payload: PricePayload) {
+  const price_ex_gst = parseFloat((payload.price_inc_gst / 1.1).toFixed(2))
+  const { data, error } = await supabase.from('product_prices').insert({
+    product_id:        productId,
+    price_type:        payload.price_type,
+    price_inc_gst:     payload.price_inc_gst,
+    price_ex_gst,
+    customer_group_id: payload.customer_group_id ?? null,
+    warehouse_id:      payload.warehouse_id       ?? null,
+    start_date:        payload.start_date          ?? null,
+    end_date:          payload.end_date            ?? null,
+    is_active:         payload.is_active           ?? true,
+  }).select('price_id').single()
+  if (error) throw error
+  return data
+}
+
+export async function updatePrice(priceId: string, payload: Partial<PricePayload>) {
+  const updates: Record<string, unknown> = { ...payload }
+  if (payload.price_inc_gst !== undefined) {
+    updates.price_ex_gst = parseFloat((payload.price_inc_gst / 1.1).toFixed(2))
+  }
+  const { error } = await supabase.from('product_prices').update(updates).eq('price_id', priceId)
+  if (error) throw error
+}
+
+export async function deletePrice(priceId: string) {
+  const { error } = await supabase.from('product_prices').delete().eq('price_id', priceId)
+  if (error) throw error
+}
+
+// ============================================================
 // PRODUCT STOCK — per-warehouse + supplier breakdown
 // ============================================================
 export async function getProductStock(productId: string) {
-  // Warehouse stock
-  const { data: warehouseRows, error: wErr } = await supabase
-    .from('product_stock')
-    .select(`
-      warehouse_id,
-      available_stock,
-      reserved_stock,
-      warehouses ( warehouse_name )
-    `)
-    .eq('product_id', productId)
+  // Fetch all active own-warehouses + existing product_stock rows in parallel
+  const [
+    { data: allWarehouses,  error: wAllErr },
+    { data: stockRows,      error: wErr },
+    { data: supplierStockRows },
+    { data: approvedMaps },
+  ] = await Promise.all([
+    supabase
+      .from('warehouses')
+      .select('warehouse_id, warehouse_name, is_own_warehouse, is_supplier_warehouse')
+      .eq('is_active', true)
+      .eq('is_own_warehouse', true),
+    supabase
+      .from('product_stock')
+      .select(`
+        stock_id,
+        warehouse_id,
+        available_stock,
+        reserved_stock,
+        incoming_stock,
+        in_transit_stock,
+        damaged_stock,
+        minimum_stock_level,
+        last_purchase_price,
+        last_stock_update
+      `)
+      .eq('product_id', productId),
+    supabase
+      .from('supplier_product_stock')
+      .select('supplier_id, available_stock, suppliers ( supplier_name )')
+      .eq('product_id', productId),
+    supabase
+      .from('supplier_product_map')
+      .select('supplier_id, supplier_stock, suppliers ( supplier_name )')
+      .eq('product_id', productId)
+      .eq('is_verified', true),
+  ])
 
-  if (wErr) throw wErr
+  if (wAllErr) throw wAllErr
+  if (wErr)    throw wErr
 
-  // Supplier contributions: join supplier_product_map → supplier_product_stock → suppliers
-  const { data: supplierRows } = await supabase
-    .from('supplier_product_map')
-    .select(`
-      map_id,
-      suppliers ( supplier_id, supplier_name ),
-      supplier_product_stock ( stock_qty )
-    `)
-    .eq('product_id', productId)
-    .eq('is_verified', true)
+  // Build a lookup of existing stock rows by warehouse_id
+  const stockByWarehouse = new Map<string, typeof stockRows extends (infer T)[] | null ? T : never>()
+  for (const r of (stockRows ?? [])) stockByWarehouse.set(r.warehouse_id, r)
 
-  const warehouses = (warehouseRows ?? []).map(r => ({
-    warehouse_id: r.warehouse_id,
-    warehouse_name: (r.warehouses as unknown as { warehouse_name: string } | null)?.warehouse_name ?? 'Unknown',
-    available: r.available_stock,
-    reserved: r.reserved_stock,
-  }))
-
-  const supplierContributions = (supplierRows ?? []).map(r => {
-    const stockRows = Array.isArray(r.supplier_product_stock)
-      ? (r.supplier_product_stock as { stock_qty: number }[])
-      : []
-    const stock = stockRows.reduce((sum, s) => sum + (s.stock_qty ?? 0), 0)
-    const sup = r.suppliers as unknown as { supplier_id: string; supplier_name: string } | null
-    return { supplier_id: sup?.supplier_id ?? '', supplier_name: sup?.supplier_name ?? '', stock }
+  // Left-join: all own warehouses, with stock data if available (zeros if not)
+  const warehouses = (allWarehouses ?? []).map(w => {
+    const s = stockByWarehouse.get(w.warehouse_id)
+    return {
+      stock_id:            s?.stock_id ?? null,
+      warehouse_id:        w.warehouse_id,
+      warehouse_name:      w.warehouse_name,
+      is_own_warehouse:    w.is_own_warehouse,
+      available:           s?.available_stock           ?? 0,
+      reserved:            s?.reserved_stock            ?? 0,
+      incoming:            s?.incoming_stock            ?? 0,
+      in_transit:          s?.in_transit_stock          ?? 0,
+      damaged:             s?.damaged_stock             ?? 0,
+      minimum_stock_level: s?.minimum_stock_level       ?? 0,
+      last_purchase_price: (s as Record<string, unknown> | undefined)?.last_purchase_price as number | null ?? null,
+      last_stock_update:   s?.last_stock_update         ?? null,
+    }
   })
+
+  // Merge: use synced stock if available, else fall back to catalogue stock on approved map
+  const supplierMap = new Map<string, { supplier_name: string; stock: number }>()
+  for (const r of (supplierStockRows ?? [])) {
+    const sup = r.suppliers as unknown as { supplier_name: string } | null
+    const name = sup?.supplier_name ?? 'Unknown'
+    supplierMap.set(r.supplier_id, { supplier_name: name, stock: r.available_stock ?? 0 })
+  }
+  for (const m of (approvedMaps ?? [])) {
+    if (!supplierMap.has(m.supplier_id) && (m.supplier_stock ?? 0) > 0) {
+      const sup = m.suppliers as unknown as { supplier_name: string } | null
+      supplierMap.set(m.supplier_id, { supplier_name: sup?.supplier_name ?? 'Unknown', stock: m.supplier_stock ?? 0 })
+    }
+  }
+
+  const supplierContributions = [...supplierMap.entries()].map(([supplier_id, v]) => ({
+    supplier_id, supplier_name: v.supplier_name, stock: v.stock,
+  }))
 
   const totalSupplierStock = supplierContributions.reduce((s, r) => s + r.stock, 0)
 
@@ -639,15 +824,31 @@ export async function getProductStock(productId: string) {
 
 export async function updateProductStock(
   productId: string,
-  allocations: { warehouse_id: string; available: number }[]
+  allocations: {
+    warehouse_id:        string
+    available:           number
+    reserved?:           number
+    incoming?:           number
+    in_transit?:         number
+    damaged?:            number
+    minimum_stock_level?: number
+  }[]
 ) {
   for (const alloc of allocations) {
+    const patch: Record<string, unknown> = {
+      product_id:      productId,
+      warehouse_id:    alloc.warehouse_id,
+      available_stock: alloc.available,
+      last_stock_update: new Date().toISOString(),
+    }
+    if (alloc.reserved           !== undefined) patch.reserved_stock      = alloc.reserved
+    if (alloc.incoming           !== undefined) patch.incoming_stock      = alloc.incoming
+    if (alloc.in_transit         !== undefined) patch.in_transit_stock    = alloc.in_transit
+    if (alloc.damaged            !== undefined) patch.damaged_stock       = alloc.damaged
+    if (alloc.minimum_stock_level !== undefined) patch.minimum_stock_level = alloc.minimum_stock_level
+
     const { error } = await supabase.from('product_stock').upsert(
-      {
-        product_id: productId,
-        warehouse_id: alloc.warehouse_id,
-        available_stock: alloc.available,
-      },
+      patch,
       { onConflict: 'product_id,warehouse_id' }
     )
     if (error) throw error
@@ -666,18 +867,189 @@ export async function updateProductStock(
 }
 
 // ============================================================
+// PRODUCT-CENTRIC SUPPLIER MAPPINGS
+// Manage supplier_product_map rows from the product/variant side
+// ============================================================
+
+export async function getProductSupplierMappings(productId: string) {
+  // Get all supplier_product_map rows for this product
+  const { data: maps, error: mErr } = await supabase
+    .from('supplier_product_map')
+    .select(`
+      id,
+      supplier_id,
+      supplier_sku,
+      supplier_brand_name,
+      supplier_pattern_name,
+      supplier_size_raw,
+      supplier_price,
+      supplier_stock,
+      lead_time_days,
+      match_confidence,
+      is_verified,
+      last_updated,
+      created_at,
+      suppliers ( supplier_name, connection_type )
+    `)
+    .eq('product_id', productId)
+    .order('last_updated', { ascending: false, nullsFirst: false })
+
+  if (mErr) throw mErr
+
+  // Get synced stock for this product
+  const { data: stocks } = await supabase
+    .from('supplier_product_stock')
+    .select('supplier_id, available_stock, supplier_price, stock_last_updated, lead_time_days')
+    .eq('product_id', productId)
+
+  const stockMap = new Map((stocks ?? []).map(s => [s.supplier_id, s]))
+
+  return (maps ?? []).map(m => {
+    const sup    = m.suppliers as unknown as { supplier_name: string; connection_type: string } | null
+    const synced = stockMap.get(m.supplier_id) ?? null
+    return {
+      id:               m.id,
+      supplier_id:      m.supplier_id,
+      supplier_name:    sup?.supplier_name    ?? null,
+      connection_type:  sup?.connection_type  ?? 'manual',
+      supplier_sku:     m.supplier_sku,
+      supplier_price:   m.supplier_price,
+      supplier_stock:   m.supplier_stock,
+      lead_time_days:   m.lead_time_days,
+      match_confidence: m.match_confidence,
+      is_verified:      m.is_verified,
+      last_updated:     m.last_updated,
+      synced_price:     synced?.supplier_price ?? null,
+      synced_qty:       synced?.available_stock ?? null,
+      synced_at:        synced?.stock_last_updated ?? null,
+    }
+  })
+}
+
+export async function addProductSupplierMapping(productId: string, payload: {
+  supplier_id:  string
+  supplier_sku: string
+  supplier_price?: number | null
+  supplier_stock?: number | null
+  lead_time_days?: number | null
+}) {
+  const { data, error } = await supabase
+    .from('supplier_product_map')
+    .upsert(
+      {
+        supplier_id:      payload.supplier_id,
+        product_id:       productId,
+        supplier_sku:     payload.supplier_sku,
+        supplier_price:   payload.supplier_price   ?? null,
+        supplier_stock:   payload.supplier_stock   ?? 0,
+        lead_time_days:   payload.lead_time_days   ?? null,
+        match_confidence: 100,
+        is_verified:      true,
+        last_updated:     new Date().toISOString(),
+      },
+      { onConflict: 'supplier_id,product_id' }
+    )
+    .select('id, supplier_id')
+    .single()
+
+  if (error) throw error
+
+  // Enqueue stock sync immediately (catalogueSyncQueue imported via lazy require to avoid circular dep)
+  const { catalogueSyncQueue } = await import('../queues')
+  if (catalogueSyncQueue && data?.supplier_id) {
+    await catalogueSyncQueue.add('sync_supplier_stock', {
+      type:        'sync_supplier_stock',
+      supplier_id: data.supplier_id,
+      product_id:  productId,
+    }, {
+      jobId: `sync_stock:${data.supplier_id}:${productId}`,
+    })
+  }
+
+  return data
+}
+
+export async function removeProductSupplierMapping(mapId: string) {
+  // Fetch supplier_id + product_id before deleting (needed to remove stock row)
+  const { data: row } = await supabase
+    .from('supplier_product_map')
+    .select('supplier_id, product_id')
+    .eq('id', mapId)
+    .maybeSingle()
+
+  const { error } = await supabase
+    .from('supplier_product_map')
+    .delete()
+    .eq('id', mapId)
+
+  if (error) throw error
+
+  // Remove the corresponding stock row so it no longer counts toward availability
+  if (row?.supplier_id && row?.product_id) {
+    await supabase
+      .from('supplier_product_stock')
+      .delete()
+      .eq('supplier_id', row.supplier_id)
+      .eq('product_id', row.product_id)
+  }
+}
+
+// ============================================================
 // BRAND helpers (for dropdowns + creation)
 // ============================================================
-export async function createBrand(payload: { brand_name: string; brand_slug: string; brand_logo?: string }) {
+
+type BrandPayload = {
+  brand_name: string
+  brand_slug: string
+  brand_logo?: string | null
+  brand_banner_image?: string | null
+  brand_description?: string | null
+  brand_short_description?: string | null
+  country_of_brand?: string | null
+  manufacturer_name?: string | null
+  brand_positioning?: string | null
+  warranty_info?: string | null
+  seo_title?: string | null
+  seo_description?: string | null
+  is_active?: boolean
+  show_on_website?: boolean
+  channel_wholesale?: boolean
+  channel_retail?: boolean
+  channel_marketplaces?: boolean
+}
+
+export async function createBrand(payload: BrandPayload) {
   await redis?.del('admin:brands')
   const { data, error } = await supabase.from('brands').insert({
-    brand_name: payload.brand_name,
-    brand_slug: payload.brand_slug,
-    brand_logo: payload.brand_logo ?? null,
-    is_active:  true,
+    brand_name:              payload.brand_name,
+    brand_slug:              payload.brand_slug,
+    brand_logo:              payload.brand_logo              ?? null,
+    brand_banner_image:      payload.brand_banner_image      ?? null,
+    brand_description:       payload.brand_description       ?? null,
+    brand_short_description: payload.brand_short_description ?? null,
+    country_of_brand:        payload.country_of_brand        ?? null,
+    manufacturer_name:       payload.manufacturer_name       ?? null,
+    brand_positioning:       payload.brand_positioning       ?? null,
+    warranty_info:           payload.warranty_info           ?? null,
+    seo_title:               payload.seo_title               ?? null,
+    seo_description:         payload.seo_description         ?? null,
+    is_active:               payload.is_active               ?? true,
+    show_on_website:         payload.show_on_website         ?? false,
+    channel_wholesale:       payload.channel_wholesale       ?? false,
+    channel_retail:          payload.channel_retail          ?? false,
+    channel_marketplaces:    payload.channel_marketplaces    ?? false,
   }).select('brand_id, brand_name, brand_slug').single()
   if (error) throw error
   return data
+}
+
+export async function listBrandsFull() {
+  const { data, error } = await supabase
+    .from('brands')
+    .select('brand_id, brand_name, brand_slug, brand_logo, brand_banner_image, brand_description, brand_short_description, country_of_brand, manufacturer_name, brand_positioning, warranty_info, seo_title, seo_description, is_active, show_on_website, channel_wholesale, channel_retail, channel_marketplaces, created_at, updated_at')
+    .order('brand_name')
+  if (error) throw error
+  return data ?? []
 }
 
 export async function listBrands() {
@@ -688,6 +1060,93 @@ export async function listBrands() {
     .from('brands').select('brand_id, brand_name, brand_slug').eq('is_active', true).order('brand_name')
   await redis?.set('admin:brands', data ?? [], { ex: TTL.SUPPLIER_MAP })
   return data ?? []
+}
+
+export async function updateBrand(id: string, payload: Partial<BrandPayload>) {
+  await redis?.del('admin:brands')
+  const { error } = await supabase.from('brands').update(payload).eq('brand_id', id)
+  if (error) throw error
+}
+
+export async function deleteBrand(id: string) {
+  await redis?.del('admin:brands')
+  const { error } = await supabase.from('brands').delete().eq('brand_id', id)
+  if (error) throw error
+}
+
+// ── Patterns ──────────────────────────────────────────────────────────────────
+
+export async function listPatterns(brandId?: string) {
+  let q = supabase
+    .from('patterns')
+    .select('pattern_id, brand_id, pattern_name, pattern_slug, application_type, season_type, is_active, show_on_website, main_image, created_at')
+    .order('pattern_name')
+  if (brandId) q = q.eq('brand_id', brandId)
+  const { data, error } = await q
+  if (error) throw error
+  return data ?? []
+}
+
+export async function getPattern(patternId: string) {
+  const { data, error } = await supabase
+    .from('patterns')
+    .select('*, pattern_categories(category_id, categories(category_id, category_name, category_type))')
+    .eq('pattern_id', patternId)
+    .single()
+  if (error) throw error
+  return data
+}
+
+export type PatternPayload = {
+  brand_id:                 string
+  pattern_name:             string
+  pattern_slug:             string
+  pattern_description?:     string | null
+  pattern_short_description?: string | null
+  main_image?:              string | null
+  application_type:         string
+  season_type?:             string | null
+  performance_category?:    string | null
+  position_category?:       string | null
+  shoulder_type?:           string | null
+  terrain_type?:            string | null
+  default_country_of_origin?: string | null
+  warranty_km?:             number | null
+  seo_title?:               string | null
+  seo_description?:         string | null
+  is_active?:               boolean
+  show_on_website?:         boolean
+  on_sale?:                 boolean
+  discountable?:            boolean
+  tyre_overview?:           string | null
+  features?:                string | null
+  warranty_information?:    string | null
+}
+
+export async function createPattern(payload: PatternPayload) {
+  const { data, error } = await supabase
+    .from('patterns')
+    .insert(payload)
+    .select('pattern_id, pattern_name, brand_id')
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function updatePattern(patternId: string, payload: Partial<PatternPayload>) {
+  const { error } = await supabase
+    .from('patterns')
+    .update({ ...payload, updated_at: new Date().toISOString() })
+    .eq('pattern_id', patternId)
+  if (error) throw error
+}
+
+export async function deletePattern(patternId: string) {
+  const { error } = await supabase
+    .from('patterns')
+    .delete()
+    .eq('pattern_id', patternId)
+  if (error) throw error
 }
 
 export async function listCollections() {
@@ -714,17 +1173,46 @@ export async function deleteCollection(id: string) {
 
 export async function listCategories() {
   const { data } = await supabase
-    .from('categories').select('category_id, category_name, category_slug, category_type, description, is_active, sort_order, created_at').order('sort_order').order('category_name')
+    .from('categories')
+    .select('category_id, category_name, category_slug, category_type, parent_category_id, description, image, is_active, hidden_from_website, sort_order, created_at')
+    .order('sort_order')
+    .order('category_name')
   return data ?? []
 }
 
-export async function createCategory(payload: { category_name: string; category_slug: string; category_type: string; description?: string; sort_order?: number }) {
-  const { data, error } = await supabase.from('categories').insert(payload).select().single()
+export type CategoryType = 'season' | 'application' | 'performance' | 'position' | 'terrain'
+
+export async function createCategory(payload: {
+  category_name:      string
+  category_slug:      string
+  category_type:      CategoryType
+  parent_category_id?: string | null
+  description?:       string
+  image?:             string | null
+  sort_order?:        number
+  is_active?:         boolean
+  hidden_from_website?: boolean
+}) {
+  const { data, error } = await supabase.from('categories').insert({
+    ...payload,
+    is_active:           payload.is_active           ?? true,
+    hidden_from_website: payload.hidden_from_website ?? false,
+  }).select().single()
   if (error) throw error
   return data
 }
 
-export async function updateCategory(id: string, payload: { category_name?: string; category_slug?: string; category_type?: string; description?: string; is_active?: boolean; sort_order?: number }) {
+export async function updateCategory(id: string, payload: {
+  category_name?:       string
+  category_slug?:       string
+  category_type?:       CategoryType
+  parent_category_id?:  string | null
+  description?:         string | null
+  image?:               string | null
+  is_active?:           boolean
+  hidden_from_website?: boolean
+  sort_order?:          number
+}) {
   const { error } = await supabase.from('categories').update(payload).eq('category_id', id)
   if (error) throw error
 }
@@ -732,4 +1220,24 @@ export async function updateCategory(id: string, payload: { category_name?: stri
 export async function deleteCategory(id: string) {
   const { error } = await supabase.from('categories').delete().eq('category_id', id)
   if (error) throw error
+}
+
+// ── product_categories (SKU-level many-to-many) ────────────────────────────
+
+export async function getProductCategories(productId: string) {
+  const { data } = await supabase
+    .from('product_categories')
+    .select('category_id, categories(category_id, category_name, category_type)')
+    .eq('product_id', productId)
+  return data ?? []
+}
+
+export async function setProductCategories(productId: string, categoryIds: string[]) {
+  await supabase.from('product_categories').delete().eq('product_id', productId)
+  if (categoryIds.length > 0) {
+    const { error } = await supabase.from('product_categories').insert(
+      categoryIds.map(cid => ({ product_id: productId, category_id: cid }))
+    )
+    if (error) throw error
+  }
 }

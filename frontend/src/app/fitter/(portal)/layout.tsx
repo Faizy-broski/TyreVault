@@ -61,3 +61,4 @@ export default async function FitterLayout({ children }: { children: React.React
     </FitterShell>
   )
 }
+

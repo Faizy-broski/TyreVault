@@ -268,7 +268,7 @@ export default function CustomerGroupDetailPage() {
               members.map(member => {
                 const name = [member.first_name, member.last_name].filter(Boolean).join(' ') || member.email
                 return (
-                  <tr key={member.customer_id} className="even:bg-zinc-50/40 hover:bg-amber-50/30 transition-colors duration-150">
+                  <tr key={member.customer_id} className="even:bg-zinc-100/50 hover:bg-amber-50/70 transition-colors duration-150">
                     <td className="px-4 py-3">
                       <Link href={`/admin/customers/${member.customer_id}`} className="text-zinc-800 hover:underline">
                         {member.email}

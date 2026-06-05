@@ -130,7 +130,7 @@ export default function MappingReviewClient({
               <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-100">
+          <tbody className="divide-y divide-zinc-100 [&_tr:nth-child(even)]:bg-zinc-100 [&_tr:nth-child(odd)]:bg-white [&_tr:hover]:bg-amber-50 [&_tr]:transition-colors">
             {loading ? (
               <tr><td colSpan={4} className="px-5 py-8 text-center text-sm text-zinc-400">Loading…</td></tr>
             ) : mappings.length === 0 ? (
@@ -142,7 +142,7 @@ export default function MappingReviewClient({
               </tr>
             ) : (
               mappings.map(m => (
-                <tr key={m.id} className="hover:bg-zinc-50">
+                <tr key={m.id} className="even:bg-zinc-50/50 hover:bg-amber-50/40 transition-colors">
                   {/* Supplier raw data */}
                   <td className="px-4 py-3 align-top">
                     <p className="font-medium text-zinc-900 text-xs">{m.supplier_size_raw ?? '—'}</p>
@@ -247,3 +247,4 @@ export default function MappingReviewClient({
     </div>
   )
 }
+

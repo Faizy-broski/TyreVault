@@ -383,15 +383,14 @@ function ProductHeaderMenu({ patternId, skuStocks, skuPrices, onSuccess }: Props
   return (
     <>
       <div ref={ref} className="relative">
-        <Button
+        <button
           type="button"
-          variant="ghost"
-          size="icon-sm"
           aria-label="Product options"
           onClick={() => setOpen(o => !o)}
+          className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-zinc-300 bg-white text-zinc-500 hover:border-zinc-400 hover:text-zinc-800 transition-colors"
         >
-          <MoreVertical className="w-5 h-5" />
-        </Button>
+          <MoreVertical className="w-4 h-4" />
+        </button>
         {open && (
           <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-lg border border-zinc-200 bg-white shadow-lg py-1">
             {[
@@ -492,7 +491,7 @@ export function VariantRowMenu({ patternId, variantId, variantName, onDeleted }:
         {open && (
           <div className="absolute right-0 top-full mt-1 z-50 w-40 rounded-lg border border-zinc-200 bg-white shadow-lg py-1">
             <Link
-              href={`/admin/products/${patternId}/variants/${variantId}`}
+              href={`/admin/products/${patternId}/variants/${variantId}/edit`}
               className="flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
               onClick={() => setOpen(false)}
             >
@@ -537,3 +536,4 @@ export function VariantRowMenu({ patternId, variantId, variantName, onDeleted }:
 export default function ProductActionsBar(props: Props) {
   return <ProductHeaderMenu {...props} />
 }
+

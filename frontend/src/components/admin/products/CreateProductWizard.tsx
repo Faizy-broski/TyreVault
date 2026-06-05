@@ -29,9 +29,10 @@ type Props = {
   collections: { collection_id: string; collection_name: string }[]
   categories:  { category_id: string; category_name: string; category_type: string }[]
   warehouses:  { warehouse_id: string; warehouse_name: string }[]
+  patterns?:   { pattern_id: string; pattern_name: string; brand_id: string }[]
 }
 
-export default function CreateProductWizard({ brands, collections, categories, warehouses }: Props) {
+export default function CreateProductWizard({ brands, collections, categories, warehouses, patterns = [] }: Props) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<TabKey>('basic')
   const [completedTabs, setCompletedTabs] = useState<Set<TabKey>>(new Set())
@@ -51,6 +52,8 @@ export default function CreateProductWizard({ brands, collections, categories, w
       warrantyInformation: '',
       tyreSpecSheet: '',
       faqList: [],
+      isActive: true,
+      showOnWebsite: false,
       discountable: true,
       applicationType: 'PCR',
       categoryIds: [],
@@ -190,7 +193,7 @@ export default function CreateProductWizard({ brands, collections, categories, w
 
         {/* Tab content */}
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6">
-          {activeTab === 'basic'      && <BasicInfoTab autoSlug={autoSlug} brands={brands} />}
+          {activeTab === 'basic'      && <BasicInfoTab autoSlug={autoSlug} brands={brands} patterns={patterns} />}
           {activeTab === 'categories' && <CategoriesTab collections={collections} categories={categories} />}
           {activeTab === 'variants'   && <VariantsTab />}
           {activeTab === 'pricing'    && <PricingTab warehouses={warehouses} />}
@@ -227,3 +230,4 @@ export default function CreateProductWizard({ brands, collections, categories, w
     </FormProvider>
   )
 }
+

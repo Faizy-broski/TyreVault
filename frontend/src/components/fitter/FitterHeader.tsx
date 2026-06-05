@@ -101,3 +101,4 @@ export default function FitterHeader({ centre, userEmail, notificationCount = 0 
     </header>
   )
 }
+

@@ -35,16 +35,17 @@ export async function getCustomer(req: Request, res: Response) {
 }
 
 export async function postCustomer(req: Request, res: Response) {
-  const { email, firstName, lastName, company, phone, customerType, accountStatus } = req.body
+  const { email, firstName, lastName, company, phone, customerType, accountStatus, customerGroupId, billingAddressId, creditLimit, paymentTerms } = req.body
   if (!email) return res.status(400).json({ error: 'email is required' })
-  const { data, error } = await svc.createCustomer({ email, firstName, lastName, company, phone, customerType, accountStatus })
+  const { data, error } = await svc.createCustomer({ email, firstName, lastName, company, phone, customerType, accountStatus, customerGroupId, billingAddressId, creditLimit, paymentTerms })
   if (error) return res.status(400).json({ error: error.message })
   res.status(201).json({ customer: data })
 }
 
 export async function patchCustomer(req: Request, res: Response) {
   const id = String((req.params as P).id)
-  const { error } = await svc.updateCustomer(id, req.body)
+  const { email, firstName, lastName, company, phone, customerType, accountStatus, creditLimit, paymentTerms, customerGroupId, billingAddressId } = req.body
+  const { error } = await svc.updateCustomer(id, { email, firstName, lastName, company, phone, customerType, accountStatus, creditLimit, paymentTerms, customerGroupId, billingAddressId })
   if (error) return res.status(400).json({ error: error.message })
   res.json({ success: true })
 }
@@ -60,9 +61,20 @@ export async function removeCustomer(req: Request, res: Response) {
 
 export async function postAddress(req: Request, res: Response) {
   const id = String((req.params as P).id)
-  const { addressName, addressLine1, addressLine2, city, postalCode, country, state, company, phone } = req.body
+  const {
+    addressName, addressLine1, addressLine2,
+    suburb, city,        // suburb = spec name; city = old fallback
+    postcode, postalCode, // postcode = spec name; postalCode = old fallback
+    country, state, company, phone,
+    isDefault, latitude, longitude,
+  } = req.body
   if (!addressName || !addressLine1) return res.status(400).json({ error: 'addressName and addressLine1 required' })
-  const { data, error } = await svc.createAddress(id, { addressName, addressLine1, addressLine2, city, postalCode, country, state, company, phone })
+  const { data, error } = await svc.createAddress(id, {
+    addressName, addressLine1, addressLine2,
+    suburb, city, postcode, postalCode,
+    country, state, company, phone,
+    isDefault, latitude, longitude,
+  })
   if (error) return res.status(400).json({ error: error.message })
   res.status(201).json({ address: data })
 }
@@ -109,18 +121,18 @@ export async function getGroup(req: Request, res: Response) {
 }
 
 export async function postGroup(req: Request, res: Response) {
-  const { name } = req.body
+  const { name, description, discount_type, discount_value, price_type } = req.body
   if (!name) return res.status(400).json({ error: 'name is required' })
-  const { data, error } = await svc.createCustomerGroup(name)
+  const { data, error } = await svc.createCustomerGroup({ name, description, discount_type, discount_value, price_type })
   if (error) return res.status(400).json({ error: error.message })
   res.status(201).json({ group: data })
 }
 
 export async function patchGroup(req: Request, res: Response) {
-  const id   = String((req.params as P).id)
-  const { name } = req.body
+  const id = String((req.params as P).id)
+  const { name, description, discount_type, discount_value, price_type } = req.body
   if (!name) return res.status(400).json({ error: 'name is required' })
-  const { error } = await svc.updateCustomerGroup(id, name)
+  const { error } = await svc.updateCustomerGroup(id, { name, description, discount_type, discount_value, price_type })
   if (error) return res.status(400).json({ error: error.message })
   res.json({ success: true })
 }

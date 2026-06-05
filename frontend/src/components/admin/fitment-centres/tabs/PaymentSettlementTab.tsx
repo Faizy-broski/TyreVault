@@ -296,7 +296,7 @@ export default function PaymentSettlementTab({
               <TableRow><TableCell colSpan={9} className="px-5 py-8 text-center text-sm text-zinc-400">No payment history.</TableCell></TableRow>
             ) : (
               history.map(row => (
-                <TableRow key={row.id} className="hover:bg-zinc-50">
+                <TableRow key={row.id} className="even:bg-zinc-100 hover:bg-amber-50 transition-colors">
                   <TableCell className="px-5 py-3 text-xs text-zinc-600 whitespace-nowrap">
                     {fmtDate(row.period_start)} → {fmtDate(row.period_end)}
                   </TableCell>
@@ -365,3 +365,4 @@ export default function PaymentSettlementTab({
     </div>
   )
 }
+

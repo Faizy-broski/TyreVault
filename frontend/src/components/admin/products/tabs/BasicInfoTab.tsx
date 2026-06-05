@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useRef, useState, useCallback } from 'react'
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import type { CreateProductFormValues } from '../schema'
 import { CreatableCombobox, slugify } from '@/components/ui/CreatableCombobox'
@@ -28,12 +28,67 @@ const RichField = ({ name, label }: { name: 'tyreOverview' | 'features' | 'warra
   )
 }
 
-export default function BasicInfoTab({ autoSlug, brands }: {
+export default function BasicInfoTab({ autoSlug, brands, patterns = [] }: {
   autoSlug: string
   brands: { brand_id: string; brand_name: string }[]
+  patterns?: { pattern_id: string; pattern_name: string; brand_id: string }[]
 }) {
   const { register, watch, setValue, formState: { errors } } = useFormContext<CreateProductFormValues>()
   const brandId = watch('brandId')
+  const [patternLoading, setPatternLoading] = useState(false)
+
+  const brandPatterns = patterns.filter(p => p.brand_id === brandId)
+
+  const applyPattern = useCallback(async (patternId: string) => {
+    if (!patternId || !brandId) return
+    setPatternLoading(true)
+    try {
+      const { data: { session } } = await createClient().auth.getSession()
+      const tok = session?.access_token ?? ''
+      const res = await fetch(`${API}/api/admin/products/brands/${brandId}/patterns/${patternId}`, {
+        headers: { Authorization: `Bearer ${tok}` },
+      })
+      if (!res.ok) throw new Error('Failed to load pattern')
+      const p = await res.json()
+
+      // Basic info
+      setValue('patternName',      p.pattern_name ?? '',  { shouldValidate: true })
+      setValue('patternSlug',      p.pattern_slug ?? '')
+      setValue('shortDescription', p.pattern_short_description ?? '')
+      setValue('tyreOverview',     p.tyre_overview ?? '')
+      setValue('features',         p.features ?? '')
+      setValue('warrantyInformation', p.warranty_information ?? '')
+      setValue('tyreSpecSheet',    p.tyre_spec_sheet ?? '')
+      setValue('galleryImages',    Array.isArray(p.gallery_images) ? p.gallery_images : [])
+      setValue('treadImage',       p.tread_image ?? '')
+
+      // SEO + visibility
+      setValue('seoTitle',       p.seo_title ?? '')
+      setValue('seoDescription', p.seo_description ?? '')
+      setValue('isActive',       p.is_active ?? true)
+      setValue('showOnWebsite',  p.show_on_website ?? false)
+      setValue('discountable',   p.discountable ?? true)
+
+      // Classification
+      if (p.application_type)    setValue('applicationType',    p.application_type)
+      if (p.season_type)         setValue('seasonType',         p.season_type)
+      if (p.performance_category) setValue('performanceCategory', p.performance_category)
+      if (p.position_category)   setValue('positionCategory',   p.position_category)
+      if (p.shoulder_type)       setValue('shoulderType',       p.shoulder_type)
+      if (p.terrain_type)        setValue('terrainType',        p.terrain_type)
+      if (p.warranty_km != null) setValue('warrantyKm',         p.warranty_km)
+      if (p.collection_id)       setValue('collectionId',       p.collection_id)
+
+      // Categories
+      if (Array.isArray(p.pattern_categories)) {
+        setValue('categoryIds', p.pattern_categories.map((c: { category_id: string }) => c.category_id))
+      }
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Failed to load pattern details')
+    } finally {
+      setPatternLoading(false)
+    }
+  }, [brandId, setValue])
   const { fields: faqFields, append: appendFaq, remove: removeFaq } = useFieldArray<CreateProductFormValues, 'faqList'>({
     name: 'faqList',
   })
@@ -70,7 +125,7 @@ export default function BasicInfoTab({ autoSlug, brands }: {
       {/* ── General ─────────────────────────────────────────────────────── */}
       <section>
         <h2 className="text-base font-semibold text-zinc-900 mb-4">General</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {/* Brand */}
           <div>
             <label className="block text-sm font-medium text-zinc-700 mb-1">Brand</label>
@@ -97,6 +152,34 @@ export default function BasicInfoTab({ autoSlug, brands }: {
             />
             {errors.brandId && <p className="mt-1 text-xs text-red-600">{errors.brandId.message}</p>}
           </div>
+
+          {/* Pattern (pre-fill from existing) */}
+          {brandPatterns.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">
+                Copy from pattern
+                <span className="ml-1 text-xs font-normal text-zinc-400">(pre-fills all fields)</span>
+              </label>
+              <div className="relative">
+                <select
+                  className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-500/20 focus:border-zinc-500 disabled:opacity-50"
+                  defaultValue=""
+                  disabled={patternLoading}
+                  onChange={e => applyPattern(e.target.value)}
+                >
+                  <option value="">— Select pattern —</option>
+                  {brandPatterns.map(p => (
+                    <option key={p.pattern_id} value={p.pattern_id}>{p.pattern_name}</option>
+                  ))}
+                </select>
+                {patternLoading && (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400 animate-pulse pointer-events-none">
+                    Loading…
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Title */}
           <div>
@@ -302,27 +385,54 @@ export default function BasicInfoTab({ autoSlug, brands }: {
       <section>
         <h2 className="text-base font-semibold text-zinc-900 mb-4">SEO &amp; Visibility</h2>
 
-        {/* Show on Website toggle */}
-        <div className="rounded-lg border border-zinc-200 p-4 mb-4">
-          <div className="flex items-start gap-3">
-            <button
-              type="button"
-              role="switch"
-              aria-checked={watch('showOnWebsite')}
-              onClick={() => setValue('showOnWebsite', !watch('showOnWebsite'))}
-              className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors mt-0.5 ${
-                watch('showOnWebsite') ? 'bg-primary' : 'bg-zinc-300'
-              }`}
-            >
-              <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                watch('showOnWebsite') ? 'translate-x-4' : 'translate-x-0'
-              }`} />
-            </button>
-            <div>
-              <span className="text-sm font-medium text-zinc-800">Show on Website</span>
-              <p className="text-xs text-zinc-500 mt-0.5">
-                Product will be visible to customers on the storefront
-              </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+          {/* Is Active toggle */}
+          <div className="rounded-lg border border-zinc-200 p-4">
+            <div className="flex items-start gap-3">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={watch('isActive')}
+                onClick={() => setValue('isActive', !watch('isActive'))}
+                className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors mt-0.5 ${
+                  watch('isActive') ? 'bg-primary' : 'bg-zinc-300'
+                }`}
+              >
+                <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                  watch('isActive') ? 'translate-x-4' : 'translate-x-0'
+                }`} />
+              </button>
+              <div>
+                <span className="text-sm font-medium text-zinc-800">Is Active</span>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  Pattern is enabled in admin — inactive patterns are hidden from all views
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Show on Website toggle */}
+          <div className="rounded-lg border border-zinc-200 p-4">
+            <div className="flex items-start gap-3">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={watch('showOnWebsite')}
+                onClick={() => setValue('showOnWebsite', !watch('showOnWebsite'))}
+                className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors mt-0.5 ${
+                  watch('showOnWebsite') ? 'bg-primary' : 'bg-zinc-300'
+                }`}
+              >
+                <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                  watch('showOnWebsite') ? 'translate-x-4' : 'translate-x-0'
+                }`} />
+              </button>
+              <div>
+                <span className="text-sm font-medium text-zinc-800">Show on Website</span>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  Product will be visible to customers on the storefront
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -418,3 +528,4 @@ export default function BasicInfoTab({ autoSlug, brands }: {
     </div>
   )
 }
+

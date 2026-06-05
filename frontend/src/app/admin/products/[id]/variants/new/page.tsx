@@ -64,10 +64,12 @@ export default function NewVariantPage() {
 
     const variant = {
       sku:              String(fd.get('sku') ?? '').trim(),
+      barcodeEan:       String(fd.get('barcodeEan') ?? '').trim() || undefined,
       tyreSizeDisplay:  String(fd.get('tyreSizeDisplay') ?? '').trim(),
       width:            fd.get('width')     ? Number(fd.get('width'))     : undefined,
       profile:          fd.get('profile')   ? Number(fd.get('profile'))   : undefined,
       rimSize:          Number(fd.get('rimSize') ?? 0),
+      specialSize:      String(fd.get('specialSize') ?? '').trim() || undefined,
       loadIndex:        String(fd.get('loadIndex')   ?? '').trim() || undefined,
       speedRating:      String(fd.get('speedRating') ?? '').trim() || undefined,
       fuelRating:       String(fd.get('fuelRating')  ?? '').trim() || undefined,
@@ -75,6 +77,7 @@ export default function NewVariantPage() {
       noiseDb:          String(fd.get('noiseDb')     ?? '').trim() || undefined,
       runflat:          fd.get('runflat') === 'true',
       xlReinforced:     fd.get('xlReinforced') === 'true',
+      ltSizing:         fd.get('ltSizing') === 'on',
       countryOfOrigin:  String(fd.get('countryOfOrigin') ?? '').trim() || undefined,
     }
 
@@ -120,13 +123,27 @@ export default function NewVariantPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <section>
-            <h2 className="text-sm font-medium text-zinc-700 mb-3">Tyre Specification</h2>
+            <h2 className="text-sm font-medium text-zinc-700 mb-3">Product Identity</h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="SKU" name="sku" required />
-              <Field label="Size Display" name="tyreSizeDisplay" placeholder="e.g. 205/55R16" required />
+              <Field label="Barcode (EAN)" name="barcodeEan" placeholder="e.g. 1234567890123" />
+            </div>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-medium text-zinc-700 mb-3">Sizing & Dimensions</h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Width (mm)" name="width" type="number" placeholder="205" />
               <Field label="Profile (%)" name="profile" type="number" placeholder="55" />
               <Field label="Rim Size (in)" name="rimSize" type="number" required placeholder="16" />
+              <Field label="Special Size" name="specialSize" placeholder="e.g. 33X12.50R17" />
+              <Field label="Size Display" name="tyreSizeDisplay" placeholder="e.g. 205/55R16" required />
+            </div>
+          </section>
+
+          <section>
+            <h2 className="text-sm font-medium text-zinc-700 mb-3">Technical Specifications</h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Load Index" name="loadIndex" placeholder="91" />
               <Field label="Speed Rating" name="speedRating" placeholder="V" />
               <Field label="Fuel Rating" name="fuelRating" placeholder="C" />
@@ -137,6 +154,12 @@ export default function NewVariantPage() {
             <div className="grid grid-cols-1 gap-4 mt-4 sm:grid-cols-2">
               <SelectField label="Runflat" name="runflat" options={[{ value: 'false', label: 'No' }, { value: 'true', label: 'Yes' }]} />
               <SelectField label="XL Reinforced" name="xlReinforced" options={[{ value: 'false', label: 'No' }, { value: 'true', label: 'Yes' }]} />
+            </div>
+            <div className="flex flex-wrap gap-6 mt-4">
+              <label className="flex items-center gap-2 cursor-pointer text-sm text-zinc-700 select-none">
+                <input type="checkbox" name="ltSizing" className="h-4 w-4 rounded border-zinc-300 accent-primary" />
+                LT (Light Truck)
+              </label>
             </div>
           </section>
 

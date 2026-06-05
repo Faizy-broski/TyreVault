@@ -145,7 +145,7 @@ export default function CollectionsPage() {
               <th className="px-5 py-3 w-20" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-100">
+          <tbody className="divide-y divide-zinc-300">
             {creating && (
               <tr>
                 <td className="px-5 py-3">
@@ -177,7 +177,7 @@ export default function CollectionsPage() {
               <tr><td colSpan={5} className="px-5 py-8 text-center text-zinc-400">No collections yet.</td></tr>
             ) : (
               collections.map(c => (
-                <tr key={c.collection_id} className="even:bg-zinc-50/40 hover:bg-amber-50/30 transition-colors duration-150">
+                <tr key={c.collection_id} className="odd:bg-white even:bg-zinc-200 [&:hover]:bg-amber-100 transition-colors duration-150">
                   {editId === c.collection_id ? (
                     <>
                       <td className="px-5 py-2">
@@ -232,3 +232,4 @@ export default function CollectionsPage() {
     </div>
   )
 }
+

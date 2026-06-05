@@ -86,6 +86,7 @@ export default function EditProductPage() {
           tyreSpecSheet:       p.tyre_spec_sheet ?? '',
           faqList:             Array.isArray(p.faq_list) ? p.faq_list : [],
           defaultCountryOfOrigin: p.default_country_of_origin ?? '',
+          isActive:            p.is_active ?? true,
           showOnWebsite:       p.show_on_website ?? false,
           seoTitle:            p.seo_title ?? '',
           seoDescription:      p.seo_description ?? '',

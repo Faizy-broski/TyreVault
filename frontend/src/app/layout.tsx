@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import { Geist, Geist_Mono, Inter, Oswald } from 'next/font/google'
 import './globals.css'
 import { cn } from "@/lib/utils"
-import NavigationProgress from '@/components/NavigationProgress'
 
 const inter = Inter({subsets:['latin'],variable:'--font-sans'});
 
@@ -37,9 +36,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={cn("font-sans", inter.variable)}>
       <body suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <NavigationProgress />
         {children}
       </body>
     </html>
   )
 }
+

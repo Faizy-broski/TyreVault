@@ -1,6 +1,6 @@
 'use client'
 
-import { useQuery, keepPreviousData } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { fetchBackendJson } from '@/lib/backend-api'
 import { adminKeys } from './keys'
@@ -40,6 +40,40 @@ export type OrderListParams = {
 }
 
 export type OrderListResponse = { data: OrderListItem[]; total: number }
+
+export function useDeleteOrder() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (orderId: string) => {
+      const token = await getToken()
+      return fetchBackendJson<{ success: boolean }>(
+        `/api/admin/orders/${orderId}`,
+        token,
+        { method: 'DELETE' },
+      )
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] })
+    },
+  })
+}
+
+export function useUpdateOrderStatus() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ orderId, fulfillmentStatus, paymentStatus }: { orderId: string; fulfillmentStatus?: string; paymentStatus?: string }) => {
+      const token = await getToken()
+      return fetchBackendJson<{ success: boolean }>(
+        `/api/admin/orders/${orderId}/status`,
+        token,
+        { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fulfillmentStatus, paymentStatus }) },
+      )
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] })
+    },
+  })
+}
 
 export function useOrderList(p: OrderListParams) {
   const qs = new URLSearchParams({ page: String(p.page) })
@@ -97,12 +131,13 @@ export function useCustomerList(p: CustomerListParams) {
 
 // ─── Products ─────────────────────────────────────────────────────────────────
 
-type Brand = { brand_id: string; brand_name: string }
+type Brand   = { brand_id: string; brand_name: string }
+type Pattern = { pattern_id: string; pattern_name: string; brand_id: string }
 
 export function useProductMeta() {
   return useQuery({
     queryKey: adminKeys.productMeta(),
-    queryFn:  async () => fetchBackendJson<{ brands: Brand[] }>('/api/admin/products/meta', await getToken()),
+    queryFn:  async () => fetchBackendJson<{ brands: Brand[]; patterns: Pattern[] }>('/api/admin/products/meta', await getToken()),
     staleTime: META_STALE,
   })
 }
@@ -113,7 +148,9 @@ export type ProductListParams = {
   sortBy:    string
   sortOrder: string
   brandId:   string
+  patternId: string
   status:    string
+  stock:     string
 }
 
 type ProductRaw = {
@@ -138,9 +175,11 @@ export type ProductListResponse = { data: NormalisedProduct[]; total: number }
 
 export function useProductList(p: ProductListParams) {
   const qs = new URLSearchParams({ page: String(p.page), sortBy: p.sortBy, sortOrder: p.sortOrder })
-  if (p.search)  qs.set('search',  p.search)
-  if (p.brandId) qs.set('brandId', p.brandId)
-  if (p.status)  qs.set('status',  p.status)
+  if (p.search)    qs.set('search',    p.search)
+  if (p.brandId)   qs.set('brandId',   p.brandId)
+  if (p.patternId) qs.set('patternId', p.patternId)
+  if (p.status)    qs.set('status',    p.status)
+  if (p.stock)     qs.set('stock',     p.stock)
 
   return useQuery({
     queryKey: adminKeys.productList(Object.fromEntries(qs)),

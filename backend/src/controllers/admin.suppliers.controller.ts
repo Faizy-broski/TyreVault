@@ -177,11 +177,75 @@ export async function manualMap(req: Request, res: Response, next: NextFunction)
 }
 
 // ============================================================
+// GET MAPPING VIEW — split-panel interface data
+// GET /api/admin/suppliers/:id/mapping-view
+// ============================================================
+export async function getMappingView(req: Request, res: Response, next: NextFunction) {
+  try {
+    const supplierId = String((req.params as P).id)
+    const filter     = (req.query.filter as SuppliersService.MappingViewFilter) ?? 'all'
+    const page       = req.query.page   ? Number(req.query.page)  : 1
+    const q          = req.query.q      ? String(req.query.q)     : ''
+
+    const result = await SuppliersService.getMappingView(supplierId, { page, filter, q })
+    res.json(result)
+  } catch (err) { next(err) }
+}
+
+// ============================================================
+// APPROVE ALL PENDING
+// POST /api/admin/suppliers/:id/mappings/approve-all
+// ============================================================
+export async function approveAllPending(req: Request, res: Response, next: NextFunction) {
+  try {
+    const result = await SuppliersService.approveAllPending(String((req.params as P).id))
+    res.json(result)
+  } catch (err) { next(err) }
+}
+
+// ============================================================
 // GET IMPORT JOB STATUS
 // ============================================================
 export async function getJobStatus(req: Request, res: Response, next: NextFunction) {
   try {
     const status = await SuppliersService.getImportJobStatus(String((req.params as P).jobId))
     res.json(status)
+  } catch (err) { next(err) }
+}
+
+// ============================================================
+// DELETE SUPPLIER
+// ============================================================
+export async function removeSupplier(req: Request, res: Response, next: NextFunction) {
+  try {
+    await SuppliersService.deleteSupplier(String((req.params as P).id))
+    res.json({ success: true })
+  } catch (err) { next(err) }
+}
+
+// ============================================================
+// SUPPLIER PRODUCT STOCK
+// ============================================================
+export async function getSupplierStock(req: Request, res: Response, next: NextFunction) {
+  try {
+    const data = await SuppliersService.listSupplierStock(String((req.params as P).id))
+    res.json(data)
+  } catch (err) { next(err) }
+}
+
+export async function putSupplierStock(req: Request, res: Response, next: NextFunction) {
+  try {
+    const data = await SuppliersService.upsertSupplierStock({
+      supplier_id: String((req.params as P).id),
+      ...req.body,
+    })
+    res.json(data)
+  } catch (err) { next(err) }
+}
+
+export async function removeSupplierStock(req: Request, res: Response, next: NextFunction) {
+  try {
+    await SuppliersService.deleteSupplierStock(String((req.params as P).stockId))
+    res.json({ success: true })
   } catch (err) { next(err) }
 }

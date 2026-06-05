@@ -17,7 +17,7 @@ router.post('/', async (req, res, next) => {
       total_amount,
     } = req.body
 
-    if (!customer?.email || !items?.length || !shipping_address || !stripe_payment_intent_id || !total_amount) {
+    if (!customer?.email || !items?.length || !shipping_address || !total_amount) {
       return res.status(400).json({ error: 'Missing required fields' })
     }
 
@@ -25,9 +25,8 @@ router.post('/', async (req, res, next) => {
       customer,
       items,
       shipping_address,
-      fitment_centre_id: fitment_centre_id ?? null,
-      booking_slot:      booking_slot      ?? null,
-      stripe_payment_intent_id,
+      fitment_centre_id:        fitment_centre_id        ?? null,
+      stripe_payment_intent_id: stripe_payment_intent_id ?? null,
       total_amount,
     })
 

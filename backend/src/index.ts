@@ -34,6 +34,7 @@ import adminCustomersRoutes     from './routes/admin.customers.routes'
 import adminOrdersRoutes        from './routes/admin.orders.routes'
 import adminFitmentCentresRoutes from './routes/admin.fitment-centres.routes'
 import adminSuppliersRoutes     from './routes/admin.suppliers.routes'
+import adminAddressesRoutes     from './routes/admin.addresses.routes'
 import fitterRoutes             from './routes/fitter.routes'
 import fitterPortalRoutes       from './routes/fitter-portal.routes'
 import storefrontProductsRoutes from './routes/storefront.products.routes'
@@ -42,15 +43,28 @@ import stripeRoutes             from './routes/stripe.routes'
 import ordersRoutes             from './routes/orders.routes'
 import adminSettingsRoutes      from './routes/admin.settings.routes'
 import adminPromotionsRoutes    from './routes/admin.promotions.routes'
+import adminPurchaseOrdersRoutes from './routes/admin.purchase-orders.routes'
+import adminShipmentsRoutes      from './routes/admin.shipments.routes'
+import adminShippingRoutes       from './routes/admin.shipping.routes'
+import adminWheelsRoutes         from './routes/admin.wheels.routes'
+import adminVehiclesRoutes       from './routes/admin.vehicles.routes'
+import adminInventoryRoutes      from './routes/admin.inventory.routes'
 import vehiclesRoutes           from './routes/vehicles.routes'
 import sseRoutes                from './routes/sse.routes'
-app.use('/api/admin/products',         adminProductsRoutes)
-app.use('/api/admin/customers',        adminCustomersRoutes)
-app.use('/api/admin/orders',           adminOrdersRoutes)
-app.use('/api/admin/fitment-centres',  adminFitmentCentresRoutes)
-app.use('/api/admin/suppliers',        adminSuppliersRoutes)
-app.use('/api/admin/settings',         adminSettingsRoutes)
-app.use('/api/admin/promotions',       adminPromotionsRoutes)
+app.use('/api/admin/products',          adminProductsRoutes)
+app.use('/api/admin/customers',         adminCustomersRoutes)
+app.use('/api/admin/orders',            adminOrdersRoutes)
+app.use('/api/admin/fitment-centres',   adminFitmentCentresRoutes)
+app.use('/api/admin/suppliers',         adminSuppliersRoutes)
+app.use('/api/admin/addresses',         adminAddressesRoutes)
+app.use('/api/admin/settings',          adminSettingsRoutes)
+app.use('/api/admin/promotions',        adminPromotionsRoutes)
+app.use('/api/admin/purchase-orders',   adminPurchaseOrdersRoutes)
+app.use('/api/admin/shipments',         adminShipmentsRoutes)
+app.use('/api/admin/shipping',          adminShippingRoutes)
+app.use('/api/admin/wheels',            adminWheelsRoutes)
+app.use('/api/admin/vehicles',          adminVehiclesRoutes)
+app.use('/api/admin/inventory',         adminInventoryRoutes)
 app.use('/api/vehicles',               vehiclesRoutes)
 app.use('/api/sse',                    sseRoutes)
 app.use('/api/fitter',                 fitterRoutes)

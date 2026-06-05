@@ -5,3 +5,4 @@ export const metadata = { title: 'Pricing — Fitment Portal' }
 export default function FitterPricingPage() {
   return <PricingClient />
 }
+

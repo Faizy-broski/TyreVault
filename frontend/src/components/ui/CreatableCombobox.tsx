@@ -335,7 +335,7 @@ export function CreatableMultiCombobox({
               value={query}
               onChange={e => setQuery(e.target.value)}
               onKeyDown={handleKey}
-              placeholder="Type to search or create…"
+              placeholder={onCreate ? 'Type to search or create…' : 'Type to search…'}
               className="w-full rounded border border-zinc-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
@@ -487,3 +487,4 @@ export function TagInput({ value, onChange, suggestions = [] }: TagInputProps) {
 }
 
 export { slugify }
+

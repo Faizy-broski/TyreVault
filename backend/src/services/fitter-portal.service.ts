@@ -24,7 +24,8 @@ export async function getKPIs(centreId: string) {
       .select('job_id', { count: 'exact', head: true })
       .eq('fitment_centre_id', centreId)
       .eq('job_status', 'pending')
-      .eq('scheduled_date', today),
+      .gte('created_at', `${today}T00:00:00`)
+      .lte('created_at', `${today}T23:59:59`),
 
     db.from('fitment_jobs')
       .select('job_id', { count: 'exact', head: true })
@@ -34,7 +35,7 @@ export async function getKPIs(centreId: string) {
     db.from('fitment_jobs')
       .select('job_id', { count: 'exact', head: true })
       .eq('fitment_centre_id', centreId)
-      .eq('job_status', 'accepted')
+      .in('job_status', ['accepted', 'assigned', 'in_progress'])
       .gte('scheduled_date', weekStart)
       .lte('scheduled_date', weekEnd),
 
@@ -103,13 +104,44 @@ export async function getJob(centreId: string, jobId: string) {
 }
 
 export async function updateJobStatus(
-  centreId:     string,
-  jobId:        string,
-  status:       'accepted' | 'rejected' | 'in_progress' | 'completed' | 'cancelled',
-  fitterNotes?: string
+  centreId:       string,
+  jobId:          string,
+  status:         'accepted' | 'rejected' | 'in_progress' | 'completed' | 'cancelled',
+  fitterNotes?:   string,
+  scheduledDate?: string | null,
+  scheduledTime?: string | null,
 ) {
   const update: Record<string, unknown> = { job_status: status }
+
   if (fitterNotes !== undefined) update.fitter_notes = fitterNotes
+
+  // Audit timestamps
+  if (status === 'accepted')  update.accepted_at  = new Date().toISOString()
+  if (status === 'completed') update.completed_at = new Date().toISOString()
+
+  // Fitter records the appointment they arranged with the customer
+  if (scheduledDate !== undefined) update.scheduled_date = scheduledDate ?? null
+  if (scheduledTime !== undefined) update.scheduled_time = scheduledTime ?? null
+
+  // Auto-calculate earnings_amount when completing (if not already set on creation)
+  if (status === 'completed') {
+    const { data: job } = await db
+      .from('fitment_jobs')
+      .select('earnings_amount, quantity, fitment_centre_id')
+      .eq('job_id', jobId)
+      .maybeSingle()
+
+    if (job && (job.earnings_amount == null || Number(job.earnings_amount) === 0)) {
+      const { data: centre } = await db
+        .from('fitment_centres')
+        .select('fitting_price')
+        .eq('fitment_centre_id', job.fitment_centre_id)
+        .maybeSingle()
+      if (centre?.fitting_price) {
+        update.earnings_amount = +(Number(centre.fitting_price) * (job.quantity ?? 1)).toFixed(2)
+      }
+    }
+  }
 
   return db
     .from('fitment_jobs')

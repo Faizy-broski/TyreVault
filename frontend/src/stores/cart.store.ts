@@ -13,36 +13,53 @@ export interface CartItem {
   stock: number
 }
 
+export interface FittingSelection {
+  centreId:                    string
+  centreName:                  string
+  address:                     string   // "Suburb, State POSTCODE"
+  distanceKm:                  number | null
+  durationMin:                 number | null
+  isMobile:                    boolean
+  fittingPricePerTyre:         number
+  totalFittingCost:            number
+  wheelAlignment:              null | { type: '2_wheel' | '4_wheel' | 'single'; price: number }
+  // raw alignment prices stored for re-render (never sent as authoritative price)
+  wheelAlignmentPrice:         number | null  // the single price from fitment_centres
+}
+
 export type AddItemError = 'out_of_stock' | 'insufficient_stock' | 'api_error'
 
 interface CartStore {
-  items:   CartItem[]
-  qty:     Record<string, number>
-  isOpen:  boolean
+  items:           CartItem[]
+  qty:             Record<string, number>
+  isOpen:          boolean
+  fittingSelection: FittingSelection | null
 
-  addItem:        (item: CartItem, quantity?: number) => Promise<{ error: AddItemError | null; available?: number }>
-  removeItem:     (id: string) => void
-  updateQuantity: (id: string, qty: number) => void
-  clearCart:      () => void
-  openCart:       () => void
-  closeCart:      () => void
+  addItem:              (item: CartItem, quantity?: number) => Promise<{ error: AddItemError | null; available?: number }>
+  removeItem:           (id: string) => void
+  updateQuantity:       (id: string, qty: number) => void
+  clearCart:            () => void
+  openCart:             () => void
+  closeCart:            () => void
+  setFittingSelection:  (s: FittingSelection | null) => void
 
-  itemCount: () => number
-  subtotal:  () => number
+  itemCount:    () => number
+  subtotal:     () => number
+  grandTotal:   () => number
 }
 
 export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
-      items:  [],
-      qty:    {},
-      isOpen: false,
+      items:            [],
+      qty:              {},
+      isOpen:           false,
+      fittingSelection: null,
 
       async addItem(item, quantity = 1) {
         const currentQty = get().qty[item.id] ?? 0
         const desiredQty = currentQty + quantity
 
-        // Validate against live stock via API
         try {
           const res = await fetch(`${API}/api/cart/validate`, {
             method:  'POST',
@@ -54,10 +71,8 @@ export const useCartStore = create<CartStore>()(
             if (!body.valid && body.errors?.length) {
               const err = body.errors[0] as { sku_id: string; available: number }
               if (err.available === 0) return { error: 'out_of_stock' as AddItemError, available: 0 }
-              // Can still add up to available
               const canAdd = err.available - currentQty
               if (canAdd <= 0) return { error: 'insufficient_stock' as AddItemError, available: err.available }
-              // Partial add
               set(state => {
                 const existing = state.items.find(i => i.id === item.id)
                 return {
@@ -69,8 +84,7 @@ export const useCartStore = create<CartStore>()(
               return { error: 'insufficient_stock' as AddItemError, available: err.available }
             }
           }
-          // If API call fails, fall through to optimistic add (offline tolerance)
-        } catch { /* API unreachable — allow optimistic add */ }
+        } catch { /* offline — optimistic add */ }
 
         set(state => {
           const existing = state.items.find(i => i.id === item.id)
@@ -99,20 +113,28 @@ export const useCartStore = create<CartStore>()(
             const { [id]: _removed, ...restQty } = state.qty
             return { items: state.items.filter(i => i.id !== id), qty: restQty }
           }
-          const item  = state.items.find(i => i.id === id)
+          const item   = state.items.find(i => i.id === id)
           const capped = item ? Math.min(newQty, item.stock) : newQty
           return { qty: { ...state.qty, [id]: capped } }
         })
       },
 
-      clearCart() { set({ items: [], qty: {}, isOpen: false }) },
+      clearCart() { set({ items: [], qty: {}, isOpen: false, fittingSelection: null }) },
       openCart()  { set({ isOpen: true  }) },
       closeCart() { set({ isOpen: false }) },
 
+      setFittingSelection(s) { set({ fittingSelection: s }) },
+
       itemCount() { return Object.values(get().qty).reduce((s, q) => s + q, 0) },
-      subtotal()  {
+
+      subtotal() {
         const { items, qty } = get()
         return items.reduce((s, i) => s + i.price * (qty[i.id] ?? 0), 0)
+      },
+
+      grandTotal() {
+        const { fittingSelection } = get()
+        return get().subtotal() + (fittingSelection?.totalFittingCost ?? 0)
       },
     }),
     { name: 'onyx-cart-v2' }

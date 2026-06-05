@@ -6,7 +6,7 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { Copy, ChevronRight, MoreVertical } from 'lucide-react'
 import type {
   OrderDetail, OrderItem, OrderShipment,
-  PaymentStatus, OrderStatus, ShipmentStatus,
+  PaymentStatus, OrderStatus, OrderShipmentStatus,
 } from '@/types/admin.types'
 import FulfillmentModal from './FulfillmentModal'
 import MarkShippedModal from './MarkShippedModal'
@@ -242,7 +242,7 @@ function ShipmentCard({ shipment, orderId, onMarkShipped, onMarkDelivered, token
     } finally { setDelivering(false) }
   }
 
-  const statusCls: Record<ShipmentStatus, string> = {
+  const statusCls: Record<OrderShipmentStatus, string> = {
     awaiting_shipping: 'bg-amber-50 text-amber-700 border-amber-200',
     shipped:           'bg-indigo-50 text-indigo-700 border-indigo-200',
     delivered:         'bg-green-50 text-green-700 border-green-200',
@@ -370,7 +370,7 @@ export default function OrderDetailClient({
       ...prev,
       order_shipments: prev.order_shipments.map(s =>
         s.shipment_id === shipmentId
-          ? { ...s, status: 'delivered' as ShipmentStatus, delivered_at: new Date().toISOString() }
+          ? { ...s, status: 'delivered' as OrderShipmentStatus, delivered_at: new Date().toISOString() }
           : s
       ),
       order_status: 'fulfilled' as OrderStatus,
@@ -495,7 +495,7 @@ export default function OrderDetailClient({
                     order.order_items.map(item => {
                       const lineTotal = item.quantity * item.unit_price
                       return (
-                        <TableRow key={item.order_item_id} className="hover:bg-zinc-50">
+                        <TableRow key={item.order_item_id} className="even:bg-zinc-100 hover:bg-amber-50 transition-colors">
                           <TableCell className="px-4 py-3 text-zinc-800 font-medium">{item.skus?.tyre_size_display ?? 'Product'}</TableCell>
                           <TableCell className="px-4 py-3 font-mono text-xs text-zinc-500">#{item.skus?.sku ?? '—'}</TableCell>
                           <TableCell className="px-4 py-3 text-zinc-600">{item.quantity}x</TableCell>
@@ -551,9 +551,11 @@ export default function OrderDetailClient({
             <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
               <h2 className="text-sm font-semibold text-zinc-900">Delivery Type</h2>
               {isFitment ? (
-                <Badge className="rounded-lg bg-primary text-zinc-900 px-3 py-1 text-xs font-medium h-auto">
-                  Fitment Center {order.fitment_job?.task_number ?? order.fitment_id?.slice(0, 8).toUpperCase()}
-                </Badge>
+                <Link href={`/admin/fitters/${order.fitment_id}`}>
+                  <Badge className="rounded-lg bg-primary text-zinc-900 px-3 py-1 text-xs font-medium h-auto hover:bg-primary/80 transition-colors cursor-pointer">
+                    Fitment Center {order.fitment_job?.task_number ?? order.fitment_id?.slice(0, 8).toUpperCase()}
+                  </Badge>
+                </Link>
               ) : (
                 <Badge className="rounded-lg bg-zinc-100 text-zinc-700 px-3 py-1 text-xs font-medium h-auto">
                   Home Delivery
@@ -571,7 +573,13 @@ export default function OrderDetailClient({
                     </div>
                     <div>
                       <p className="text-xs text-zinc-400 mb-1">Center</p>
-                      <p className="text-sm font-medium text-zinc-800">{order.fitment_job.fitment_centres?.business_name ?? '—'}</p>
+                      {order.fitment_id ? (
+                        <Link href={`/admin/fitters/${order.fitment_id}`} className="text-sm font-medium text-primary hover:underline">
+                          {order.fitment_job.fitment_centres?.business_name ?? '—'}
+                        </Link>
+                      ) : (
+                        <p className="text-sm font-medium text-zinc-800">{order.fitment_job.fitment_centres?.business_name ?? '—'}</p>
+                      )}
                     </div>
                     <div>
                       <p className="text-xs text-zinc-400 mb-1">Scheduled Date</p>
@@ -628,7 +636,7 @@ export default function OrderDetailClient({
               <Table className="w-full text-sm">
                 <TableBody className="divide-y divide-zinc-100">
                   {order.order_payments.map(p => (
-                    <TableRow key={p.payment_id} className="hover:bg-zinc-50">
+                    <TableRow key={p.payment_id} className="even:bg-zinc-100 hover:bg-amber-50 transition-colors">
                       <TableCell className="px-4 py-3">
                         <p className="font-mono text-xs font-medium text-zinc-700">#{p.payment_reference ?? p.payment_id.slice(0, 8).toUpperCase()}</p>
                         <p className="text-xs text-zinc-400 mt-0.5">{fmt(p.created_at)}</p>
@@ -829,7 +837,7 @@ export default function OrderDetailClient({
               ...prev,
               order_shipments: prev.order_shipments.map(s =>
                 s.shipment_id === shipmentId
-                  ? { ...s, status: 'shipped' as ShipmentStatus, tracking_number: trackingNumber ?? null, tracking_uri: trackingUri ?? null, shipped_at: new Date().toISOString() }
+                  ? { ...s, status: 'shipped' as OrderShipmentStatus, tracking_number: trackingNumber ?? null, tracking_uri: trackingUri ?? null, shipped_at: new Date().toISOString() }
                   : s
               ),
               order_status: 'processing' as OrderStatus,
@@ -840,3 +848,4 @@ export default function OrderDetailClient({
     </div>
   )
 }
+

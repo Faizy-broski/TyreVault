@@ -25,3 +25,4 @@ export default function CreateCustomerButton({ accessToken }: { accessToken: str
     </>
   )
 }
+

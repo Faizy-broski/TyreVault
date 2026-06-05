@@ -5,3 +5,4 @@ export const metadata = { title: 'Jobs — Fitment Portal' }
 export default function FitterJobsPage() {
   return <JobsClient />
 }
+

@@ -264,7 +264,7 @@ export default function FitmentOrdersTab({
               const fitment    = total * 0.1
               const commission = total * COMMISSION_RATE
               return (
-                <TableRow key={job.job_id} className="hover:bg-zinc-50">
+                <TableRow key={job.job_id} className="even:bg-zinc-100 hover:bg-amber-50 transition-colors">
                   <TableCell className="px-4 py-3 text-xs font-mono text-zinc-600 whitespace-nowrap">OD-{job.task_number}</TableCell>
                   <TableCell className="px-4 py-3 text-xs font-mono text-zinc-600 whitespace-nowrap">FD-{job.task_number}</TableCell>
                   <TableCell className="px-4 py-3 text-xs text-zinc-500 whitespace-nowrap">{fmtDateTime(job.scheduled_date, job.scheduled_time)}</TableCell>
@@ -352,7 +352,7 @@ export default function FitmentOrdersTab({
                 {stats.purchase12Months.length === 0
                   ? <tr><td colSpan={2} className="py-4 text-center text-zinc-400">No data</td></tr>
                   : stats.purchase12Months.map(d => (
-                    <tr key={d.month}>
+                    <tr key={d.month} className="even:bg-zinc-50/50 hover:bg-amber-50/40 transition-colors">
                       <td className="py-1.5 text-zinc-600">{d.month}</td>
                       <td className="py-1.5 text-right font-medium text-zinc-800">
                         {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(d.amount)}
@@ -380,7 +380,7 @@ export default function FitmentOrdersTab({
               </thead>
               <tbody className="divide-y divide-zinc-50">
                 {stats.loginHistory.map((l, i) => (
-                  <tr key={i}>
+                  <tr key={i} className="even:bg-zinc-50/50 hover:bg-amber-50/40 transition-colors">
                     <td className="py-1.5 font-mono text-zinc-600">{l.ip}</td>
                     <td className="py-1.5 text-zinc-500">{l.date}</td>
                     <td className="py-1.5 text-zinc-500">{l.area}</td>
@@ -394,3 +394,4 @@ export default function FitmentOrdersTab({
     </div>
   )
 }
+

@@ -15,6 +15,7 @@ const numWithDefault = (def: number) =>
 // ── Variant row ────────────────────────────────────────────────────────────
 export const variantSchema = z.object({
   sku:             z.string().min(1, 'SKU is required'),
+  barcodeEan:      z.string().optional(),
   tyreSizeDisplay: z.string().min(1, 'Tyre size is required'),
   width:           optNum,
   profile:         optNum,
@@ -22,6 +23,7 @@ export const variantSchema = z.object({
     (v) => (typeof v === 'number' && Number.isNaN(v) ? undefined : v),
     z.number({ message: 'Rim size is required' })
   ),
+  specialSize:     z.string().optional(),
   constructionType:  z.string().optional(),
   speedRating:      z.string().optional(),
   loadIndex:        z.string().optional(),
@@ -32,6 +34,7 @@ export const variantSchema = z.object({
   noiseClass:      z.string().optional(),
   runflat:         z.boolean().default(false),
   xlReinforced:    z.boolean().default(false),
+  ltSizing:        z.boolean().default(false),
   plyRating:       z.string().optional(),
   loadRange:       z.string().optional(),
   sidewall:        z.enum(['BSW', 'OWL', 'RWL']).optional(),
@@ -52,6 +55,9 @@ export const variantSchema = z.object({
   dotCode:         z.string().optional(),
   utqg:            z.string().optional(),
   variantImages:   z.array(z.string()).default([]),
+  // SKU lifecycle
+  status:               z.enum(['active', 'inactive', 'discontinued']).default('active'),
+  replacementProductId: z.string().optional(),
 })
 
 // ── Pricing row (parallel to variant, same index) ─────────────────────────
@@ -89,6 +95,7 @@ export const createProductSchema = z.object({
 
   // Tab 1 extra: SEO + visibility + default country fallback
   defaultCountryOfOrigin: z.string().optional(),
+  isActive:          z.boolean().default(true),
   showOnWebsite:     z.boolean().default(false),
   seoTitle:          z.string().optional(),
   seoDescription:    z.string().optional(),

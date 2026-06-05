@@ -65,11 +65,23 @@ export default function FitterApplicationsPage() {
           { label: 'Fitment Centre', href: '/admin/fitters' },
           { label: 'Applications' },
         ]} />
-        <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 mt-4">Fitter Applications</h1>
-        <p className="text-sm text-zinc-500 mt-1">
-          Review and approve fitment centre onboarding requests
-        </p>
+        <div className="flex items-start justify-between gap-4 mt-4">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-zinc-900">Fitter Applications</h1>
+            <p className="text-sm text-zinc-500 mt-1">Review and approve fitment centre onboarding requests</p>
+          </div>
+          <Link
+            href="/admin/fitters/create"
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition-colors shrink-0"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Create Centre
+          </Link>
+        </div>
       </div>
+
 
       <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-sm">
         <div className="px-5 py-4 border-b border-zinc-100 flex flex-wrap items-center justify-between gap-2">
@@ -101,14 +113,14 @@ export default function FitterApplicationsPage() {
                   <th className="px-6 py-3 w-20 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-100">
+              <tbody className="divide-y divide-zinc-300">
                 {applications.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-12 text-center text-zinc-400">No applications yet.</td>
                   </tr>
                 ) : (
                   applications.map(app => (
-                    <tr key={app.id} className="even:bg-zinc-50/40 hover:bg-amber-50/30 transition-colors duration-150">
+                    <tr key={app.id} className="odd:bg-white even:bg-zinc-200 [&:hover]:bg-amber-100 transition-colors duration-150">
                       <td className="px-6 py-4 font-medium text-zinc-900">{app.full_name}</td>
                       <td className="px-6 py-4 text-zinc-600">{app.email}</td>
                       <td className="px-6 py-4">
@@ -137,3 +149,4 @@ export default function FitterApplicationsPage() {
     </div>
   )
 }
+

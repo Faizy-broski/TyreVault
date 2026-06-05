@@ -15,11 +15,13 @@ export const redis: Redis | null = redisReady
 
 // TTL constants (seconds)
 export const TTL = {
-  STOCK: 60,          // 60 seconds — stock changes frequently
-  PRICE: 3600,        // 60 minutes — invalidated on promotion/price change
-  FACETS: 300,        // 5 minutes
-  SKU_DETAIL: 600,    // 10 minutes
-  FITMENT: 86400,     // 24 hours — vehicle fitment is near-static
-  ADMIN_KPI: 300,     // 5 minutes
-  SUPPLIER_MAP: 3600, // 1 hour
+  STOCK: 60,           // 60 seconds — stock changes frequently
+  PRICE: 3600,         // 60 minutes — invalidated on promotion/price change
+  FACETS: 300,         // 5 minutes
+  SKU_DETAIL: 600,     // 10 minutes
+  FITMENT: 86400,      // 24 hours — vehicle fitment is near-static
+  ADMIN_KPI: 300,      // 5 minutes
+  SUPPLIER_MAP: 3600,  // 1 hour
+  GEOCODE: 2592000,    // 30 days — postcode → lat/lng never changes
+  DIST_MATRIX: 86400,  // 24 hours — driving distances per postcode
 } as const

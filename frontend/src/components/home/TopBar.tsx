@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 export default function TopBar() {
   return (
     <div className="bg-[#050505]">
-      <div className="mx-auto flex h-10 max-w-[1400px] items-center justify-between px-4 sm:px-6 lg:px-10">
+      <div className="mx-auto flex h-10 items-center justify-between px-4 sm:px-6 lg:px-10">
         <div className="hidden items-center gap-2 text-sm text-zinc-300 sm:flex">
           <Mail className="h-4 w-4 shrink-0" />
           <span>support@tyrevault.com.au</span>
@@ -26,3 +26,4 @@ export default function TopBar() {
     </div>
   );
 }
+

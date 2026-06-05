@@ -33,3 +33,4 @@ export function AdminBreadcrumb({ crumbs }: { crumbs: Crumb[] }) {
     </nav>
   )
 }
+

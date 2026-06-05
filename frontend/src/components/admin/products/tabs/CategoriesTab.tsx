@@ -1,9 +1,9 @@
 'use client'
 
+import { useState } from 'react'
 import { useFormContext } from 'react-hook-form'
 import type { CreateProductFormValues } from '../schema'
-import { CreatableCombobox, CreatableMultiCombobox, TagInput, slugify } from '@/components/ui/CreatableCombobox'
-import { createClient } from '@/lib/supabase/client'
+import { CreatableCombobox, CreatableMultiCombobox, TagInput } from '@/components/ui/CreatableCombobox'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -33,6 +33,14 @@ const COMMON_TAGS = [
   'highway', 'all-terrain', 'mud-terrain', 'commercial', '4x4', 'sport',
 ]
 
+const CATEGORY_TYPES = [
+  { value: 'season',      label: 'Season' },
+  { value: 'application', label: 'Application' },
+  { value: 'performance', label: 'Performance' },
+  { value: 'position',    label: 'Position' },
+  { value: 'terrain',     label: 'Terrain' },
+]
+
 export default function CategoriesTab({ collections, categories }: Props) {
   const { register, watch, setValue, formState: { errors } } = useFormContext<CreateProductFormValues>()
 
@@ -43,11 +51,6 @@ export default function CategoriesTab({ collections, categories }: Props) {
   const collectionId       = watch('collectionId') ?? ''
   const performanceCategory = watch('performanceCategory') ?? ''
   const seasonType         = watch('seasonType') ?? ''
-
-  async function getAuthToken() {
-    const { data: { session } } = await createClient().auth.getSession()
-    return session?.access_token ?? ''
-  }
 
   return (
     <div className="space-y-8">
@@ -128,26 +131,12 @@ export default function CategoriesTab({ collections, categories }: Props) {
               options={collections.map(c => ({ value: c.collection_id, label: c.collection_name }))}
               value={collectionId}
               onChange={v => setValue('collectionId', v)}
-              onCreate={async (name) => {
-                const tok = await getAuthToken()
-                const res = await fetch(`${API}/api/admin/products/collections`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
-                  body: JSON.stringify({ collection_name: name, collection_slug: slugify(name) }),
-                })
-                if (!res.ok) {
-                  const body = await res.json().catch(() => ({}))
-                  throw new Error(body.error ?? 'Failed to create collection')
-                }
-                const data = await res.json()
-                return { value: data.collection_id, label: data.collection_name }
-              }}
-              placeholder="Select or create collection…"
+              placeholder="Search collection…"
             />
           </div>
         </div>
 
-        {/* Category (vehicle category — multi-select creatable) */}
+        {/* Category (vehicle category — multi-select search only) */}
         <div className="mt-4">
           <label className="block text-sm font-medium text-zinc-700 mb-1">Category</label>
           <p className="text-xs text-zinc-400 mb-2">Vehicle category this tyre fits</p>
@@ -155,21 +144,7 @@ export default function CategoriesTab({ collections, categories }: Props) {
             options={categories.map(cat => ({ value: cat.category_id, label: cat.category_name }))}
             value={selectedCats}
             onChange={v => setValue('categoryIds', v)}
-            onCreate={async (name) => {
-              const tok = await getAuthToken()
-              const res = await fetch(`${API}/api/admin/products/categories`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
-                body: JSON.stringify({ category_name: name, category_slug: slugify(name), category_type: 'general' }),
-              })
-              if (!res.ok) {
-                const body = await res.json().catch(() => ({}))
-                throw new Error(body.error ?? 'Failed to create category')
-              }
-              const data = await res.json()
-              return { value: data.category_id, label: data.category_name }
-            }}
-            placeholder="Select or create categories…"
+            placeholder="Select categories…"
           />
         </div>
 
@@ -239,3 +214,4 @@ export default function CategoriesTab({ collections, categories }: Props) {
     </div>
   )
 }
+

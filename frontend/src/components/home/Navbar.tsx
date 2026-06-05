@@ -24,13 +24,13 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
       className={`fixed left-0 right-0 z-50 w-full text-white transition-[top] duration-300 ${topbarScrolled ? "top-0" : "top-10"}`}
     >
       <div className="border-b border-white/10 bg-black/30 backdrop-blur-md">
-        <div className="mx-auto flex h-20 max-w-[1400px] items-center justify-between px-4 sm:px-6 lg:px-10">
+        <div className="mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-10">
           <div className="flex items-center gap-5 lg:gap-10">
             <Button
               size="icon"
               variant="outline"
               aria-label="Open menu"
-              className="h-12 w-12 rounded-full border-white/20 bg-transparent text-white hover:border-primary hover:bg-primary/10 hover:text-primary"
+              className="h-10 w-10 rounded-full border-white/20 bg-transparent text-white hover:border-primary hover:bg-primary/10 hover:text-primary"
             >
               <Menu className="h-5 w-5" />
             </Button>
@@ -49,10 +49,10 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
           </div>
 
           <Link href="/" className="absolute left-1/2 hidden -translate-x-1/2 lg:block">
-            <Image src="/logo.svg" width={240} height={60} alt="Tyre Vault" style={{ height: 'auto' }} />
+            <Image src="/logo.svg" width={180} height={45} alt="Tyre Vault" style={{ height: 'auto' }} />
           </Link>
           <Link href="/" className="lg:hidden">
-            <Image src="/logo.svg" width={160} height={40} alt="Tyre Vault" style={{ height: 'auto' }} />
+            <Image src="/logo.svg" width={140} height={35} alt="Tyre Vault" style={{ height: 'auto' }} />
           </Link>
 
           <div className="flex items-center gap-2">
@@ -81,7 +81,7 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
               <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
               <Input
                 placeholder="Search tyres..."
-                className="h-11 w-64 rounded-full border-white/15 bg-white/5 pl-11 text-sm text-white placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-primary"
+                className="h-10 w-64 rounded-full border-white/15 bg-white/5 pl-11 text-sm text-white placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-primary"
               />
             </div>
             {/* Mobile cart */}
@@ -107,3 +107,4 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
     </header>
   );
 }
+

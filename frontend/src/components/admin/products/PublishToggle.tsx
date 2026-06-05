@@ -59,10 +59,10 @@ export default function PublishToggle({ patternId, isPublished, onSuccess }: Pro
         type="button"
         onClick={toggle}
         disabled={isPending}
-        className={`w-full rounded-lg px-3 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
+        className={`w-full rounded-lg px-3 py-2 text-sm font-semibold transition-colors disabled:opacity-50 ${
           published
-            ? 'border border-zinc-300 text-zinc-700 hover:bg-zinc-50'
-            : 'bg-primary text-zinc-900 hover:bg-primary/90'
+            ? 'bg-red-500 text-white hover:bg-red-600'
+            : 'bg-green-500 text-white hover:bg-green-600'
         }`}
       >
         {isPending ? 'Saving…' : published ? 'Unpublish' : 'Publish'}
@@ -70,3 +70,4 @@ export default function PublishToggle({ patternId, isPublished, onSuccess }: Pro
     </div>
   )
 }
+

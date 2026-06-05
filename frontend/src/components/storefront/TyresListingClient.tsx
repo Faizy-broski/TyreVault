@@ -506,3 +506,4 @@ export default function TyresListingClient({ initialResult, initialFacets, initi
     </>
   )
 }
+

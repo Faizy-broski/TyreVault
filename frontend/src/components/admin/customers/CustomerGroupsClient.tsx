@@ -9,6 +9,7 @@ import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { toastSuccess, toastError } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   Table,
   TableBody,
@@ -69,9 +70,72 @@ export default function CustomerGroupsClient({
   const [renaming,   setRenaming]     = useState(false)
   const [deletingId, setDeletingId]   = useState<string | null>(null)
 
-  function startEdit(group: CustomerGroup) {
-    setEditingId(group.group_id)
-    setEditName(group.group_name)
+  // Full edit modal state
+  const [editModalGroup, setEditModalGroup] = useState<CustomerGroup | null>(null)
+  const [editModalSaving, setEditModalSaving] = useState(false)
+  const [editForm, setEditForm] = useState({
+    name: '', description: '', default_discount: '',
+    discount_type: '', discount_value: '', price_type: '',
+    can_view_wholesale: false, is_active: true,
+  })
+
+  function openEditModal(group: CustomerGroup) {
+    setEditModalGroup(group)
+    setEditForm({
+      name:               group.group_name,
+      description:        group.description       ?? '',
+      default_discount:   String(group.default_discount ?? ''),
+      discount_type:      group.discount_type     ?? '',
+      discount_value:     String(group.discount_value ?? ''),
+      price_type:         group.price_type        ?? '',
+      can_view_wholesale: group.can_view_wholesale ?? false,
+      is_active:          group.is_active          ?? true,
+    })
+  }
+
+  async function saveEditModal() {
+    if (!editModalGroup || !editForm.name.trim()) return
+    setEditModalSaving(true)
+    try {
+      const res = await fetch(`${API}/api/admin/customers/groups/${editModalGroup.group_id}`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({
+          name:               editForm.name.trim(),
+          description:        editForm.description    || null,
+          default_discount:   editForm.default_discount ? Number(editForm.default_discount) : null,
+          discount_type:      editForm.discount_type  || null,
+          discount_value:     editForm.discount_value ? Number(editForm.discount_value) : null,
+          price_type:         editForm.price_type     || null,
+          can_view_wholesale: editForm.can_view_wholesale,
+          is_active:          editForm.is_active,
+        }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? 'Failed to update group')
+      }
+      setLocalGroups(prev => prev.map(g =>
+        g.group_id === editModalGroup.group_id
+          ? {
+              ...g,
+              group_name:         editForm.name.trim(),
+              description:        editForm.description || null,
+              default_discount:   editForm.default_discount ? Number(editForm.default_discount) : null,
+              discount_type:      editForm.discount_type || null,
+              discount_value:     editForm.discount_value ? Number(editForm.discount_value) : null,
+              price_type:         editForm.price_type || null,
+              can_view_wholesale: editForm.can_view_wholesale,
+              is_active:          editForm.is_active,
+              updated_at:         new Date().toISOString(),
+            }
+          : g
+      ))
+      setEditModalGroup(null)
+      toastSuccess('Group updated')
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : 'Failed to update group')
+    } finally { setEditModalSaving(false) }
   }
 
   async function saveRename(groupId: string) {
@@ -155,6 +219,94 @@ export default function CustomerGroupsClient({
         />
       )}
 
+      {/* Edit group modal */}
+      <Dialog open={!!editModalGroup} onOpenChange={open => !open && setEditModalGroup(null)}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Edit Group</DialogTitle></DialogHeader>
+          <div className="space-y-4 pt-2">
+
+            <div>
+              <label className="block text-xs font-medium text-zinc-700 mb-1">Group Name <span className="text-red-500">*</span></label>
+              <Input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-zinc-700 mb-1">Description</label>
+              <Input value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} placeholder="Optional description…" />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-zinc-700 mb-1">Default Discount (%)</label>
+              <Input type="number" step="0.01" min="0" max="100" value={editForm.default_discount} onChange={e => setEditForm(f => ({ ...f, default_discount: e.target.value }))} placeholder="e.g. 10.00" />
+              <p className="mt-1 text-xs text-zinc-400">Applied automatically to all orders from this group.</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-zinc-700 mb-1">Discount Type</label>
+                <select value={editForm.discount_type} onChange={e => setEditForm(f => ({ ...f, discount_type: e.target.value }))}
+                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/30">
+                  <option value="">None</option>
+                  <option value="percent">Percent (%)</option>
+                  <option value="fixed_amount">Fixed Amount ($)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-700 mb-1">Discount Value</label>
+                <Input type="number" step="0.01" min="0" value={editForm.discount_value} onChange={e => setEditForm(f => ({ ...f, discount_value: e.target.value }))} placeholder="0.00" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-zinc-700 mb-1">Price Tier Override</label>
+              <select value={editForm.price_type} onChange={e => setEditForm(f => ({ ...f, price_type: e.target.value }))}
+                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/30">
+                <option value="">Default (retail)</option>
+                {['retail', 'wholesale', 'price_a', 'price_b', 'special', 'clearance'].map(t => (
+                  <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1).replace('_', ' ')}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Boolean toggles */}
+            <div className="space-y-2 pt-1">
+              {(
+                [
+                  { key: 'can_view_wholesale', label: 'Wholesale Portal Access', desc: 'Members can see wholesale pricing and place wholesale orders' },
+                  { key: 'is_active',          label: 'Active',                  desc: 'Group is active and assignable to customers' },
+                ] as const
+              ).map(({ key, label, desc }) => (
+                <div
+                  key={key}
+                  className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${editForm[key] ? 'border-green-200 bg-green-50/50' : 'border-zinc-200'}`}
+                  onClick={() => setEditForm(f => ({ ...f, [key]: !f[key] }))}
+                >
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={editForm[key]}
+                    className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors mt-0.5 ${editForm[key] ? 'bg-green-500' : 'bg-zinc-300'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${editForm[key] ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </button>
+                  <div>
+                    <p className="text-sm font-medium text-zinc-800">{label}</p>
+                    <p className="text-xs text-zinc-500">{desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-3 justify-end pt-2">
+              <Button type="button" variant="outline" onClick={() => setEditModalGroup(null)}>Cancel</Button>
+              <Button type="button" disabled={editModalSaving} onClick={saveEditModal}>
+                {editModalSaving ? 'Saving…' : 'Save Changes'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-semibold text-zinc-900">Customer Group</h1>
         <Button
@@ -208,28 +360,18 @@ export default function CustomerGroupsClient({
         <Table className="w-full text-sm">
           <TableHeader>
             <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50">
-              <TableHead className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">
-                Name
-              </TableHead>
-              <TableHead className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">
-                <div className="flex items-center gap-1">
-                  Customers
-                  <span className="text-zinc-400">↓</span>
-                </div>
-              </TableHead>
-              <TableHead className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">
-                Created
-              </TableHead>
-              <TableHead className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">
-                Updated
-              </TableHead>
+              <TableHead className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Name</TableHead>
+              <TableHead className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Customers ↓</TableHead>
+              <TableHead className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Discount</TableHead>
+              <TableHead className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Price Tier</TableHead>
+              <TableHead className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Updated</TableHead>
               <TableHead className="w-10 px-4 py-3" />
             </TableRow>
           </TableHeader>
           <TableBody className="divide-y divide-zinc-100">
             {localGroups.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="px-4 py-16 text-center">
+                <TableCell colSpan={6} className="px-4 py-16 text-center">
                   <div className="flex flex-col items-center gap-2 mx-auto">
                     <svg className="w-10 h-10 text-zinc-200" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
@@ -241,7 +383,7 @@ export default function CustomerGroupsClient({
               </TableRow>
             ) : (
               localGroups.map((group) => (
-                <TableRow key={group.group_id} className={`even:bg-zinc-50/40 hover:bg-amber-50/30 transition-colors duration-150 ${deletingId === group.group_id ? 'opacity-40 pointer-events-none' : ''}`}>
+                <TableRow key={group.group_id} className={`even:bg-zinc-100 hover:bg-amber-50 transition-colors duration-150 ${deletingId === group.group_id ? 'opacity-40 pointer-events-none' : ''}`}>
                   <TableCell className="px-4 py-3 font-medium text-zinc-800">
                     {editingId === group.group_id ? (
                       <div className="flex items-center gap-2">
@@ -283,15 +425,18 @@ export default function CustomerGroupsClient({
                       </Link>
                     )}
                   </TableCell>
-                  <TableCell className="px-4 py-3 text-zinc-600">
-                    {group.customer_count}
+                  <TableCell className="px-4 py-3 text-zinc-600">{group.customer_count}</TableCell>
+                  <TableCell className="px-4 py-3 text-xs text-zinc-600">
+                    {group.discount_type && group.discount_value != null
+                      ? `${group.discount_type === 'percent' ? `${group.discount_value}%` : `$${group.discount_value}`}`
+                      : <span className="text-zinc-400">—</span>}
                   </TableCell>
-                  <TableCell className="whitespace-nowrap px-4 py-3 text-xs text-zinc-500">
-                    {fmtDateTime(group.created_at)}
+                  <TableCell className="px-4 py-3 text-xs text-zinc-600">
+                    {group.price_type
+                      ? <span className="px-2 py-0.5 rounded-full bg-purple-50 text-purple-700">{group.price_type}</span>
+                      : <span className="text-zinc-400">—</span>}
                   </TableCell>
-                  <TableCell className="whitespace-nowrap px-4 py-3 text-xs text-zinc-500">
-                    {fmtDateTime(group.updated_at)}
-                  </TableCell>
+                  <TableCell className="whitespace-nowrap px-4 py-3 text-xs text-zinc-500">{fmtDateTime(group.updated_at)}</TableCell>
                   <TableCell className="px-4 py-3">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -305,8 +450,8 @@ export default function CustomerGroupsClient({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-36">
-                        <DropdownMenuItem onClick={() => startEdit(group)}>
-                          Rename
+                        <DropdownMenuItem onClick={() => openEditModal(group)}>
+                          Edit
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => handleDelete(group)}
@@ -385,3 +530,4 @@ export default function CustomerGroupsClient({
     </div>
   )
 }
+

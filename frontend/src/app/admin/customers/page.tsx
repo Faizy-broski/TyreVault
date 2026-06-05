@@ -174,86 +174,76 @@ export default function CustomersPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 border-b border-zinc-100 px-5 py-3">
-          {([
-            { label: 'All',        value: '' },
-            { label: 'Guest',       value: 'guest' },
-            { label: 'Registered',  value: 'registered' },
-          ] as const).map(f => (
-            <Link
-              key={f.value}
-              href={buildHref({ accountType: f.value, page: '1' })}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                (accountType ?? '') === f.value
-                  ? 'bg-primary text-black'
-                  : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900'
-              }`}
+
+          {/* Account type */}
+          <select
+            value={accountType ?? ''}
+            onChange={e => router.push(buildHref({ accountType: e.target.value, page: '1' }))}
+            className={`rounded-lg border px-3 py-1.5 text-xs font-medium bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${
+              accountType ? 'border-zinc-900 text-zinc-900 bg-zinc-50' : 'border-zinc-300 text-zinc-600'
+            }`}
+          >
+            <option value="">All Accounts</option>
+            <option value="guest">Guest</option>
+            <option value="registered">Registered</option>
+          </select>
+
+          {/* Customer type */}
+          <select
+            value={customerType}
+            onChange={e => router.push(buildHref({ customerType: e.target.value, page: '1' }))}
+            className={`rounded-lg border px-3 py-1.5 text-xs font-medium bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${
+              customerType ? 'border-zinc-900 text-zinc-900 bg-zinc-50' : 'border-zinc-300 text-zinc-600'
+            }`}
+          >
+            <option value="">All Types</option>
+            <option value="retail">Retail</option>
+            <option value="wholesale">Wholesale</option>
+            <option value="fleet">Fleet</option>
+            <option value="trade">Trade</option>
+          </select>
+
+          {/* Status */}
+          <select
+            value={statusFilter}
+            onChange={e => router.push(buildHref({ status: e.target.value, page: '1' }))}
+            className={`rounded-lg border px-3 py-1.5 text-xs font-medium bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${
+              statusFilter ? 'border-zinc-900 text-zinc-900 bg-zinc-50' : 'border-zinc-300 text-zinc-600'
+            }`}
+          >
+            <option value="">Any Status</option>
+            <option value="active">Active</option>
+            <option value="paused">Paused</option>
+            <option value="blocked">Blocked</option>
+          </select>
+
+          {/* Clear filters */}
+          {(accountType || customerType || statusFilter || search) && (
+            <button
+              type="button"
+              onClick={() => router.push(buildHref({ accountType: '', customerType: '', status: '', search: '', page: '1' }))}
+              className="text-xs text-zinc-400 hover:text-red-600 transition-colors"
             >
-              {f.label}
-            </Link>
-          ))}
-          <div className="mx-1 h-4 w-px bg-zinc-200" />
-          {([
-            { label: 'All Types',  value: '' },
-            { label: 'Retail',     value: 'retail' },
-            { label: 'Wholesale',  value: 'wholesale' },
-            { label: 'Fleet',      value: 'fleet' },
-            { label: 'Trade',      value: 'trade' },
-          ]).map(f => (
-            <Link
-              key={f.value}
-              href={buildHref({ customerType: f.value, page: '1' })}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                customerType === f.value
-                  ? 'bg-primary text-black'
-                  : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900'
-              }`}
-            >
-              {f.label}
-            </Link>
-          ))}
-          <div className="mx-1 h-4 w-px bg-zinc-200" />
-          {([
-            { label: 'Any Status', value: '' },
-            { label: 'Active',     value: 'active' },
-            { label: 'Paused',     value: 'paused' },
-            { label: 'Blocked',    value: 'blocked' },
-          ]).map(f => (
-            <Link
-              key={f.value}
-              href={buildHref({ status: f.value, page: '1' })}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                statusFilter === f.value
-                  ? 'bg-primary text-black'
-                  : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900'
-              }`}
-            >
-              {f.label}
-            </Link>
-          ))}
-          <div className="flex-1" />
-          <form onSubmit={e => {
-            e.preventDefault()
-            const fd = new FormData(e.currentTarget)
-            const q = fd.get('search') as string
-            const p = new URLSearchParams()
-            if (q) p.set('search', q)
-            if (accountType) p.set('accountType', accountType)
-            if (customerType) p.set('customerType', customerType)
-            if (statusFilter) p.set('status', statusFilter)
-            p.set('page', '1')
-            router.push(`${pathname}?${p}`)
-          }} className="flex items-center gap-2">
-            <div className="relative">
-              <svg className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-              </svg>
-              <input name="search" defaultValue={search} placeholder="Search" className="w-44 rounded-lg border border-zinc-300 py-1.5 pl-8 pr-3 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30" />
-            </div>
-            <Button type="submit" variant="outline" size="icon-sm" aria-label="Search">
-              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
-              </svg>
-            </Button>
+              ✕ Clear
+            </button>
+          )}
+
+          {/* Search — pushed right */}
+          <form
+            onSubmit={e => {
+              e.preventDefault()
+              const q = (new FormData(e.currentTarget).get('search') as string) ?? ''
+              router.push(buildHref({ search: q, page: '1' }))
+            }}
+            className="relative ml-auto"
+          >
+            <svg className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+            <input
+              name="search" defaultValue={search} placeholder="Search customers…"
+              className="w-48 rounded-lg border border-zinc-300 py-1.5 pl-8 pr-3 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+            />
           </form>
         </div>
 
@@ -274,7 +264,7 @@ export default function CustomersPage() {
               <th className="w-8 px-5 py-3"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-100">
+          <tbody className="divide-y divide-zinc-300">
             {loading ? (
               [1,2,3,4,5].map(i => (
                 <tr key={i}>
@@ -299,7 +289,7 @@ export default function CustomersPage() {
               customers.map((customer, idx) => {
                 const displayId = `CUST-${String((page - 1) * LIMIT + idx + 1).padStart(3, '0')}`
                 return (
-                  <tr key={customer.customer_id} className="even:bg-zinc-50/40 hover:bg-amber-50/30 transition-colors duration-150">
+                  <tr key={customer.customer_id} className="odd:bg-white even:bg-zinc-200 [&:hover]:bg-amber-100 transition-colors duration-150">
                     <td className="px-5 py-3 font-mono text-xs text-zinc-500">
                       <Link href={`/admin/customers/${customer.customer_id}`} className="text-sm font-medium text-primary hover:underline">{displayId}</Link>
                     </td>
@@ -354,3 +344,4 @@ export default function CustomersPage() {
     </div>
   )
 }
+

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import type {
   AdminFitmentCentreDetail,
   AdminCentreKPIs,
@@ -19,6 +20,7 @@ import PaymentSettlementTab from './tabs/PaymentSettlementTab'
 import ComplianceDocTab    from './tabs/ComplianceDocTab'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { toastPromise } from '@/lib/toast'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -78,6 +80,7 @@ export default function FitmentCentreDetailClient({
   paymentSummary, initialPayments, initialPaymentTotal, bankDetails,
   complianceDocs, accessToken,
 }: Props) {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<Tab>('orders')
   const [isActive, setIsActive]   = useState(centre.is_active)
   const [togglingStatus, setTogglingStatus] = useState(false)
@@ -85,15 +88,22 @@ export default function FitmentCentreDetailClient({
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` }
 
   async function toggleStatus() {
+    const next = !isActive
     setTogglingStatus(true)
+    const req = fetch(
+      `${API}/api/admin/fitment-centres/${centre.fitment_centre_id}/status`,
+      { method: 'PATCH', headers, body: JSON.stringify({ is_active: next }) }
+    ).then(res => { if (!res.ok) throw new Error('Failed to update status') })
+
     try {
-      const next = !isActive
-      const res = await fetch(
-        `${API}/api/admin/fitment-centres/${centre.fitment_centre_id}/status`,
-        { method: 'PATCH', headers, body: JSON.stringify({ is_active: next }) }
-      )
-      if (res.ok) setIsActive(next)
-    } finally { setTogglingStatus(false) }
+      await toastPromise(req, {
+        loading: next ? 'Activating centre…' : 'Putting centre on hold…',
+        success: next ? 'Centre activated'   : 'Centre put on hold',
+        error:   'Failed to update status',
+      })
+      setIsActive(next)
+    } catch { /* shown by toastPromise */ }
+    finally { setTogglingStatus(false) }
   }
 
   function fmtAUD(n: number) {
@@ -129,7 +139,11 @@ export default function FitmentCentreDetailClient({
           >
             {togglingStatus ? '...' : isActive ? 'Hold' : 'Activate'}
           </Button>
-          <Button variant="outline" className="px-4 py-1.5 rounded-lg text-sm font-semibold h-auto border-zinc-300 text-zinc-700 hover:bg-zinc-50">
+          <Button
+            variant="outline"
+            className="px-4 py-1.5 rounded-lg text-sm font-semibold h-auto border-zinc-300 text-zinc-700 hover:bg-zinc-50"
+            onClick={() => router.push(`/admin/fitters/${centre.fitment_centre_id}/edit`)}
+          >
             Edit Profile
           </Button>
         </div>
@@ -376,3 +390,4 @@ export default function FitmentCentreDetailClient({
     </div>
   )
 }
+

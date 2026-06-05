@@ -248,3 +248,4 @@ export default function PricingOverrideTab({ centreId, initialRows, accessToken 
     </div>
   )
 }
+

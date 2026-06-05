@@ -25,10 +25,10 @@ type Product = {
 
 type Brand = { brand_id: string; brand_name: string }
 
-const STATUS_FILTERS = [
-  { value: '',          label: 'All'       },
-  { value: 'published', label: 'Published' },
-  { value: 'draft',     label: 'Draft'     },
+const STOCK_FILTERS = [
+  { value: '',         label: 'All Stock'     },
+  { value: 'in_stock', label: 'In Stock'      },
+  { value: 'no_stock', label: 'Out of Stock'  },
 ]
 
 export default function AdminProductsPage() {
@@ -41,23 +41,31 @@ export default function AdminProductsPage() {
   const sortBy    = searchParams.get('sortBy')    ?? 'updated_at'
   const sortOrder = (searchParams.get('sortOrder') as 'asc' | 'desc') ?? 'desc'
   const brandId   = searchParams.get('brandId')   ?? ''
+  const patternId = searchParams.get('patternId') ?? ''
   const status    = searchParams.get('status')    ?? ''
+  const stock     = searchParams.get('stock')     ?? ''
 
   const metaQuery = useProductMeta()
-  const listQuery = useProductList({ search, page, sortBy, sortOrder, brandId, status })
+  const listQuery = useProductList({ search, page, sortBy, sortOrder, brandId, patternId, status, stock })
 
-  const loading  = listQuery.isPending
-  const products = listQuery.data?.data ?? []
-  const brands   = metaQuery.data?.brands ?? []
-  const count    = listQuery.data?.total  ?? 0
+  const loading   = listQuery.isPending
+  const products  = listQuery.data?.data ?? []
+  const brands    = metaQuery.data?.brands ?? []
+  const allPatterns = metaQuery.data?.patterns ?? []
+  const count     = listQuery.data?.total  ?? 0
+
+  // Only show patterns belonging to the selected brand
+  const brandPatterns = brandId
+    ? allPatterns.filter((p: { brand_id: string }) => p.brand_id === brandId)
+    : []
 
   const totalPages = Math.ceil(count / LIMIT)
 
   const buildHref = useCallback((extra: Record<string, string>) => {
-    const p = new URLSearchParams({ sortBy, sortOrder, search, page: String(page), brandId, status })
+    const p = new URLSearchParams({ sortBy, sortOrder, search, page: String(page), brandId, patternId, status, stock })
     Object.entries(extra).forEach(([k, v]) => v ? p.set(k, v) : p.delete(k))
     return `${pathname}?${p}`
-  }, [sortBy, sortOrder, search, page, brandId, status, pathname])
+  }, [sortBy, sortOrder, search, page, brandId, patternId, status, stock, pathname])
 
   function handleSort(col: string) {
     if (col === sortBy) {
@@ -94,70 +102,95 @@ export default function AdminProductsPage() {
 
       <div className="rounded-2xl border border-zinc-200 bg-white overflow-hidden shadow-sm">
         {/* ── Toolbar ── */}
-        <div className="px-4 py-3 border-b border-zinc-200 space-y-2">
-          {/* Row 1: status chips + sort + search */}
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            {/* Status filter chips */}
-            <div className="flex items-center gap-1">
-              {STATUS_FILTERS.map(f => (
-                <Link
-                  key={f.value}
-                  href={buildHref({ status: f.value, page: '1' })}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                    status === f.value
-                      ? 'bg-primary text-black font-medium'
-                      : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900'
-                  }`}
-                >
-                  {f.label}
-                </Link>
-              ))}
-            </div>
+        <div className="px-4 py-3 border-b border-zinc-200">
+          <div className="flex flex-wrap items-center gap-2">
 
-            <div className="flex items-center gap-2">
-              {/* Search */}
-              <form onSubmit={e => {
+            {/* Brand dropdown */}
+            <select
+              value={brandId}
+              onChange={e => router.push(buildHref({ brandId: e.target.value, patternId: '', page: '1' }))}
+              className={`rounded-lg border px-3 py-1.5 text-xs font-medium bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${
+                brandId ? 'border-zinc-900 text-zinc-900 bg-zinc-50' : 'border-zinc-300 text-zinc-600'
+              }`}
+            >
+              <option value="">All Brands</option>
+              {brands.map(b => (
+                <option key={b.brand_id} value={b.brand_id}>{b.brand_name}</option>
+              ))}
+            </select>
+
+            {/* Pattern dropdown — only when brand selected and it has patterns */}
+            {brandId && brandPatterns.length > 0 && (
+              <select
+                value={patternId}
+                onChange={e => router.push(buildHref({ patternId: e.target.value, page: '1' }))}
+                className={`rounded-lg border px-3 py-1.5 text-xs font-medium bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${
+                  patternId ? 'border-primary text-zinc-900 bg-primary/5' : 'border-zinc-300 text-zinc-600'
+                }`}
+              >
+                <option value="">All Patterns</option>
+                {brandPatterns.map((p: { pattern_id: string; pattern_name: string }) => (
+                  <option key={p.pattern_id} value={p.pattern_id}>{p.pattern_name}</option>
+                ))}
+              </select>
+            )}
+
+            {/* Status dropdown */}
+            <select
+              value={status}
+              onChange={e => router.push(buildHref({ status: e.target.value, page: '1' }))}
+              className={`rounded-lg border px-3 py-1.5 text-xs font-medium bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${
+                status ? 'border-zinc-900 text-zinc-900 bg-zinc-50' : 'border-zinc-300 text-zinc-600'
+              }`}
+            >
+              <option value="">All Status</option>
+              <option value="published">Published</option>
+              <option value="draft">Draft</option>
+            </select>
+
+            {/* Stock dropdown */}
+            <select
+              value={stock}
+              onChange={e => router.push(buildHref({ stock: e.target.value, page: '1' }))}
+              className={`rounded-lg border px-3 py-1.5 text-xs font-medium bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${
+                stock ? 'border-zinc-900 text-zinc-900 bg-zinc-50' : 'border-zinc-300 text-zinc-600'
+              }`}
+            >
+              {STOCK_FILTERS.map(f => (
+                <option key={f.value} value={f.value}>{f.label}</option>
+              ))}
+            </select>
+
+            {/* Clear all filters */}
+            {(brandId || patternId || status || stock || search) && (
+              <button
+                type="button"
+                onClick={() => router.push(buildHref({ brandId: '', patternId: '', status: '', stock: '', search: '', page: '1' }))}
+                className="text-xs text-zinc-400 hover:text-red-600 transition-colors ml-1"
+              >
+                ✕ Clear filters
+              </button>
+            )}
+
+            {/* Search — pushed to the right */}
+            <form
+              onSubmit={e => {
                 e.preventDefault()
                 const q = (new FormData(e.currentTarget).get('search') as string) ?? ''
                 router.push(buildHref({ search: q, page: '1' }))
-              }} className="relative">
-                <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-                </svg>
-                <input type="text" name="search" defaultValue={search} placeholder="Search products…"
-                  className="pl-8 pr-3 py-1.5 text-sm border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary w-52"
-                />
-              </form>
-            </div>
+              }}
+              className="relative ml-auto"
+            >
+              <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+              </svg>
+              <input
+                type="text" name="search" defaultValue={search}
+                placeholder="Search products…"
+                className="pl-8 pr-3 py-1.5 text-xs border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary w-48"
+              />
+            </form>
           </div>
-
-          {/* Row 2: brand filter (visible when brands loaded) */}
-          {brands.length > 0 && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs text-zinc-400 mr-1">Brand:</span>
-              <Link
-                href={buildHref({ brandId: '', page: '1' })}
-                className={`px-2.5 py-0.5 rounded-full text-xs border transition-colors ${
-                  !brandId ? 'bg-primary text-black font-medium' : 'border-zinc-300 text-zinc-600 hover:border-zinc-500'
-                }`}
-              >
-                All
-              </Link>
-              {brands.map(b => (
-                <Link
-                  key={b.brand_id}
-                  href={buildHref({ brandId: b.brand_id, page: '1' })}
-                  className={`px-2.5 py-0.5 rounded-full text-xs border transition-colors ${
-                    brandId === b.brand_id
-                      ? 'bg-zinc-900 text-white border-zinc-900'
-                      : 'border-zinc-300 text-zinc-600 hover:border-zinc-500'
-                  }`}
-                >
-                  {b.brand_name}
-                </Link>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* ── Table ── */}
@@ -171,7 +204,7 @@ export default function AdminProductsPage() {
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-100">
+              <tbody className="divide-y divide-zinc-300">
                 {[1,2,3,4,5,6,7,8].map(i => (
                   <tr key={i}>
                     {[48, 24, 28, 12, 16, 20, 8].map((w, j) => (
@@ -218,3 +251,4 @@ export default function AdminProductsPage() {
     </div>
   )
 }
+

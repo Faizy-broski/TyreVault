@@ -12,8 +12,20 @@ router.use(requireRole('super_admin'))
 // Form metadata (brands, collections, categories for dropdowns)
 router.get('/meta', ctrl.getFormMeta)
 
-// Brands (quick-create from product form)
-router.post('/brands', ctrl.postBrand)
+// Brands CRUD
+router.get('/brands',       ctrl.getBrands)
+router.post('/brands',      ctrl.postBrand)
+router.patch('/brands/:id', ctrl.patchBrand)
+router.delete('/brands/:id', ctrl.removeBrand)
+
+// Patterns CRUD (scoped under brand)
+router.get('/brands/:brandId/patterns',                    ctrl.getPatterns)
+router.post('/brands/:brandId/patterns',                   ctrl.postPattern)
+router.get('/brands/:brandId/patterns/:patternId',         ctrl.getPattern)
+router.patch('/brands/:brandId/patterns/:patternId',       ctrl.patchPattern)
+router.delete('/brands/:brandId/patterns/:patternId',      ctrl.removePattern)
+// Also allow fetching all patterns (unscoped, for dropdowns)
+router.get('/patterns',                                    ctrl.getPatterns)
 
 
 // Collections CRUD
@@ -38,12 +50,27 @@ router.patch('/:id/publish', ctrl.publishProduct)
 
 // Variants
 router.post('/:id/variants',                              ctrl.addVariant)
+router.patch('/:id/variants/:variantId',                  ctrl.patchVariant)
 router.delete('/:id/variants/:variantId',                 ctrl.deleteVariant)
 router.patch('/:id/variants/:variantId/stock',            ctrl.updateVariantStock)
 router.patch('/:id/variants/:variantId/prices',           ctrl.updateVariantPrices)
 
+// Price CRUD (individual rows)
+router.post('/:id/variants/:variantId/prices',            ctrl.addPrice)
+router.patch('/:id/variants/:variantId/prices/:priceId',  ctrl.updatePriceHandler)
+router.delete('/:id/variants/:variantId/prices/:priceId', ctrl.deletePriceHandler)
+
+// product_categories (SKU-level)
+router.get('/:id/variants/:variantId/categories',         ctrl.getProductCategories)
+router.put('/:id/variants/:variantId/categories',         ctrl.putProductCategories)
+
 // Stock distribution (StockTab)
-router.get('/:id/variants/:variantId/stock-detail',       ctrl.getProductStock)
-router.put('/:id/variants/:variantId/stock-detail',       ctrl.updateProductStock)
+router.get('/:id/variants/:variantId/stock-detail',                    ctrl.getProductStock)
+router.put('/:id/variants/:variantId/stock-detail',                    ctrl.updateProductStock)
+
+// Product-centric supplier mappings (Section 5 of variant form)
+router.get('/:id/variants/:variantId/supplier-mappings',               ctrl.getProductSupplierMappings)
+router.post('/:id/variants/:variantId/supplier-mappings',              ctrl.addProductSupplierMapping)
+router.delete('/:id/variants/:variantId/supplier-mappings/:mapId',     ctrl.removeProductSupplierMapping)
 
 export default router

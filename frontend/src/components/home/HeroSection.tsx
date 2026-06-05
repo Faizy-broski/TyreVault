@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Clock3, CircleDot, User, Search, ChevronDown } from "lucide-react";
+import { Clock3, CircleDot, User, Search, ChevronDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { stagger, slideRight } from "./motion-variants";
 import { SelectorDialog } from "./SelectorDialog";
+import { toastError, toastWarning } from "@/lib/toast";
 import {
   POPULAR_MAKES,
   TYRE_WIDTHS,
@@ -113,21 +114,21 @@ function TriggerField({
       className={cn(
         "w-full rounded-[26px] border text-left transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d9a407]/40",
         disabled
-          ? "cursor-not-allowed border-white/3 bg-[#1c1c1c] opacity-40"
+          ? "cursor-not-allowed border-gray-200 bg-gray-50 opacity-50"
           : value
-            ? "cursor-pointer border-[#d9a407]/20 bg-[#1c1c1c] hover:border-[#d9a407]/40 hover:bg-[#252525] active:scale-[0.99]"
-            : "cursor-pointer border-white/3 bg-[#1c1c1c] hover:border-white/10 hover:bg-[#252525] active:scale-[0.99]",
+            ? "cursor-pointer border-amber-400/40 bg-white hover:border-amber-400/60 hover:bg-amber-50/40 active:scale-[0.99]"
+            : "cursor-pointer border-gray-300/80 bg-white hover:border-gray-400/90 hover:bg-gray-50/70 active:scale-[0.99]",
       )}
     >
       <div className="flex items-center justify-between px-6 pb-4 pt-5">
         <div className="min-w-0 flex-1">
-          <p className="mb-2 text-[11px] font-black uppercase tracking-[0.32em] text-white/30">
+          <p className="mb-2 text-[11px] font-black uppercase tracking-[0.32em] text-black/80">
             {label}
           </p>
           <p
             className={cn(
-              "truncate text-[17px] font-medium",
-              value ? "text-white" : "text-white/35",
+              "truncate text-[17px] font-semibold",
+              value ? "text-zinc-900" : "text-zinc-800",
             )}
           >
             {value || placeholder}
@@ -137,10 +138,10 @@ function TriggerField({
           className={cn(
             "ml-2 h-4 w-4 shrink-0 transition-colors",
             disabled
-              ? "text-white/15"
+              ? "text-gray-300"
               : value
-                ? "text-[#d9a407]/70"
-                : "text-white/25",
+                ? "text-[#d9a407]"
+                : "text-gray-400",
           )}
         />
       </div>
@@ -154,6 +155,7 @@ export default function HeroSection() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"vehicle" | "size">("vehicle");
   const [openDialog, setOpenDialog] = useState<ActiveDialog>(null);
+  const [searching, setSearching] = useState(false);
 
   // ── Dynamic vehicle data ───────────────────────────────────────────────────
 
@@ -336,38 +338,59 @@ export default function HeroSection() {
   // ── Search submit ──────────────────────────────────────────────────────────
 
   const handleSearch = async () => {
-    if (!canSearch) return;
+    if (!canSearch || searching) return;
 
     if (activeTab === "size") {
       router.push(`/tyres?width=${s.width}&profile=${s.profile}&rim_size=${s.rim}`);
       return;
     }
 
-    if (!variantId) return;
+    if (!variantId) {
+      toastError("Vehicle not found", "Please re-select your variant and try again.");
+      return;
+    }
+
+    setSearching(true);
     try {
       const res = await fetch(
         `${API}/api/vehicles/fitment?variantId=${variantId}`,
       );
+
+      if (!res.ok) {
+        toastError("Could not load fitment data", "Please try again in a moment.");
+        return;
+      }
+
       const data = await res.json();
-      if (!data?.length) return;
+
+      if (!Array.isArray(data) || !data.length) {
+        toastWarning("No tyre fitment found", "We don't have fitment data for this vehicle yet. Try searching by tyre size instead.");
+        return;
+      }
 
       const match = (data[0].front_size as string).match(
         /^(\d+)\/(\d+)[rR](\d+)/,
       );
-      if (!match) return;
+      if (!match) {
+        toastError("Invalid fitment data", "The tyre size for this vehicle is not in a recognised format.");
+        return;
+      }
+
       const [, width, profile, rim] = match;
       router.push(`/tyres?width=${width}&profile=${profile}&rim_size=${rim}`);
     } catch {
-      // silent — user can retry
+      toastError("Search failed", "Could not connect to the server. Please check your connection and try again.");
+    } finally {
+      setSearching(false);
     }
   };
 
   // ──────────────────────────────────────────────────────────────────────────
 
   return (
-    <section className="relative min-h-[600px] overflow-hidden bg-[url('/heroBg.svg')] bg-cover bg-center bg-no-repeat text-white sm:min-h-[680px] md:min-h-[860px]">
-      <div className="relative z-10 mx-auto max-w-[1400px] px-4 pb-12 pt-32 sm:px-6 sm:pb-16 sm:pt-36 lg:px-10 lg:pb-20 lg:pt-40">
-        <div className="grid items-center gap-8 lg:min-h-[500px] lg:grid-cols-12">
+    <section className="relative min-h-[420px] overflow-hidden bg-[url('/heroBg.svg')] bg-cover bg-center bg-no-repeat text-white sm:min-h-[480px] md:min-h-[600px]">
+      <div className="relative z-10 mx-auto max-w-[1400px] px-4 pb-8 pt-20 sm:px-6 sm:pb-12 sm:pt-24 lg:px-10 lg:pb-14 lg:pt-28">
+        <div className="grid items-center gap-8 lg:min-h-[420px] lg:grid-cols-12">
           {/* Heading */}
           <motion.div
             className="lg:col-span-7"
@@ -376,14 +399,14 @@ export default function HeroSection() {
             transition={{ duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
           >
             <div className="uppercase text-[#f8f4ea]">
-              <h1 className="origin-bottom font-oswald font-black leading-[0.85] tracking-[-0.06em] [transform:scaleY(1.15)] text-[68px] sm:text-[96px] md:text-[130px] lg:text-[158px]">
+              <h1 className="origin-bottom font-oswald font-black leading-[0.85] tracking-[-0.06em] [transform:scaleY(1.15)] text-[60px] sm:text-[80px] md:text-[110px] lg:text-[128px]">
                 PERFECT
               </h1>
               <div className="-mt-1 flex items-end gap-3 sm:gap-4 md:-mt-2">
-                <h1 className="font-oswald font-black leading-none tracking-[-0.06em] text-[68px] sm:text-[96px] md:text-[130px] lg:text-[158px]">
+                <h1 className="font-oswald font-black leading-none tracking-[-0.06em] text-[60px] sm:text-[80px] md:text-[110px] lg:text-[128px]">
                   TYRES
                 </h1>
-                <div className="mb-2 flex flex-col font-oswald font-semibold leading-[0.9] tracking-[-0.04em] text-[20px] sm:text-[28px] md:text-[36px] lg:text-[46px]">
+                <div className="mb-2 flex flex-col font-oswald font-semibold leading-[0.9] tracking-[-0.04em] text-[18px] sm:text-[24px] md:text-[32px] lg:text-[40px]">
                   <span>FOR</span>
                   <span>EVERY</span>
                   <span>VEHICLE</span>
@@ -435,17 +458,17 @@ export default function HeroSection() {
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="relative overflow-hidden rounded-[34px] border border-white/10 bg-[#0e0e0e]/95 shadow-[0_20px_80px_rgba(0,0,0,0.45)] backdrop-blur-2xl"
+          className="relative overflow-hidden rounded-[34px] border border-black/8 bg-[#F8F4EA] shadow-[0_20px_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl"
         >
           {/* Tab switcher */}
-          <div className="grid grid-cols-2 bg-[#161616] p-2">
+          <div className="grid grid-cols-2 bg-[#EFEBE2] p-2">
             <button
               onClick={() => handleTabSwitch("size")}
               className={cn(
                 "relative h-12 rounded-full text-sm font-bold transition-all duration-300 sm:h-[64px] sm:text-lg",
                 activeTab === "size"
                   ? "bg-[#d9a407] text-white shadow-lg"
-                  : "text-white/55 hover:text-white",
+                  : "text-gray-600 hover:text-black",
               )}
             >
               Search By Tyre Size
@@ -456,7 +479,7 @@ export default function HeroSection() {
                 "relative h-12 rounded-full text-sm font-bold transition-all duration-300 sm:h-[64px] sm:text-lg",
                 activeTab === "vehicle"
                   ? "bg-[#d9a407] text-white shadow-lg"
-                  : "text-white/55 hover:text-white",
+                  : "text-gray-600 hover:text-black",
               )}
             >
               Search By Vehicle
@@ -504,16 +527,20 @@ export default function HeroSection() {
                 <Button
                   type="button"
                   onClick={handleSearch}
-                  disabled={!vehicleComplete}
+                  disabled={!vehicleComplete || searching}
                   className={cn(
                     "h-14 w-full rounded-[26px] text-base font-bold transition-all duration-300 sm:col-span-2 sm:h-full sm:min-h-[96px] sm:text-lg lg:col-span-1 lg:w-auto",
-                    vehicleComplete
+                    vehicleComplete && !searching
                       ? "bg-[#d9a407] text-white hover:scale-[1.02] hover:bg-[#c89907] active:scale-[0.98]"
-                      : "cursor-not-allowed bg-[#4a4d52] text-white/50",
+                      : "cursor-not-allowed bg-gray-300 text-black",
                   )}
                 >
-                  <Search className="mr-2 h-5 w-5" />
-                  Find Tyres
+                  {searching ? (
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  ) : (
+                    <Search className="mr-2 h-5 w-5" />
+                  )}
+                  {searching ? "Searching..." : "Find Tyres"}
                 </Button>
               </motion.div>
             ) : (
@@ -553,7 +580,7 @@ export default function HeroSection() {
                     "h-14 w-full rounded-[26px] text-base font-bold transition-all duration-300 sm:col-span-2 sm:h-full sm:min-h-[96px] sm:text-lg lg:col-span-1 lg:w-auto",
                     sizeComplete
                       ? "bg-[#d9a407] text-white hover:scale-[1.02] hover:bg-[#c89907] active:scale-[0.98]"
-                      : "cursor-not-allowed bg-[#4a4d52] text-white/50",
+                      : "cursor-not-allowed bg-gray-300 text-black",
                   )}
                 >
                   <Search className="mr-2 h-5 w-5" />
@@ -649,3 +676,4 @@ export default function HeroSection() {
     </section>
   );
 }
+

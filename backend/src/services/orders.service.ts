@@ -1,5 +1,6 @@
 import { supabase as db } from './supabase.service'
 import { notificationQueue } from '../queues'
+import { calcFittingCost } from '../routes/stripe.routes'
 
 const PAGE_SIZE = 20
 
@@ -37,7 +38,7 @@ export async function listOrders(opts: {
     .select(`
       order_id, order_number, created_at, currency,
       payment_status, order_status, total_amount,
-      order_type, fitment_centre_id,
+      order_type, fulfilment_type, fitment_centre_id,
       shipping_address_snapshot,
       customers ( customer_id, first_name, last_name, email ),
       order_items ( order_item_id )
@@ -65,16 +66,18 @@ export async function getOrder(orderId: string) {
     .from('orders')
     .select(`
       order_id, order_number, created_at, currency, notes,
-      shipping_cost, gst_amount, discount_amount,
+      shipping_cost, fitting_cost, gst_amount, discount_amount,
       total_amount,
       payment_status, order_status,
-      order_type, fitment_centre_id,
+      order_type, fulfilment_type, fitment_centre_id,
+      warehouse_id, shipping_address_id,
       shipping_address_snapshot, billing_address_snapshot,
       customers (
         customer_id, email, first_name, last_name, phone, created_at, profile_id
       ),
       order_items (
-        order_item_id, product_id, quantity, unit_price,
+        order_item_id, product_id, product_type, quantity, unit_price,
+        warehouse_id, supplier_id, fulfilment_source, reserved_qty,
         skus ( sku, tyre_size_display )
       ),
       order_payments (
@@ -135,6 +138,13 @@ export async function updateOrderStatus(orderId: string, patch: {
   if (Object.keys(update).length === 0) return { error: null }
 
   const { error } = await db.from('orders').update(update).eq('order_id', orderId)
+  return { error }
+}
+
+// ── Delete order ────────────────────────────────────────────────────────────
+
+export async function deleteOrder(orderId: string) {
+  const { error } = await db.from('orders').delete().eq('order_id', orderId)
   return { error }
 }
 
@@ -282,13 +292,67 @@ async function recalcOrderStatus(orderId: string) {
 
 // ── Warehouse list (for fulfillment dropdown) ────────────────────────────────
 
-export async function listWarehouses() {
-  const { data, error } = await db.from('warehouses').select('warehouse_id, warehouse_name').eq('is_active', true)
+export async function listWarehouses(includeInactive = false) {
+  let q = db.from('warehouses').select(
+    'warehouse_id, warehouse_name, warehouse_type, state, suburb, postcode, address, ' +
+    'contact_name, contact_phone, contact_email, is_own_warehouse, is_supplier_warehouse, is_active, created_at'
+  ).order('warehouse_name')
+  if (!includeInactive) q = q.eq('is_active', true)
+  const { data, error } = await q
   return { data, error }
 }
 
+export type WarehouseType = 'own' | 'supplier' | '3pl'
+
+export async function createWarehouse(payload: {
+  warehouse_name:      string
+  warehouse_type:      WarehouseType
+  state:               string
+  suburb?:             string | null
+  postcode?:           string | null
+  address?:            string | null
+  contact_name?:       string | null
+  contact_phone?:      string | null
+  contact_email?:      string | null
+  is_own_warehouse:    boolean
+  is_supplier_warehouse: boolean
+  is_active:           boolean
+}) {
+  const { data, error } = await db.from('warehouses').insert(payload).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function updateWarehouse(id: string, payload: {
+  warehouse_name?:       string
+  warehouse_type?:       WarehouseType
+  state?:                string
+  suburb?:               string | null
+  postcode?:             string | null
+  address?:              string | null
+  contact_name?:         string | null
+  contact_phone?:        string | null
+  contact_email?:        string | null
+  is_own_warehouse?:     boolean
+  is_supplier_warehouse?: boolean
+  is_active?:            boolean
+}) {
+  const { error } = await db.from('warehouses').update(payload).eq('warehouse_id', id)
+  if (error) throw error
+}
+
+export async function deleteWarehouse(id: string) {
+  const { error } = await db.from('warehouses').delete().eq('warehouse_id', id)
+  if (error) throw error
+}
+
 export async function listShippingMethods() {
-  const { data, error } = await db.from('shipping_methods').select('shipping_method_id, method_name').eq('is_active', true).limit(20)
+  const { data, error } = await db
+    .from('shipping_methods')
+    .select('shipping_method_id, method_name, method_type, api_provider, is_active')
+    .eq('is_active', true)
+    .order('method_name')
+    .limit(50)
   return { data, error }
 }
 
@@ -298,10 +362,10 @@ export interface CreateOrderPayload {
   customer: { email: string; first_name: string; last_name: string }
   items: Array<{ product_id: string; quantity: number; unit_price: number }>
   shipping_address: { line1: string; line2?: string; suburb: string; state: string; postcode: string }
-  fitment_centre_id?: string | null
-  booking_slot?: { date: string; time: string } | null
+  fitment_centre_id?:   string | null
+  wheel_alignment_type?: string | null   // '2_wheel' | '4_wheel' | 'single' | null
   stripe_payment_intent_id: string
-  total_amount: number
+  total_amount: number                   // authoritative — set by backend via PaymentIntent
 }
 
 export async function createOrder(payload: CreateOrderPayload) {
@@ -334,7 +398,26 @@ export async function createOrder(payload: CreateOrderPayload) {
   const rand      = String(Math.floor(Math.random() * 9000) + 1000)
   const orderNumber = `ONX-${datePart}-${rand}`
 
-  // 3. Insert order
+  // 3. Server-side fitting cost calculation
+  let fittingCost = 0
+  if (payload.fitment_centre_id) {
+    const { data: centre } = await db
+      .from('fitment_centres')
+      .select('fitting_price, wheel_alignment_price')
+      .eq('fitment_centre_id', payload.fitment_centre_id)
+      .eq('is_active', true)
+      .maybeSingle()
+    if (centre) {
+      const totalQty = payload.items.reduce((s, i) => s + i.quantity, 0)
+      fittingCost = calcFittingCost(
+        centre as Parameters<typeof calcFittingCost>[0],
+        totalQty,
+        payload.wheel_alignment_type ?? null,
+      )
+    }
+  }
+
+  // 4. Insert order
   const { data: order, error: orderErr } = await db
     .from('orders')
     .insert({
@@ -342,36 +425,38 @@ export async function createOrder(payload: CreateOrderPayload) {
       customer_id:               customerId,
       payment_status:            'paid',
       order_status:              'processing',
-      order_type:                payload.fitment_centre_id ? 'fitment' : 'delivery',
+      order_type:                payload.fitment_centre_id ? 'fitment_centre' : 'delivery',
+      fulfilment_type:           'own_stock',
       fitment_centre_id:         payload.fitment_centre_id ?? null,
+      wheel_alignment_type:      payload.wheel_alignment_type ?? null,
       currency:                  'AUD',
       total_amount:              payload.total_amount,
       shipping_cost:             0,
+      fitting_cost:              fittingCost,
       gst_amount:                0,
       discount_amount:           0,
-      shipping_address_snapshot: {
-        ...payload.shipping_address,
-        ...(payload.booking_slot ? { booking_slot: payload.booking_slot } : {}),
-      },
+      shipping_address_snapshot: payload.shipping_address,
     })
     .select('order_id, order_number')
     .single()
 
   if (orderErr || !order) return { data: null, error: orderErr ?? new Error('Failed to create order') }
 
-  // 4. Insert order items
+  // 5. Insert order items
   const { error: itemsErr } = await db.from('order_items').insert(
     payload.items.map(i => ({
-      order_id:    order.order_id,
-      product_id:  i.product_id,
-      quantity:    i.quantity,
-      unit_price:  i.unit_price,
-      total_price: +(i.unit_price * i.quantity).toFixed(2),
+      order_id:         order.order_id,
+      product_id:       i.product_id,
+      product_type:     'tyre' as const,
+      quantity:         i.quantity,
+      unit_price:       i.unit_price,
+      total_price:      +(i.unit_price * i.quantity).toFixed(2),
+      fulfilment_source: 'own_stock' as const,
     }))
   )
   if (itemsErr) return { data: null, error: itemsErr }
 
-  // 5. Decrement stock (read-modify-write; acceptable for MVP scale)
+  // 6. Decrement stock (read-modify-write; acceptable for MVP scale)
   for (const item of payload.items) {
     const { data: sku } = await db
       .from('skus')
@@ -386,7 +471,7 @@ export async function createOrder(payload: CreateOrderPayload) {
     }
   }
 
-  // 6. Payment record
+  // 7. Payment record
   await db.from('order_payments').insert({
     order_id:          order.order_id,
     payment_reference: orderNumber,
@@ -397,35 +482,91 @@ export async function createOrder(payload: CreateOrderPayload) {
     stripe_payment_id: payload.stripe_payment_intent_id,
   })
 
-  // 7. Fitment job (if applicable)
-  if (payload.fitment_centre_id && payload.booking_slot) {
-    const jobNum = `FJ-${orderNumber}`
-    await db.from('fitment_jobs').insert({
-      order_id:           order.order_id,
-      fitment_centre_id:  payload.fitment_centre_id,
-      task_number:        jobNum,
-      job_status:         'scheduled',
-      scheduled_date:     payload.booking_slot.date,
-      scheduled_time:     payload.booking_slot.time,
-    })
+  // 8. Fitment job (if fitment centre selected — fitter contacts customer to arrange time)
+  if (payload.fitment_centre_id) {
+    const jobNum   = `FJ-${orderNumber}`
+    const totalQty = payload.items.reduce((s, i) => s + i.quantity, 0)
+
+    // Fetch customer contact info and first SKU's tyre size for the job record
+    const [custRes, skuRes, centreRes] = await Promise.all([
+      db.from('customers')
+        .select('first_name, last_name, phone')
+        .eq('customer_id', customerId)
+        .maybeSingle(),
+      db.from('skus')
+        .select('tyre_size_display')
+        .eq('product_id', payload.items[0]?.product_id ?? '')
+        .maybeSingle(),
+      db.from('fitment_centres')
+        .select('email, fitting_price')
+        .eq('fitment_centre_id', payload.fitment_centre_id)
+        .maybeSingle(),
+    ])
+
+    const cust        = custRes.data
+    const customerName  = cust ? `${cust.first_name} ${cust.last_name}`.trim() : payload.customer.first_name
+    const customerPhone = cust?.phone ?? null
+    const tyreSize      = skuRes.data?.tyre_size_display ?? null
+    const fitterEmail   = centreRes.data?.email ?? null
+    const fittingPrice  = Number(centreRes.data?.fitting_price ?? 0)
+    const earningsAmt   = +(fittingPrice * totalQty).toFixed(2)
+
+    const { data: newJob } = await db.from('fitment_jobs').insert({
+      order_id:          order.order_id,
+      fitment_centre_id: payload.fitment_centre_id,
+      customer_id:       customerId,
+      task_number:       jobNum,
+      job_status:        'pending',
+      customer_name:     customerName,
+      customer_phone:    customerPhone,
+      tyre_size:         tyreSize,
+      quantity:          totalQty,
+      earnings_amount:   earningsAmt > 0 ? earningsAmt : null,
+    }).select('job_id').single()
+
+    if (newJob) {
+      // Job items — one row per order item
+      await db.from('fitment_job_items').insert(
+        payload.items.map(i => ({
+          job_id:       newJob.job_id,
+          product_id:   i.product_id,
+          quantity:     i.quantity,
+          service_type: 'supply_and_fit' as const,
+          unit_price:   i.unit_price,
+        }))
+      )
+
+      // Notify fitter by email (best-effort)
+      if (fitterEmail) {
+        notificationQueue?.add('fitment_job_assigned', {
+          type:             'fitment_job_assigned',
+          fitter_email:     fitterEmail,
+          job_id:           newJob.job_id,
+          job_number:       jobNum,
+          customer_name:    customerName,
+          customer_contact: customerPhone ?? payload.customer.email,
+          scheduled_date:   'To be arranged — fitter will contact customer',
+        }).catch(() => {})
+      }
+    }
   }
 
-  // 8. Activity log
+  // 9. Activity log
   await db.from('order_activity').insert({
     order_id:    order.order_id,
     event_type:  'order_placed',
     description: `Order ${orderNumber} placed via storefront checkout`,
   })
 
-  // 9. Fire order confirmation email (best-effort)
+  // 10. Fire order confirmation email (best-effort)
   notificationQueue?.add('order_confirmed', {
     type:           'order_confirmed',
     customer_email: payload.customer.email,
     order_number:   order.order_number,
     total_amount:   payload.total_amount,
     items:          payload.items.map(i => ({ name: i.product_id, qty: i.quantity, price: i.unit_price })),
-    fitment_centre: undefined,
-    scheduled_date: payload.booking_slot?.date,
+    fitment_centre_id: payload.fitment_centre_id ?? undefined,
+    fitting_cost:   fittingCost,
   }).catch(() => {})
 
   return { data: { order_id: order.order_id, order_number: order.order_number }, error: null }

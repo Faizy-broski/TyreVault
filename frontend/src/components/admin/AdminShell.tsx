@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import AdminSidebar from './AdminSidebar'
 import AdminHeader from './AdminHeader'
 import { Toaster } from '@/components/ui/sonner'
@@ -13,6 +13,18 @@ interface Props {
 
 export default function AdminShell({ userEmail, children }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Prevent the browser's native body scrollbar while admin layout is active.
+  // The only scroll that should exist is on <main>.
+  useEffect(() => {
+    const prev = document.documentElement.style.overflow
+    document.documentElement.style.overflow = 'hidden'
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.documentElement.style.overflow = prev
+      document.body.style.overflow = ''
+    }
+  }, [])
 
   return (
     <ReactQueryProvider>
@@ -43,9 +55,21 @@ export default function AdminShell({ userEmail, children }: Props) {
         position="top-right"
         richColors
         closeButton
-        toastOptions={{ duration: 3000 }}
+        expand={false}
+        visibleToasts={4}
+        toastOptions={{
+          duration: 4000,
+          classNames: {
+            toast:       'font-medium text-sm shadow-lg rounded-xl border',
+            success:     'border-green-200 bg-green-50 text-green-900',
+            error:       'border-red-200 bg-red-50 text-red-900',
+            loading:     'border-zinc-200 bg-white text-zinc-800',
+            description: 'text-xs opacity-75 mt-0.5',
+          },
+        }}
       />
     </div>
     </ReactQueryProvider>
   )
 }
+

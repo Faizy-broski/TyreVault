@@ -27,3 +27,4 @@ export function ReactQueryProvider({ children }: { children: React.ReactNode }) 
   const [client] = useState(makeQueryClient)
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>
 }
+

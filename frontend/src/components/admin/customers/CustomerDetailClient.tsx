@@ -229,11 +229,11 @@ export default function CustomerDetailClient({
 
   const addressDisplay = primaryAddress
     ? [
-        primaryAddress.address_line1,
-        primaryAddress.address_line2,
-        primaryAddress.city,
+        primaryAddress.address_line_1 ?? primaryAddress.address_line1,
+        primaryAddress.address_line_2 ?? primaryAddress.address_line2,
+        primaryAddress.suburb         ?? primaryAddress.city,
         primaryAddress.state,
-        primaryAddress.postal_code,
+        primaryAddress.postcode       ?? primaryAddress.postal_code,
         primaryAddress.country,
       ]
         .filter(Boolean)
@@ -471,7 +471,7 @@ export default function CustomerDetailClient({
                     </TableRow>
                   ) : (
                     filteredOrders.map((order) => (
-                      <TableRow key={order.order_id} className="hover:bg-zinc-50">
+                      <TableRow key={order.order_id} className="even:bg-zinc-100 hover:bg-amber-50 transition-colors">
                         <TableCell className="px-4 py-3">
                           <Link
                             href={`/admin/orders/${order.order_id}`}
@@ -594,7 +594,7 @@ export default function CustomerDetailClient({
                   </TableRow>
                 ) : (
                   localGroups.map((group) => (
-                    <TableRow key={group.group_id} className="hover:bg-zinc-50">
+                    <TableRow key={group.group_id} className="even:bg-zinc-100 hover:bg-amber-50 transition-colors">
                       <TableCell className="px-4 py-3 font-medium text-zinc-800">
                         <Link href={`/admin/customers/groups/${group.group_id}`} className="hover:underline">
                           {group.group_name}
@@ -726,7 +726,11 @@ export default function CustomerDetailClient({
                       </Button>
                     </div>
                     <p className="mt-0.5 text-xs text-zinc-500">
-                      {[address.address_line1, address.city, address.state]
+                      {[
+                        address.address_line_1 ?? address.address_line1,
+                        address.suburb         ?? address.city,
+                        address.state,
+                      ]
                         .filter(Boolean)
                         .join(", ")}
                     </p>
@@ -740,3 +744,4 @@ export default function CustomerDetailClient({
     </>
   );
 }
+

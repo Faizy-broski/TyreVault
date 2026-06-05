@@ -63,9 +63,12 @@ function LoadingSkeleton() {
 export default function JobDetailClient({ jobId }: { jobId: string }) {
   const queryClient = useQueryClient()
   const [isPending, startTransition] = useTransition()
-  const [error,        setError]        = useState('')
-  const [fitterNotes,  setFitterNotes]  = useState('')
-  const [notesSaved,   setNotesSaved]   = useState(false)
+  const [error,         setError]         = useState('')
+  const [fitterNotes,   setFitterNotes]   = useState('')
+  const [notesSaved,    setNotesSaved]    = useState(false)
+  const [scheduledDate, setScheduledDate] = useState('')
+  const [scheduledTime, setScheduledTime] = useState('')
+  const [schedSaved,    setSchedSaved]    = useState(false)
   const seededJobId = useRef<string | null>(null)
 
   const { data: job, isPending: loading } = useFitterJobDetail(jobId)
@@ -73,47 +76,60 @@ export default function JobDetailClient({ jobId }: { jobId: string }) {
   useEffect(() => {
     if (job && job.job_id !== seededJobId.current) {
       setFitterNotes(job.fitter_notes ?? '')
+      setScheduledDate(job.scheduled_date ?? '')
+      setScheduledTime(job.scheduled_time ?? '')
       seededJobId.current = job.job_id
     }
   }, [job])
 
-  async function updateStatus(status: 'pending' | 'assigned' | 'accepted' | 'rejected' | 'in_progress' | 'completed' | 'cancelled') {
-    setError('')
+  async function patchJob(body: Record<string, unknown>) {
     const token = await getToken()
-    const res = await fetch(`${BACKEND_API_URL}/api/fitter/portal/jobs/${jobId}`, {
+    return fetch(`${BACKEND_API_URL}/api/fitter/portal/jobs/${jobId}`, {
       method:  'PATCH',
       headers: createBackendHeaders(token, { 'Content-Type': 'application/json' }),
-      body:    JSON.stringify({ status }),
+      body:    JSON.stringify(body),
     })
-    if (!res.ok) { setError('Failed to update job status.'); return }
+  }
 
-    // Update this job detail in cache
+  async function updateStatus(status: 'pending' | 'assigned' | 'accepted' | 'rejected' | 'in_progress' | 'completed' | 'cancelled') {
+    setError('')
+    const res = await patchJob({ status })
+    if (!res.ok) { setError('Failed to update job status.'); return }
     queryClient.setQueryData<FitmentJob>(fitterKeys.jobDetail(jobId), prev =>
       prev ? { ...prev, job_status: status } : prev
     )
-    // Reflect change in the jobs list cache
     queryClient.setQueryData<FitmentJob[]>(fitterKeys.jobs(), prev =>
       prev?.map(j => j.job_id === jobId ? { ...j, job_status: status } : j)
     )
-    // KPIs may change — invalidate so they refetch
     queryClient.invalidateQueries({ queryKey: fitterKeys.kpis() })
   }
 
   async function saveNotes() {
     if (!job) return
     setError('')
-    const token = await getToken()
-    const res = await fetch(`${BACKEND_API_URL}/api/fitter/portal/jobs/${jobId}`, {
-      method:  'PATCH',
-      headers: createBackendHeaders(token, { 'Content-Type': 'application/json' }),
-      body:    JSON.stringify({ status: job.job_status, fitter_notes: fitterNotes }),
-    })
+    const res = await patchJob({ status: job.job_status, fitter_notes: fitterNotes })
     if (!res.ok) { setError('Failed to save notes.'); return }
     queryClient.setQueryData<FitmentJob>(fitterKeys.jobDetail(jobId), prev =>
       prev ? { ...prev, fitter_notes: fitterNotes } : prev
     )
     setNotesSaved(true)
     setTimeout(() => setNotesSaved(false), 2000)
+  }
+
+  async function saveSchedule() {
+    if (!job) return
+    setError('')
+    const res = await patchJob({
+      status:         job.job_status,
+      scheduled_date: scheduledDate || null,
+      scheduled_time: scheduledTime || null,
+    })
+    if (!res.ok) { setError('Failed to save appointment.'); return }
+    queryClient.setQueryData<FitmentJob>(fitterKeys.jobDetail(jobId), prev =>
+      prev ? { ...prev, scheduled_date: scheduledDate || null, scheduled_time: scheduledTime || null } : prev
+    )
+    setSchedSaved(true)
+    setTimeout(() => setSchedSaved(false), 2000)
   }
 
   if (loading) return <LoadingSkeleton />
@@ -183,9 +199,10 @@ export default function JobDetailClient({ jobId }: { jobId: string }) {
         <div className="bg-white rounded-2xl border border-zinc-200 divide-y divide-zinc-100">
           {job.customer_phone && (
             <InfoRow icon={<Phone className="w-4 h-4" />}>
-              <a href={`tel:${job.customer_phone}`} className="hover:text-primary transition-colors">
+              <a href={`tel:${job.customer_phone}`} className="hover:text-primary transition-colors font-medium">
                 {job.customer_phone}
               </a>
+              <span className="ml-2 text-xs text-zinc-400">— contact customer to arrange fitting time</span>
             </InfoRow>
           )}
           {job.scheduled_date && (
@@ -204,6 +221,49 @@ export default function JobDetailClient({ jobId }: { jobId: string }) {
             </InfoRow>
           )}
         </div>
+
+        {/* Appointment scheduler — shown for non-terminal jobs so fitter can record arranged time */}
+        {!isTerminal && (
+          <div className="bg-white rounded-2xl border border-zinc-200 px-5 py-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Calendar className="w-4 h-4 text-zinc-400" />
+              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">
+                Arranged Appointment
+              </p>
+            </div>
+            <p className="text-xs text-zinc-400 mb-3">
+              After contacting the customer, record the agreed fitting date and time here.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-zinc-600 mb-1">Date</label>
+                <input
+                  type="date"
+                  value={scheduledDate}
+                  onChange={e => { setScheduledDate(e.target.value); setSchedSaved(false) }}
+                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-600 mb-1">Time</label>
+                <input
+                  type="time"
+                  value={scheduledTime}
+                  onChange={e => { setScheduledTime(e.target.value); setSchedSaved(false) }}
+                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                />
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={saveSchedule}
+              disabled={isPending || (scheduledDate === (job.scheduled_date ?? '') && scheduledTime === (job.scheduled_time ?? ''))}
+              className="mt-3 text-xs font-semibold text-primary hover:text-primary/80 disabled:text-zinc-400 disabled:cursor-not-allowed transition-colors"
+            >
+              {schedSaved ? '✓ Appointment saved' : 'Save appointment'}
+            </button>
+          </div>
+        )}
 
         {/* Tyre details */}
         {(job.tyre_pattern || job.tyre_size) && (
@@ -407,3 +467,4 @@ export default function JobDetailClient({ jobId }: { jobId: string }) {
     </div>
   )
 }
+

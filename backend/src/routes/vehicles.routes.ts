@@ -83,7 +83,7 @@ router.get('/variants', async (req, res, next) => {
 })
 
 // GET /api/vehicles/fitment?variantId=X
-// Returns compatible tyre front_size values for the given vehicle.
+// Returns compatible tyre fitments for the given vehicle.
 // Cached in Redis 24 hours.
 router.get('/fitment', async (req, res, next) => {
   try {
@@ -97,6 +97,31 @@ router.get('/fitment', async (req, res, next) => {
     const { data, error } = await db
       .from('vehicle_tyre_fitments')
       .select('front_size, rear_size, is_staggered, notes')
+      .eq('vehicle_id', variantId as string)
+
+    if (error) return next(error)
+
+    const result = data ?? []
+    await redis?.set(cacheKey, result, { ex: 86400 }) // 24h
+    res.json(result)
+  } catch (err) { next(err) }
+})
+
+// GET /api/vehicles/wheel-fitment?variantId=X
+// Returns compatible wheel specs for the given vehicle.
+// Cached in Redis 24 hours.
+router.get('/wheel-fitment', async (req, res, next) => {
+  try {
+    const { variantId } = req.query
+    if (!variantId) return res.status(400).json({ error: 'variantId is required' })
+
+    const cacheKey = `wheel-fitment:${variantId}`
+    const cached   = await redis?.get<any>(cacheKey)
+    if (cached) return res.json(cached)
+
+    const { data, error } = await db
+      .from('vehicle_wheel_fitments')
+      .select('diameter_range, width_range, pcd, offset_min, offset_max, centre_bore, notes')
       .eq('vehicle_id', variantId as string)
 
     if (error) return next(error)

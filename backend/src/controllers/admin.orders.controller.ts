@@ -10,6 +10,14 @@ export async function getOrderStats(_req: Request, res: Response, next: NextFunc
   } catch (err) { next(err) }
 }
 
+export async function deleteOrder(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { error } = await OrdersService.deleteOrder(String((req.params as P).orderId))
+    if (error) return next(error)
+    res.json({ success: true })
+  } catch (err) { next(err) }
+}
+
 export async function patchOrderStatus(req: Request, res: Response, next: NextFunction) {
   try {
     const { error } = await OrdersService.updateOrderStatus(
@@ -79,10 +87,29 @@ export async function patchShipmentDelivered(req: Request, res: Response, next: 
 
 export async function getWarehouses(req: Request, res: Response, next: NextFunction) {
   try {
-    const result = await OrdersService.listWarehouses()
+    const includeInactive = req.query.all === 'true'
+    const result = await OrdersService.listWarehouses(includeInactive)
     const { data, error } = result as unknown as { data: unknown[] | null; error: unknown }
     if (error) return next(error)
     res.json(data ?? [])
+  } catch (err) { next(err) }
+}
+
+export async function postWarehouse(req: Request, res: Response, next: NextFunction) {
+  try { res.status(201).json(await OrdersService.createWarehouse(req.body)) } catch (err) { next(err) }
+}
+
+export async function patchWarehouse(req: Request, res: Response, next: NextFunction) {
+  try {
+    await OrdersService.updateWarehouse((req.params as P).id, req.body)
+    res.json({ success: true })
+  } catch (err) { next(err) }
+}
+
+export async function removeWarehouse(req: Request, res: Response, next: NextFunction) {
+  try {
+    await OrdersService.deleteWarehouse((req.params as P).id)
+    res.json({ success: true })
   } catch (err) { next(err) }
 }
 

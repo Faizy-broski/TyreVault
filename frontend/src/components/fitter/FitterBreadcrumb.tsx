@@ -33,3 +33,4 @@ export function FitterBreadcrumb({ crumbs }: { crumbs: Crumb[] }) {
     </nav>
   )
 }
+

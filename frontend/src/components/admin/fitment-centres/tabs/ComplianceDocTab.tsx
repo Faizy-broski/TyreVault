@@ -204,7 +204,7 @@ export default function ComplianceDocTab({ centreId, initialDocs, accessToken }:
               <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Action</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-100">
+          <tbody className="divide-y divide-zinc-100 [&_tr:nth-child(even)]:bg-zinc-100 [&_tr:nth-child(odd)]:bg-white [&_tr:hover]:bg-amber-50 [&_tr]:transition-colors">
             {docs.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-5 py-10 text-center text-sm text-zinc-400">
@@ -216,7 +216,7 @@ export default function ComplianceDocTab({ centreId, initialDocs, accessToken }:
                 const expired = isExpired(doc.expiry_date)
                 const soon    = isExpiringSoon(doc.expiry_date)
                 return (
-                  <tr key={doc.id} className={`hover:bg-zinc-50 ${expired ? 'bg-red-50/40' : ''}`}>
+                  <tr key={doc.id} className={`even:bg-zinc-50/50 hover:bg-amber-50/40 transition-colors ${expired ? '!bg-red-50/40' : ''}`}>
                     <td className="px-5 py-3 text-sm font-medium text-zinc-800">
                       {POLICY_LABELS[doc.policy_type] ?? doc.policy_type}
                     </td>
@@ -283,3 +283,4 @@ export default function ComplianceDocTab({ centreId, initialDocs, accessToken }:
     </div>
   )
 }
+

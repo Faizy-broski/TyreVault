@@ -31,12 +31,9 @@ type SupplierRow = {
 }
 
 // ============================================================
-// Confidence score weights (from architecture spec)
-// size: 50%, brand: 20%, pattern: 20%, load/speed: 10%
+// Mapping parameter defaults (overridden at runtime from system_settings)
 // ============================================================
-const WEIGHTS = { size: 50, brand: 20, pattern: 20, load_speed: 10 } as const
-const AUTO_MAP_THRESHOLD = 90
-const REVIEW_THRESHOLD = 70
+import { DEFAULT_MAPPING_PARAMS, type MappingParams } from '../services/admin.suppliers.service'
 
 // ============================================================
 // Worker — concurrency: 1 (never run two imports simultaneously)
@@ -51,8 +48,11 @@ export const supplierImportWorker = new Worker<SupplierImportJobData>(
     const brandMap   = await getBrandMap()
     const patternMap = await getPatternMap()
 
-    // Read auto_mapping_enabled toggle — cached in Redis 60s
-    const autoMappingEnabled = await getAutoMappingEnabled()
+    // Read toggle + configurable weights — both cached in Redis 60s
+    const [autoMappingEnabled, params] = await Promise.all([
+      getAutoMappingEnabled(),
+      getMappingParams(),
+    ])
 
     const results = { auto_mapped: 0, review_queue: 0, rejected: 0 }
 
@@ -61,25 +61,39 @@ export const supplierImportWorker = new Worker<SupplierImportJobData>(
       await job.updateProgress(Math.round((i / rows.length) * 100))
 
       try {
-        const score = await scoreRow(row, brandMap, patternMap)
+        const score = await scoreRow(row, brandMap, patternMap, params)
 
-        // Toggle-aware threshold logic
-        const shouldAutoApprove = autoMappingEnabled && score.confidence >= AUTO_MAP_THRESHOLD
-        const isAboveReview     = score.confidence >= REVIEW_THRESHOLD
+        const shouldAutoApprove = autoMappingEnabled && score.confidence >= params.auto_threshold
+        const isAboveReview     = score.confidence >= params.review_threshold
 
         if (!isAboveReview) {
-          // Below review threshold — rejected, skip upsert
           results.rejected++
+          // Save rejected rows so admin can see what the supplier sent but couldn't be matched
+          await supabase.from('supplier_product_map').upsert({
+            supplier_id,
+            product_id:             null,
+            supplier_sku:           row.supplier_sku,
+            supplier_brand_name:    row.supplier_brand_name,
+            supplier_pattern_name:  row.supplier_pattern_name,
+            supplier_size_raw:      row.supplier_size_raw,
+            normalized_size_code:   score.normalized_size,
+            load_index:             row.load_index,
+            speed_rating:           row.speed_rating,
+            ply_rating:             row.ply_rating,
+            supplier_price:         row.supplier_price,
+            supplier_stock:         row.supplier_stock ?? 0,
+            lead_time_days:         row.lead_time_days,
+            is_verified:            false,
+            match_confidence:       score.confidence,
+            last_updated:           new Date().toISOString(),
+          }, { onConflict: 'supplier_id,supplier_sku' })
           continue
         }
 
-        const mappedProductId = shouldAutoApprove ? score.product_id : null
-
         await supabase.from('supplier_product_map').upsert({
           supplier_id,
-          product_id:             mappedProductId,
+          product_id:             score.product_id,
           supplier_sku:           row.supplier_sku,
-          supplier_product_name:  row.supplier_product_name,
           supplier_brand_name:    row.supplier_brand_name,
           supplier_pattern_name:  row.supplier_pattern_name,
           supplier_size_raw:      row.supplier_size_raw,
@@ -121,7 +135,8 @@ supplierImportWorker.on('failed', (job, err) => {
 async function scoreRow(
   row: SupplierRow,
   brandMap: BrandMapEntry[],
-  patternMap: PatternMapEntry[]
+  patternMap: PatternMapEntry[],
+  params: MappingParams
 ): Promise<{ confidence: number; product_id: string | null; normalized_size: string }> {
   const normalizedSize = row.supplier_size_raw
     ? normalizeTyreSize(row.supplier_size_raw)
@@ -174,10 +189,10 @@ async function scoreRow(
     best.load_index === row.load_index && best.speed_rating === row.speed_rating
 
   const confidence =
-    WEIGHTS.size +
-    Math.round(brandSimilarity * WEIGHTS.brand) +
-    Math.round(patternSimilarity * WEIGHTS.pattern) +
-    (loadSpeedMatch ? WEIGHTS.load_speed : 0)
+    params.size +
+    Math.round(brandSimilarity * params.brand) +
+    Math.round(patternSimilarity * params.pattern) +
+    (loadSpeedMatch ? params.load_speed : 0)
 
   return {
     confidence: Math.min(confidence, 100),
@@ -246,6 +261,21 @@ async function getAutoMappingEnabled(): Promise<boolean> {
     await redis?.set(CACHE_KEY, value, { ex: 60 })
     return Boolean(value)
   } catch {
-    return true // default: enabled
+    return true
+  }
+}
+
+async function getMappingParams(): Promise<MappingParams> {
+  const CACHE_KEY = 'setting:mapping_parameters'
+  const cached = await redis?.get<MappingParams>(CACHE_KEY)
+  if (cached) return cached
+
+  try {
+    const row = await getSetting('mapping_parameters')
+    const params = (row?.value ?? DEFAULT_MAPPING_PARAMS) as MappingParams
+    await redis?.set(CACHE_KEY, params, { ex: 60 })
+    return params
+  } catch {
+    return DEFAULT_MAPPING_PARAMS
   }
 }

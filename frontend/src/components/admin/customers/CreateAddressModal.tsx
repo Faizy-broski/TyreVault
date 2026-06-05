@@ -36,12 +36,12 @@ export default function CreateAddressModal({ accessToken, customerId, onClose, o
             addressName:  fd.get('addressName'),
             addressLine1: fd.get('addressLine1'),
             addressLine2: fd.get('addressLine2') || undefined,
-            postalCode:   fd.get('postalCode')   || undefined,
-            city:         fd.get('city')         || undefined,
+            postcode:     fd.get('postcode')     || undefined,
+            suburb:       fd.get('suburb')       || undefined,
             country:      fd.get('country')      || undefined,
             state:        fd.get('state')        || undefined,
-            company:      fd.get('company')      || undefined,
             phone:        fd.get('phone')        || undefined,
+            isDefault:    fd.get('isDefault') === 'on',
           }),
         }
       )
@@ -115,23 +115,23 @@ export default function CreateAddressModal({ accessToken, customerId, onClose, o
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="postalCode" className="block text-sm font-medium text-zinc-700 mb-1">
-                  Postal Code <span className="text-xs text-zinc-400">(Optional)</span>
+                <Label htmlFor="postcode" className="block text-sm font-medium text-zinc-700 mb-1">
+                  Postcode <span className="text-xs text-zinc-400">(Optional)</span>
                 </Label>
                 <Input
-                  id="postalCode"
-                  name="postalCode"
+                  id="postcode"
+                  name="postcode"
                   placeholder="2000"
                   className="rounded-lg border-zinc-300 focus:ring-primary/30 focus:border-primary"
                 />
               </div>
               <div>
-                <Label htmlFor="city" className="block text-sm font-medium text-zinc-700 mb-1">
-                  City <span className="text-xs text-zinc-400">(Optional)</span>
+                <Label htmlFor="suburb" className="block text-sm font-medium text-zinc-700 mb-1">
+                  Suburb <span className="text-xs text-zinc-400">(Optional)</span>
                 </Label>
                 <Input
-                  id="city"
-                  name="city"
+                  id="suburb"
+                  name="suburb"
                   placeholder="Sydney"
                   className="rounded-lg border-zinc-300 focus:ring-primary/30 focus:border-primary"
                 />
@@ -163,17 +163,6 @@ export default function CreateAddressModal({ accessToken, customerId, onClose, o
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="company" className="block text-sm font-medium text-zinc-700 mb-1">
-                  Company <span className="text-xs text-zinc-400">(Optional)</span>
-                </Label>
-                <Input
-                  id="company"
-                  name="company"
-                  placeholder="Acme Pty Ltd"
-                  className="rounded-lg border-zinc-300 focus:ring-primary/30 focus:border-primary"
-                />
-              </div>
-              <div>
                 <Label htmlFor="phone" className="block text-sm font-medium text-zinc-700 mb-1">
                   Phone <span className="text-xs text-zinc-400">(Optional)</span>
                 </Label>
@@ -184,6 +173,17 @@ export default function CreateAddressModal({ accessToken, customerId, onClose, o
                   placeholder="+61 400 000 000"
                   className="rounded-lg border-zinc-300 focus:ring-primary/30 focus:border-primary"
                 />
+              </div>
+              <div className="flex items-end pb-1">
+                <label htmlFor="isDefault" className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    id="isDefault"
+                    name="isDefault"
+                    type="checkbox"
+                    className="rounded border-zinc-300 accent-primary w-4 h-4"
+                  />
+                  <span className="text-sm text-zinc-700">Set as default address</span>
+                </label>
               </div>
             </div>
           </div>
@@ -207,3 +207,4 @@ export default function CreateAddressModal({ accessToken, customerId, onClose, o
     </Dialog>
   )
 }
+

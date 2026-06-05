@@ -190,3 +190,4 @@ export default function BestSellingSection() {
     </section>
   );
 }
+

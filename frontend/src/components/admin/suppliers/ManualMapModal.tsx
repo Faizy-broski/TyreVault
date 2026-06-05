@@ -135,3 +135,4 @@ export default function ManualMapModal({ mapId, accessToken, onClose, onMapped }
     </Dialog>
   )
 }
+

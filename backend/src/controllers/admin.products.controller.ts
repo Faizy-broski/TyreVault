@@ -6,12 +6,14 @@ type P = Record<string, string>
 export async function getProducts(req: Request, res: Response, next: NextFunction) {
   try {
     const result = await ProductsService.listProducts({
-      search:  String(req.query.search ?? ''),
-      brandId: String(req.query.brandId ?? ''),
-      status:  String(req.query.status  ?? ''),
-      page:    req.query.page  ? Number(req.query.page)  : 1,
-      limit:   req.query.limit ? Number(req.query.limit) : 20,
-      sortBy:  (req.query.sortBy as 'updated_at' | 'created_at' | 'pattern_name' | 'show_on_website' | 'brand_name') ?? 'updated_at',
+      search:    String(req.query.search    ?? ''),
+      brandId:   String(req.query.brandId   ?? ''),
+      patternId: String(req.query.patternId ?? ''),
+      status:    String(req.query.status    ?? ''),
+      stock:     String(req.query.stock     ?? ''),
+      page:      req.query.page  ? Number(req.query.page)  : 1,
+      limit:     req.query.limit ? Number(req.query.limit) : 20,
+      sortBy:    (req.query.sortBy as 'updated_at' | 'created_at' | 'pattern_name' | 'show_on_website' | 'brand_name') ?? 'updated_at',
       sortOrder: (req.query.sortOrder as 'asc' | 'desc') ?? 'desc',
     })
     res.json(result)
@@ -50,6 +52,16 @@ export async function updateProduct(req: Request, res: Response, next: NextFunct
 export async function publishProduct(req: Request, res: Response, next: NextFunction) {
   try {
     await ProductsService.publishProduct(String((req.params as P).id), req.body.publish === true)
+    res.json({ success: true })
+  } catch (err) { next(err) }
+}
+
+export async function patchVariant(req: Request, res: Response, next: NextFunction) {
+  try {
+    await ProductsService.patchVariant(
+      String((req.params as P).variantId),
+      req.body
+    )
     res.json({ success: true })
   } catch (err) { next(err) }
 }
@@ -101,6 +113,33 @@ export async function updateVariantPrices(req: Request, res: Response, next: Nex
   } catch (err) { next(err) }
 }
 
+export async function addPrice(req: Request, res: Response, next: NextFunction) {
+  try {
+    const result = await ProductsService.addVariantPrice(
+      String((req.params as P).variantId),
+      req.body
+    )
+    res.status(201).json(result)
+  } catch (err) { next(err) }
+}
+
+export async function updatePriceHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    await ProductsService.updatePrice(
+      String((req.params as P).priceId),
+      req.body
+    )
+    res.json({ success: true })
+  } catch (err) { next(err) }
+}
+
+export async function deletePriceHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    await ProductsService.deletePrice(String((req.params as P).priceId))
+    res.json({ success: true })
+  } catch (err) { next(err) }
+}
+
 export async function getProductStock(req: Request, res: Response, next: NextFunction) {
   try {
     const result = await ProductsService.getProductStock(String((req.params as P).variantId))
@@ -120,23 +159,114 @@ export async function updateProductStock(req: Request, res: Response, next: Next
   } catch (err) { next(err) }
 }
 
+// ============================================================
+// PRODUCT-CENTRIC SUPPLIER MAPPINGS
+// ============================================================
+
+export async function getProductSupplierMappings(req: Request, res: Response, next: NextFunction) {
+  try {
+    const data = await ProductsService.getProductSupplierMappings(String((req.params as P).variantId))
+    res.json(data)
+  } catch (err) { next(err) }
+}
+
+export async function addProductSupplierMapping(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { supplier_id, supplier_sku, supplier_price, supplier_stock, lead_time_days } = req.body
+    if (!supplier_id || !supplier_sku) {
+      res.status(400).json({ error: 'supplier_id and supplier_sku are required' })
+      return
+    }
+    const data = await ProductsService.addProductSupplierMapping(
+      String((req.params as P).variantId),
+      { supplier_id, supplier_sku, supplier_price, supplier_stock, lead_time_days }
+    )
+    res.status(201).json(data)
+  } catch (err) { next(err) }
+}
+
+export async function removeProductSupplierMapping(req: Request, res: Response, next: NextFunction) {
+  try {
+    await ProductsService.removeProductSupplierMapping(String((req.params as P).mapId))
+    res.json({ success: true })
+  } catch (err) { next(err) }
+}
+
 export async function getFormMeta(req: Request, res: Response, next: NextFunction) {
   try {
-    const [brands, collections, categories] = await Promise.all([
+    const [brands, collections, categories, patterns] = await Promise.all([
       ProductsService.listBrands(),
       ProductsService.listCollections(),
       ProductsService.listCategories(),
+      ProductsService.listPatterns(),
     ])
-    res.json({ brands, collections, categories })
+    res.json({ brands, collections, categories, patterns })
   } catch (err) { next(err) }
 }
 
 // ── Brands ───────────────────────────────────────────────────────────────────
 
+export async function getBrands(_req: Request, res: Response, next: NextFunction) {
+  try { res.json(await ProductsService.listBrandsFull()) } catch (err) { next(err) }
+}
+
 export async function postBrand(req: Request, res: Response, next: NextFunction) {
   try { res.status(201).json(await ProductsService.createBrand(req.body)) } catch (err) { next(err) }
 }
 
+export async function patchBrand(req: Request, res: Response, next: NextFunction) {
+  try {
+    await ProductsService.updateBrand(String((req.params as P).id), req.body)
+    res.json({ success: true })
+  } catch (err) { next(err) }
+}
+
+export async function removeBrand(req: Request, res: Response, next: NextFunction) {
+  try {
+    await ProductsService.deleteBrand(String((req.params as P).id))
+    res.json({ success: true })
+  } catch (err) { next(err) }
+}
+
+
+// ── Patterns ─────────────────────────────────────────────────────────────────
+
+export async function getPatterns(req: Request, res: Response, next: NextFunction) {
+  try {
+    const brandId = (req.params as P).brandId || String(req.query.brandId ?? '')
+    res.json(await ProductsService.listPatterns(brandId || undefined))
+  } catch (err) { next(err) }
+}
+
+export async function getPattern(req: Request, res: Response, next: NextFunction) {
+  try {
+    const data = await ProductsService.getPattern(String((req.params as P).patternId))
+    if (!data) return res.status(404).json({ error: 'Not found' })
+    res.json(data)
+  } catch (err) { next(err) }
+}
+
+export async function postPattern(req: Request, res: Response, next: NextFunction) {
+  try {
+    const brandId = String((req.params as P).brandId)
+    const { brand_name: _, ...rest } = req.body as Record<string, unknown>
+    res.status(201).json(await ProductsService.createPattern({ ...rest, brand_id: brandId } as ProductsService.PatternPayload))
+  } catch (err) { next(err) }
+}
+
+export async function patchPattern(req: Request, res: Response, next: NextFunction) {
+  try {
+    await ProductsService.updatePattern(String((req.params as P).patternId), req.body)
+    res.json({ success: true })
+  } catch (err) { next(err) }
+}
+
+export async function removePattern(req: Request, res: Response, next: NextFunction) {
+  try {
+    await ProductsService.deletePattern(String((req.params as P).patternId))
+    res.json({ success: true })
+  } catch (err) { next(err) }
+}
 
 // ── Collections ──────────────────────────────────────────────────────────────
 
@@ -182,6 +312,18 @@ export async function patchCategory(req: Request, res: Response, next: NextFunct
 export async function removeCategory(req: Request, res: Response, next: NextFunction) {
   try {
     await ProductsService.deleteCategory((req.params as P).id)
+    res.json({ success: true })
+  } catch (err) { next(err) }
+}
+
+export async function getProductCategories(req: Request, res: Response, next: NextFunction) {
+  try { res.json(await ProductsService.getProductCategories((req.params as P).variantId)) } catch (err) { next(err) }
+}
+
+export async function putProductCategories(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { categoryIds } = req.body as { categoryIds: string[] }
+    await ProductsService.setProductCategories((req.params as P).variantId, categoryIds ?? [])
     res.json({ success: true })
   } catch (err) { next(err) }
 }

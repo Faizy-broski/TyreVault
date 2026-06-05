@@ -304,9 +304,9 @@ export default function ProductsTable({
           <TableHead className="px-4 py-3 w-10"><span className="sr-only">Actions</span></TableHead>
         </TableRow>
       </TableHeader>
-      <TableBody className="divide-y divide-zinc-100">
+      <TableBody className="divide-y divide-zinc-300">
         {displayed.map(p => (
-          <TableRow key={p.id} className="even:bg-zinc-50/40 hover:bg-amber-50/30 transition-colors duration-150">
+          <TableRow key={p.id} className="odd:bg-white even:bg-zinc-200 [&:hover]:bg-amber-100 transition-colors duration-150">
             <TableCell className="px-4 py-3">
               <Link href={`/admin/products/${p.id}`} className="font-medium text-primary hover:underline">
                 {p.name}
@@ -341,3 +341,4 @@ export default function ProductsTable({
     </Table>
   )
 }
+

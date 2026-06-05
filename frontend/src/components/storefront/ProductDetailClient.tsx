@@ -306,3 +306,4 @@ export default function ProductDetailClient({ product }: { product: Product }) {
     </div>
   )
 }
+

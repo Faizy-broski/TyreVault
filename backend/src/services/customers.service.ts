@@ -109,7 +109,7 @@ export async function getCustomer(customerId: string) {
   const [customerRes, ordersRes, groupsRes, addressesRes] = await Promise.all([
     supabase
       .from('customers')
-      .select('customer_id, email, first_name, last_name, business_name, phone, created_at, profile_id, customer_type, account_status, credit_limit, payment_terms, billing_address_id')
+      .select('customer_id, email, first_name, last_name, business_name, phone, created_at, profile_id, customer_type, account_status, credit_limit, payment_terms, billing_address_id, customer_group_id')
       .eq('customer_id', customerId)
       .single(),
 
@@ -132,8 +132,10 @@ export async function getCustomer(customerId: string) {
 
     supabase
       .from('addresses')
-      .select('address_id, address_name, address_line1, address_line2, city, postal_code, country, state, company, phone')
-      .eq('customer_id', customerId)
+      .select('address_id, address_name, address_line1, address_line_1, address_line2, address_line_2, city, suburb, state, postal_code, postcode, country, company, phone, is_default, owner_type, owner_id, latitude, longitude')
+      .eq('owner_type', 'customer')
+      .eq('owner_id', customerId)
+      .order('is_default', { ascending: false })
       .order('created_at', { ascending: true }),
   ])
 
@@ -167,16 +169,24 @@ export async function createCustomer(payload: {
   phone?: string
   customerType?: string
   accountStatus?: string
+  customerGroupId?: string | null
+  billingAddressId?: string | null
+  creditLimit?: number | null
+  paymentTerms?: string | null
 }) {
   return supabaseAdmin.from('customers').insert({
-    email:          payload.email,
-    first_name:     payload.firstName    ?? null,
-    last_name:      payload.lastName     ?? null,
-    business_name:  payload.company      ?? null,
-    phone:          payload.phone        ?? null,
-    customer_type:  payload.customerType ?? 'retail',
-    account_status: payload.accountStatus ?? 'active',
-    profile_id:     null,
+    email:              payload.email,
+    first_name:         payload.firstName      ?? null,
+    last_name:          payload.lastName       ?? null,
+    business_name:      payload.company        ?? null,
+    phone:              payload.phone          ?? null,
+    customer_type:      payload.customerType   ?? 'retail',
+    account_status:     payload.accountStatus  ?? 'active',
+    customer_group_id:  payload.customerGroupId  ?? null,
+    billing_address_id: payload.billingAddressId ?? null,
+    credit_limit:       payload.creditLimit    ?? null,
+    payment_terms:      payload.paymentTerms   ?? null,
+    profile_id:         null,
   }).select('customer_id').single()
 }
 
@@ -190,17 +200,21 @@ export async function updateCustomer(customerId: string, patch: {
   accountStatus?: string
   creditLimit?: number | null
   paymentTerms?: string | null
+  customerGroupId?: string | null
+  billingAddressId?: string | null
 }) {
   return supabaseAdmin.from('customers').update({
-    ...(patch.email         !== undefined && { email:          patch.email }),
-    ...(patch.firstName     !== undefined && { first_name:     patch.firstName }),
-    ...(patch.lastName      !== undefined && { last_name:      patch.lastName }),
-    ...(patch.company       !== undefined && { business_name:  patch.company }),
-    ...(patch.phone         !== undefined && { phone:          patch.phone }),
-    ...(patch.customerType  !== undefined && { customer_type:  patch.customerType }),
-    ...(patch.accountStatus !== undefined && { account_status: patch.accountStatus }),
-    ...(patch.creditLimit   !== undefined && { credit_limit:   patch.creditLimit }),
-    ...(patch.paymentTerms  !== undefined && { payment_terms:  patch.paymentTerms }),
+    ...(patch.email            !== undefined && { email:              patch.email }),
+    ...(patch.firstName        !== undefined && { first_name:         patch.firstName }),
+    ...(patch.lastName         !== undefined && { last_name:          patch.lastName }),
+    ...(patch.company          !== undefined && { business_name:      patch.company }),
+    ...(patch.phone            !== undefined && { phone:              patch.phone }),
+    ...(patch.customerType     !== undefined && { customer_type:      patch.customerType }),
+    ...(patch.accountStatus    !== undefined && { account_status:     patch.accountStatus }),
+    ...(patch.creditLimit      !== undefined && { credit_limit:       patch.creditLimit }),
+    ...(patch.paymentTerms     !== undefined && { payment_terms:      patch.paymentTerms }),
+    ...(patch.customerGroupId  !== undefined && { customer_group_id:  patch.customerGroupId }),
+    ...(patch.billingAddressId !== undefined && { billing_address_id: patch.billingAddressId }),
   }).eq('customer_id', customerId)
 }
 
@@ -214,31 +228,52 @@ export async function createAddress(customerId: string, payload: {
   addressName: string
   addressLine1: string
   addressLine2?: string
-  city?: string
-  postalCode?: string
+  suburb?: string       // spec name (preferred)
+  city?: string         // old name fallback
+  postcode?: string     // spec name (preferred)
+  postalCode?: string   // old name fallback
   country?: string
   state?: string
   company?: string
   phone?: string
+  isDefault?: boolean
+  latitude?: number | null
+  longitude?: number | null
 }) {
+  const suburb   = payload.suburb    ?? payload.city       ?? null
+  const postcode = payload.postcode  ?? payload.postalCode ?? null
   return supabaseAdmin.from('addresses').insert({
-    customer_id:  customerId,
-    address_name: payload.addressName,
-    address_line1: payload.addressLine1,
-    address_line2: payload.addressLine2 ?? null,
-    city:          payload.city         ?? null,
-    postal_code:   payload.postalCode   ?? null,
-    country:       payload.country      ?? null,
-    state:         payload.state        ?? null,
-    company:       payload.company      ?? null,
-    phone:         payload.phone        ?? null,
+    // Polymorphic owner fields
+    owner_type:     'customer',
+    owner_id:       customerId,
+    // Legacy customer_id kept for backward compat
+    customer_id:    customerId,
+    address_name:   payload.addressName,
+    // Old column names (backward compat)
+    address_line1:  payload.addressLine1,
+    address_line2:  payload.addressLine2 ?? null,
+    city:           suburb,
+    postal_code:    postcode,
+    // Spec column names
+    address_line_1: payload.addressLine1,
+    address_line_2: payload.addressLine2 ?? null,
+    suburb,
+    postcode,
+    country:        payload.country   ?? 'Australia',
+    state:          payload.state     ?? null,
+    company:        payload.company   ?? null,
+    phone:          payload.phone     ?? null,
+    is_default:     payload.isDefault ?? false,
+    latitude:       payload.latitude  ?? null,
+    longitude:      payload.longitude ?? null,
   }).select('address_id').single()
 }
 
 export async function deleteAddress(customerId: string, addressId: string) {
   return supabaseAdmin.from('addresses').delete()
     .eq('address_id', addressId)
-    .eq('customer_id', customerId)
+    .eq('owner_type', 'customer')
+    .eq('owner_id', customerId)
 }
 
 // ── Group membership ────────────────────────────────────────────────────────
@@ -265,7 +300,7 @@ export async function listCustomerGroups(opts: { search?: string; page?: number 
 
   let query = supabaseAdmin
     .from('customer_groups')
-    .select('group_id, group_name, customer_count, created_at, updated_at', { count: 'exact' })
+    .select('group_id, group_name, description, discount_type, discount_value, price_type, customer_count, created_at, updated_at', { count: 'exact' })
     .order('customer_count', { ascending: false })
     .range(from, to)
 
@@ -279,7 +314,7 @@ export async function getCustomerGroup(groupId: string) {
   const [groupRes, membersRes] = await Promise.all([
     supabaseAdmin
       .from('customer_groups')
-      .select('group_id, group_name, customer_count, created_at, updated_at')
+      .select('group_id, group_name, description, discount_type, discount_value, price_type, customer_count, created_at, updated_at')
       .eq('group_id', groupId)
       .single(),
 
@@ -304,12 +339,37 @@ export async function getCustomerGroup(groupId: string) {
   return { data: { ...groupRes.data, members }, error: null }
 }
 
-export async function createCustomerGroup(name: string) {
-  return supabaseAdmin.from('customer_groups').insert({ group_name: name }).select('group_id').single()
+export async function createCustomerGroup(payload: {
+  name: string
+  description?: string | null
+  discount_type?: string | null
+  discount_value?: number | null
+  price_type?: string | null
+}) {
+  return supabaseAdmin.from('customer_groups').insert({
+    group_name:     payload.name,
+    description:    payload.description    ?? null,
+    discount_type:  payload.discount_type  ?? null,
+    discount_value: payload.discount_value ?? null,
+    price_type:     payload.price_type     ?? null,
+  }).select('group_id, group_name').single()
 }
 
-export async function updateCustomerGroup(groupId: string, name: string) {
-  return supabaseAdmin.from('customer_groups').update({ group_name: name }).eq('group_id', groupId)
+export async function updateCustomerGroup(groupId: string, payload: {
+  name: string
+  description?: string | null
+  discount_type?: string | null
+  discount_value?: number | null
+  price_type?: string | null
+}) {
+  return supabaseAdmin.from('customer_groups').update({
+    group_name:     payload.name,
+    description:    payload.description    ?? null,
+    discount_type:  payload.discount_type  ?? null,
+    discount_value: payload.discount_value ?? null,
+    price_type:     payload.price_type     ?? null,
+    updated_at:     new Date().toISOString(),
+  }).eq('group_id', groupId)
 }
 
 export async function deleteCustomerGroup(groupId: string) {
