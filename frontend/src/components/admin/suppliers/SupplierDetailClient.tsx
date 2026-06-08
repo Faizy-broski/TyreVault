@@ -333,22 +333,22 @@ export default function SupplierDetailClient({ supplier, accessToken }: Props) {
             </p>
           ) : (
             <div className="rounded-xl border border-zinc-200 bg-white overflow-x-auto">
-              <table className="w-full text-sm min-w-[640px]">
+              <table className="w-full text-sm min-w-160">
                 <thead>
-                  <tr className="bg-zinc-50 border-b border-zinc-200">
-                    <th className="px-4 py-2.5 text-left text-xs font-medium text-zinc-500">PO Number</th>
-                    <th className="px-4 py-2.5 text-left text-xs font-medium text-zinc-500">Status</th>
-                    <th className="px-4 py-2.5 text-left text-xs font-medium text-zinc-500">Order Date</th>
-                    <th className="px-4 py-2.5 text-left text-xs font-medium text-zinc-500">ETA</th>
-                    <th className="px-4 py-2.5 text-left text-xs font-medium text-zinc-500">Warehouse</th>
-                    <th className="px-4 py-2.5 text-right text-xs font-medium text-zinc-500">Items</th>
-                    <th className="px-4 py-2.5 text-right text-xs font-medium text-zinc-500">Total</th>
+                  <tr className="bg-zinc-50 border-b border-zinc-100">
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">PO Number</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Order Date</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">ETA</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Warehouse</th>
+                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Items</th>
+                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Total</th>
                     <th className="px-4 py-2.5" />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-100 [&_tr:nth-child(even)]:bg-zinc-100 [&_tr:nth-child(odd)]:bg-white [&_tr:hover]:bg-amber-50 [&_tr]:transition-colors">
+                <tbody className="divide-y divide-zinc-200">
                   {pos.map(po => (
-                    <tr key={po.po_id} className="even:bg-zinc-50/50 hover:bg-amber-50/40 transition-colors">
+                    <tr key={po.po_id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
                       <td className="px-4 py-2.5 font-mono text-xs text-zinc-700">{po.po_number}</td>
                       <td className="px-4 py-2.5">
                         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${PO_STATUS_STYLE[po.po_status] ?? 'bg-zinc-100 text-zinc-600'}`}>
@@ -402,21 +402,21 @@ export default function SupplierDetailClient({ supplier, accessToken }: Props) {
             </p>
           ) : (
             <div className="rounded-xl border border-zinc-200 bg-white overflow-x-auto">
-              <table className="w-full text-sm min-w-[700px]">
+              <table className="w-full text-sm min-w-175">
                 <thead>
-                  <tr className="bg-zinc-50 border-b border-zinc-200">
-                    <th className="px-4 py-2.5 text-left text-xs font-medium text-zinc-500">SKU</th>
-                    <th className="px-4 py-2.5 text-right text-xs font-medium text-zinc-500">Available</th>
-                    <th className="px-4 py-2.5 text-right text-xs font-medium text-zinc-500">Price</th>
-                    <th className="px-4 py-2.5 text-center text-xs font-medium text-zinc-500">Selling</th>
-                    <th className="px-4 py-2.5 text-right text-xs font-medium text-zinc-500">Lead (days)</th>
-                    <th className="px-4 py-2.5 text-right text-xs font-medium text-zinc-500">Updated</th>
+                  <tr className="bg-zinc-50 border-b border-zinc-100">
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">SKU</th>
+                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Available</th>
+                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Price</th>
+                    <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide">Selling</th>
+                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Lead (days)</th>
+                    <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Updated</th>
                     <th className="px-4 py-2.5" />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-100 [&_tr:nth-child(even)]:bg-zinc-100 [&_tr:nth-child(odd)]:bg-white [&_tr:hover]:bg-amber-50 [&_tr]:transition-colors">
+                <tbody className="divide-y divide-zinc-200">
                   {stock.map(row => (
-                    <tr key={row.id} className="even:bg-zinc-50/50 hover:bg-amber-50/40 transition-colors">
+                    <tr key={row.id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
                       <td className="px-4 py-2.5">
                         <p className="font-mono text-xs text-zinc-700">{row.skus?.sku ?? row.product_id}</p>
                         <p className="text-xs text-zinc-400">{row.skus?.tyre_size_display ?? ''}</p>
@@ -463,7 +463,7 @@ export default function SupplierDetailClient({ supplier, accessToken }: Props) {
             onDrop={onDrop}
             onClick={() => fileInputRef.current?.click()}
             className={`cursor-pointer rounded-2xl border-2 border-dashed transition-colors p-12 flex flex-col items-center justify-center gap-3 ${
-              isDragOver ? 'border-yellow-400 bg-yellow-50' : 'border-zinc-300 bg-zinc-50 hover:border-zinc-400 hover:bg-zinc-100'
+              isDragOver ? 'border-yellow-400 bg-yellow-50' : 'border-zinc-300 bg-zinc-50 hover:border-zinc-400 hover:!bg-zinc-100'
             }`}
           >
             <svg className="w-8 h-8 text-zinc-400" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">

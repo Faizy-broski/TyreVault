@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useTransition } from 'react'
-import { Phone, Calendar, Clock, Car, Package, Check, X, Play, FileText, ShieldAlert, Wrench, ChevronDown } from 'lucide-react'
+import { Phone, Calendar, Clock, Car, Package, Check, X, Play, FileText, ShieldAlert, Wrench, ChevronDown, Mail, MapPin } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Button }  from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -30,11 +30,14 @@ function fmtTimestamp(iso: string | null) {
   })
 }
 
-function InfoRow({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
+function InfoRow({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-3 px-5 py-3.5">
-      <span className="text-zinc-400 shrink-0">{icon}</span>
-      <span className="text-sm text-zinc-700">{children}</span>
+    <div className="flex items-start gap-3 px-5 py-3.5">
+      <span className="text-zinc-400 shrink-0 mt-0.5">{icon}</span>
+      <div className="min-w-0">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400 mb-0.5">{label}</p>
+        <div className="text-sm text-zinc-800">{children}</div>
+      </div>
     </div>
   )
 }
@@ -195,32 +198,92 @@ export default function JobDetailClient({ jobId }: { jobId: string }) {
 
       <div className="space-y-4">
 
-        {/* Contact & schedule */}
-        <div className="bg-white rounded-2xl border border-zinc-200 divide-y divide-zinc-100">
-          {job.customer_phone && (
-            <InfoRow icon={<Phone className="w-4 h-4" />}>
-              <a href={`tel:${job.customer_phone}`} className="hover:text-primary transition-colors font-medium">
-                {job.customer_phone}
-              </a>
-              <span className="ml-2 text-xs text-zinc-400">— contact customer to arrange fitting time</span>
-            </InfoRow>
-          )}
-          {job.scheduled_date && (
-            <InfoRow icon={<Calendar className="w-4 h-4" />}>
-              {fmtDate(job.scheduled_date)}
-            </InfoRow>
-          )}
-          {job.scheduled_time && (
-            <InfoRow icon={<Clock className="w-4 h-4" />}>
-              {fmt12h(job.scheduled_time)}
-            </InfoRow>
-          )}
-          {job.vehicle_model && (
-            <InfoRow icon={<Car className="w-4 h-4" />}>
-              {job.vehicle_model}
-            </InfoRow>
-          )}
+        {/* Customer details — all checkout fields, N/A when empty */}
+        <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden">
+          <div className="px-5 py-3 border-b border-zinc-100 flex items-center gap-2">
+            <span className="text-zinc-400"><Phone className="w-4 h-4" /></span>
+            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Customer Details</p>
+          </div>
+          <div className="divide-y divide-zinc-100">
+
+            {/* Name row */}
+            <div className="grid grid-cols-2 divide-x divide-zinc-100">
+              <div className="px-5 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400 mb-0.5">First Name</p>
+                <p className="text-sm text-zinc-800">{job.customer_name?.split(' ')[0] || 'N/A'}</p>
+              </div>
+              <div className="px-5 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400 mb-0.5">Last Name</p>
+                <p className="text-sm text-zinc-800">{job.customer_name?.split(' ').slice(1).join(' ') || 'N/A'}</p>
+              </div>
+            </div>
+
+            {/* Email */}
+            <div className="px-5 py-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400 mb-0.5">Email Address</p>
+              {job.customer_email
+                ? <a href={`mailto:${job.customer_email}`} className="text-sm text-primary hover:underline break-all">{job.customer_email}</a>
+                : <p className="text-sm text-zinc-400">N/A</p>}
+            </div>
+
+            {/* Phone */}
+            <div className="px-5 py-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400 mb-0.5">Phone Number</p>
+              {job.customer_phone
+                ? <a href={`tel:${job.customer_phone}`} className="text-sm text-primary hover:underline">{job.customer_phone}</a>
+                : <p className="text-sm text-zinc-400">N/A</p>}
+            </div>
+
+            {/* Address line 1 */}
+            <div className="px-5 py-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400 mb-0.5">Address Line 1</p>
+              <p className="text-sm text-zinc-800">{job.shipping_address?.line1 || 'N/A'}</p>
+            </div>
+
+            {/* Address line 2 */}
+            <div className="px-5 py-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400 mb-0.5">Address Line 2</p>
+              <p className="text-sm text-zinc-800">{job.shipping_address?.line2 || 'N/A'}</p>
+            </div>
+
+            {/* Suburb / Postcode / State */}
+            <div className="grid grid-cols-3 divide-x divide-zinc-100">
+              <div className="px-5 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400 mb-0.5">Suburb</p>
+                <p className="text-sm text-zinc-800">{job.shipping_address?.suburb || 'N/A'}</p>
+              </div>
+              <div className="px-5 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400 mb-0.5">Postcode</p>
+                <p className="text-sm text-zinc-800">{job.shipping_address?.postcode || 'N/A'}</p>
+              </div>
+              <div className="px-5 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400 mb-0.5">State</p>
+                <p className="text-sm text-zinc-800">{job.shipping_address?.state || 'N/A'}</p>
+              </div>
+            </div>
+
+            {/* Vehicle */}
+            <div className="px-5 py-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400 mb-0.5">Vehicle</p>
+              <p className="text-sm text-zinc-800">{job.vehicle_model || 'N/A'}</p>
+            </div>
+
+          </div>
         </div>
+
+        {/* Appointment (scheduled) */}
+        {(job.scheduled_date || job.scheduled_time) && (
+          <div className="bg-white rounded-2xl border border-zinc-200 divide-y divide-zinc-100">
+            <div className="grid grid-cols-2 divide-x divide-zinc-100">
+              <InfoRow icon={<Calendar className="w-4 h-4" />} label="Appointment Date">
+                {job.scheduled_date ? fmtDate(job.scheduled_date) : 'N/A'}
+              </InfoRow>
+              <InfoRow icon={<Clock className="w-4 h-4" />} label="Appointment Time">
+                {job.scheduled_time ? fmt12h(job.scheduled_time) : 'N/A'}
+              </InfoRow>
+            </div>
+          </div>
+        )}
 
         {/* Appointment scheduler — shown for non-terminal jobs so fitter can record arranged time */}
         {!isTerminal && (

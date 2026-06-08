@@ -168,6 +168,8 @@ type ProductRaw = {
 export type NormalisedProduct = {
   id: string; name: string; brand: string; brandId: string
   collection: string | null; variantCount: number; activeVariants: number
+  totalStock: number
+  loadIndexes: string[]
   isActive: boolean; showOnWebsite: boolean; updatedAt: string; createdAt: string
 }
 

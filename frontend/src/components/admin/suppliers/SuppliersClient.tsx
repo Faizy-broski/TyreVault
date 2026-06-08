@@ -1,29 +1,18 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Search, Pencil, Trash2, MoreHorizontal } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, Upload } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle, DialogHeader } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { Supplier } from '@/types/admin.types'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { toastError, toastSuccess } from '@/lib/toast'
+import Papa from 'papaparse'
+import ColumnMapModal from './ColumnMapModal'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
-
-const SUPPLIER_TYPES = [
-  { value: 'wholesaler',          label: 'Wholesaler' },
-  { value: 'factory',             label: 'Factory' },
-  { value: 'marketplace_partner', label: 'Marketplace Partner' },
-  { value: '3pl',                 label: '3PL' },
-]
-
-const ACCESS_TYPES = [
-  { value: 'owned_after_purchase', label: 'Owned After Purchase' },
-  { value: 'consignment',          label: 'Consignment' },
-  { value: 'live_supplier_stock',  label: 'Live Supplier Stock' },
-]
 
 const TYPE_BADGE: Record<string, string> = {
   wholesaler:          'bg-blue-50 text-blue-700',
@@ -44,68 +33,23 @@ const ACCESS_LABEL: Record<string, string> = {
   live_supplier_stock:  'Live Stock',
 }
 
-type FormState = {
-  supplier_name:      string
-  supplier_type:      string
-  contact_name:       string
-  email:              string
-  phone:              string
-  state:              string
-  country:            string
-  payment_terms:      string
-  stock_access_type:  string
-  api_connected:      boolean
-  is_active:          boolean
-}
-
-const EMPTY_FORM: FormState = {
-  supplier_name:     '',
-  supplier_type:     'wholesaler',
-  contact_name:      '',
-  email:             '',
-  phone:             '',
-  state:             '',
-  country:           'Australia',
-  payment_terms:     '',
-  stock_access_type: 'owned_after_purchase',
-  api_connected:     false,
-  is_active:         true,
-}
-
 interface Props {
   initialSuppliers: Supplier[]
   accessToken:      string
 }
 
-function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
-  return (
-    <label className="flex items-center gap-2 cursor-pointer">
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-5 w-9 rounded-full border-2 border-transparent transition-colors ${checked ? 'bg-primary' : 'bg-zinc-300'}`}
-      >
-        <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-4' : 'translate-x-0'}`} />
-      </button>
-      <span className="text-sm text-zinc-700">{label}</span>
-    </label>
-  )
-}
-
 function SupplierRowActions({
   supplier,
-  onEdit,
   onDelete,
+  onUploadCsv,
 }: {
-  supplier: Supplier
-  onEdit:   () => void
-  onDelete: () => void
+  supplier:    Supplier
+  onDelete:    () => void
+  onUploadCsv: () => void
 }) {
-  const router         = useRouter()
+  const router          = useRouter()
   const [open, setOpen] = useState(false)
-  const ref            = useRef<HTMLDivElement>(null)
+  const ref             = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!open) return
@@ -141,10 +85,18 @@ function SupplierRowActions({
             </svg>
             Manage
           </button>
+          <button
+            type="button"
+            onClick={() => { setOpen(false); onUploadCsv() }}
+            className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
+          >
+            <Upload className="w-3.5 h-3.5 text-zinc-400" />
+            Upload CSV
+          </button>
           <div className="my-1 border-t border-zinc-100" />
           <button
             type="button"
-            onClick={() => { setOpen(false); onEdit() }}
+            onClick={() => { setOpen(false); router.push(`/admin/suppliers/${supplier.supplier_id}/edit`) }}
             className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
           >
             <Pencil className="w-3.5 h-3.5 text-zinc-400" />
@@ -165,21 +117,35 @@ function SupplierRowActions({
 }
 
 export default function SuppliersClient({ initialSuppliers, accessToken }: Props) {
-  const [suppliers, setSuppliers] = useState<Supplier[]>(initialSuppliers)
-  const [search, setSearch]       = useState('')
-  const [loading, setLoading]     = useState(false)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editTarget, setEditTarget] = useState<Supplier | null>(null)
-  const [form, setForm]           = useState<FormState>(EMPTY_FORM)
-  const [saving, setSaving]       = useState(false)
+  const router = useRouter()
+
+  const [suppliers, setSuppliers]       = useState<Supplier[]>(initialSuppliers)
+  const [search, setSearch]             = useState('')
+  const [loading, setLoading]           = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Supplier | null>(null)
-  const [deleting, setDeleting]   = useState(false)
+  const [deleting, setDeleting]         = useState(false)
+  const [csvTarget, setCsvTarget]       = useState<Supplier | null>(null)
+  const [csvFile, setCsvFile]           = useState<File | null>(null)
+  const [csvHeaders, setCsvHeaders]     = useState<string[]>([])
+  const [isDragOver, setIsDragOver]     = useState(false)
+  const csvInputRef = useRef<HTMLInputElement>(null)
 
   const headers = { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }
 
-  function set<K extends keyof FormState>(key: K, value: FormState[K]) {
-    setForm(f => ({ ...f, [key]: value }))
-  }
+  const processCsvFile = useCallback((file: File) => {
+    if (!file.name.endsWith('.csv') && file.type !== 'text/csv') {
+      toastError('Please upload a .csv file')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = evt => {
+      const text   = evt.target?.result as string
+      const result = Papa.parse<Record<string, string>>(text, { header: true, preview: 1, skipEmptyLines: true })
+      setCsvHeaders(result.meta.fields ?? [])
+      setCsvFile(file)
+    }
+    reader.readAsText(file)
+  }, [])
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault()
@@ -192,69 +158,6 @@ export default function SuppliersClient({ initialSuppliers, accessToken }: Props
         setSuppliers(q ? data.filter(s => s.supplier_name.toLowerCase().includes(q)) : data)
       }
     } finally { setLoading(false) }
-  }
-
-  function openCreate() {
-    setEditTarget(null)
-    setForm(EMPTY_FORM)
-    setDialogOpen(true)
-  }
-
-  function openEdit(s: Supplier) {
-    setEditTarget(s)
-    setForm({
-      supplier_name:     s.supplier_name,
-      supplier_type:     s.supplier_type ?? 'wholesaler',
-      contact_name:      s.contact_name ?? '',
-      email:             s.email ?? '',
-      phone:             s.phone ?? '',
-      state:             s.state ?? '',
-      country:           s.country ?? 'Australia',
-      payment_terms:     s.payment_terms ?? '',
-      stock_access_type: s.stock_access_type ?? 'owned_after_purchase',
-      api_connected:     s.api_connected,
-      is_active:         s.is_active,
-    })
-    setDialogOpen(true)
-  }
-
-  async function handleSave() {
-    if (!form.supplier_name.trim()) return toastError('Supplier name is required')
-    setSaving(true)
-    try {
-      const payload = {
-        supplier_name:     form.supplier_name.trim(),
-        supplier_type:     form.supplier_type || null,
-        contact_name:      form.contact_name || null,
-        email:             form.email || null,
-        phone:             form.phone || null,
-        state:             form.state || null,
-        country:           form.country || null,
-        payment_terms:     form.payment_terms || null,
-        stock_access_type: form.stock_access_type || null,
-        api_connected:     form.api_connected,
-        is_active:         form.is_active,
-      }
-      const url    = editTarget ? `${API}/api/admin/suppliers/${editTarget.supplier_id}` : `${API}/api/admin/suppliers`
-      const method = editTarget ? 'PUT' : 'POST'
-      const res = await fetch(url, { method, headers, body: JSON.stringify(payload) })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error(body.error ?? 'Save failed')
-      }
-      const saved = await res.json()
-      if (editTarget) {
-        setSuppliers(prev => prev.map(s => s.supplier_id === editTarget.supplier_id ? { ...s, ...payload } : s))
-      } else {
-        setSuppliers(prev => [...prev, { ...saved, ...payload } as Supplier])
-      }
-      toastSuccess(editTarget ? 'Supplier updated' : 'Supplier created')
-      setDialogOpen(false)
-    } catch (err) {
-      toastError(err instanceof Error ? err.message : 'Save failed')
-    } finally {
-      setSaving(false)
-    }
   }
 
   async function handleDelete() {
@@ -293,7 +196,7 @@ export default function SuppliersClient({ initialSuppliers, accessToken }: Props
           <h1 className="text-xl font-semibold text-zinc-900">Suppliers</h1>
           <p className="text-sm text-zinc-500 mt-0.5">Manage stock suppliers and CSV imports</p>
         </div>
-        <Button type="button" onClick={openCreate}>
+        <Button type="button" onClick={() => router.push('/admin/suppliers/new')}>
           <Plus className="w-4 h-4" />
           Add Supplier
         </Button>
@@ -316,32 +219,32 @@ export default function SuppliersClient({ initialSuppliers, accessToken }: Props
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-100 bg-zinc-50">
-                <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Supplier</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Type</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Stock Access</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">API</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Added</th>
+              <tr className="border-b border-zinc-200 bg-primary/10">
+                <th className="px-5 py-3 text-left text-xs font-bold text-primary uppercase tracking-wide">Supplier</th>
+                <th className="px-5 py-3 text-left text-xs font-bold text-primary uppercase tracking-wide">Type</th>
+                <th className="px-5 py-3 text-left text-xs font-bold text-primary uppercase tracking-wide">Stock Access</th>
+                <th className="px-5 py-3 text-left text-xs font-bold text-primary uppercase tracking-wide">API</th>
+                <th className="px-5 py-3 text-left text-xs font-bold text-primary uppercase tracking-wide">Added</th>
                 <th className="px-5 py-3 w-28" scope="col"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-300">
+            <tbody className="divide-y divide-zinc-200">
               {loading ? (
                 [1,2,3].map(i => (
                   <tr key={i}>
-                    {[1,2,3,4,5,6].map(j => <td key={j} className="px-5 py-3"><div className="h-4 w-full bg-zinc-100 rounded animate-pulse" /></td>)}
+                    {[1,2,3,4,5,6].map(j => <td key={j} className="px-5 py-3"><div className="h-4 w-full bg-muted rounded animate-pulse" /></td>)}
                   </tr>
                 ))
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-16 text-center text-zinc-400 text-sm">No suppliers found</td>
+                  <td colSpan={6} className="px-5 py-16 text-center text-muted-foreground text-sm">No suppliers found</td>
                 </tr>
               ) : (
                 filtered.map(s => (
-                  <tr key={s.supplier_id} className="odd:bg-white even:bg-zinc-200 [&:hover]:bg-amber-100 transition-colors duration-150">
+                  <tr key={s.supplier_id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
                     <td className="px-5 py-3">
                       <p className="font-medium text-zinc-900">{s.supplier_name}</p>
-                      <p className="text-xs text-zinc-400">{s.email ?? '—'}</p>
+                      <p className="text-xs text-zinc-400">{s.contact_email ?? '—'}</p>
                     </td>
                     <td className="px-5 py-3">
                       <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${TYPE_BADGE[s.supplier_type ?? ''] ?? 'bg-zinc-100 text-zinc-600'}`}>
@@ -363,8 +266,8 @@ export default function SuppliersClient({ initialSuppliers, accessToken }: Props
                     <td className="px-5 py-3">
                       <SupplierRowActions
                         supplier={s}
-                        onEdit={() => openEdit(s)}
                         onDelete={() => setDeleteTarget(s)}
+                        onUploadCsv={() => { setCsvTarget(s); setCsvFile(null); setCsvHeaders([]) }}
                       />
                     </td>
                   </tr>
@@ -375,82 +278,44 @@ export default function SuppliersClient({ initialSuppliers, accessToken }: Props
         </div>
       </div>
 
-      {/* Create / Edit dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      {/* CSV upload dialog */}
+      <Dialog open={!!csvTarget && !csvFile} onOpenChange={open => { if (!open) setCsvTarget(null) }}>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{editTarget ? 'Edit Supplier' : 'Add Supplier'}</DialogTitle>
+            <DialogTitle>Upload CSV — {csvTarget?.supplier_name}</DialogTitle>
           </DialogHeader>
-
-          <div className="space-y-4 pt-2">
-            <div>
-              <label className="block text-xs font-medium text-zinc-700 mb-1">Supplier Name <span className="text-red-500">*</span></label>
-              <Input value={form.supplier_name} onChange={e => set('supplier_name', e.target.value)} placeholder="Acme Tyres Pty Ltd" autoFocus />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-zinc-700 mb-1">Supplier Type</label>
-                <select value={form.supplier_type} onChange={e => set('supplier_type', e.target.value)}
-                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white">
-                  {SUPPLIER_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-zinc-700 mb-1">Stock Access</label>
-                <select value={form.stock_access_type} onChange={e => set('stock_access_type', e.target.value)}
-                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white">
-                  {ACCESS_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-zinc-700 mb-1">Contact Name</label>
-              <Input value={form.contact_name} onChange={e => set('contact_name', e.target.value)} placeholder="John Smith" />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-zinc-700 mb-1">Email</label>
-                <Input type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder="orders@acme.com" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-zinc-700 mb-1">Phone</label>
-                <Input value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+61 7 1234 5678" />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-zinc-700 mb-1">State</label>
-                <Input value={form.state} onChange={e => set('state', e.target.value)} placeholder="QLD" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-zinc-700 mb-1">Country</label>
-                <Input value={form.country} onChange={e => set('country', e.target.value)} placeholder="Australia" />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-zinc-700 mb-1">Payment Terms</label>
-              <Input value={form.payment_terms} onChange={e => set('payment_terms', e.target.value)} placeholder="COD, 30 days, 60 days…" />
-            </div>
-
-            <div className="space-y-2 pt-1">
-              <Toggle checked={form.api_connected} onChange={v => set('api_connected', v)} label="API Connected (live stock feed available)" />
-              <Toggle checked={form.is_active}     onChange={v => set('is_active', v)}     label="Active supplier" />
-            </div>
-
-            <div className="flex gap-3 justify-end pt-2">
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button type="button" disabled={saving} onClick={handleSave}>
-                {saving ? 'Saving…' : editTarget ? 'Save Changes' : 'Add Supplier'}
-              </Button>
-            </div>
+          <p className="text-xs text-zinc-500 -mt-1">Upload a CSV exported from your supplier. You&apos;ll map the columns before the import runs.</p>
+          <div
+            className={`mt-3 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed py-10 cursor-pointer transition-colors ${isDragOver ? 'border-primary bg-primary/5' : 'border-zinc-200 hover:border-zinc-300 bg-zinc-50'}`}
+            onDragOver={e => { e.preventDefault(); setIsDragOver(true) }}
+            onDragLeave={() => setIsDragOver(false)}
+            onDrop={e => { e.preventDefault(); setIsDragOver(false); const f = e.dataTransfer.files[0]; if (f) processCsvFile(f) }}
+            onClick={() => csvInputRef.current?.click()}
+          >
+            <Upload className="w-8 h-8 text-zinc-300" />
+            <p className="text-sm font-medium text-zinc-600">Drop CSV file here</p>
+            <p className="text-xs text-zinc-400">or click to browse · max 10MB</p>
+            <input
+              ref={csvInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              className="hidden"
+              onChange={e => { const f = e.target.files?.[0]; if (f) processCsvFile(f); e.target.value = '' }}
+            />
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Column mapping modal */}
+      {csvTarget && csvFile && csvHeaders.length > 0 && (
+        <ColumnMapModal
+          supplierId={csvTarget.supplier_id}
+          file={csvFile}
+          csvHeaders={csvHeaders}
+          accessToken={accessToken}
+          onClose={() => { setCsvTarget(null); setCsvFile(null); setCsvHeaders([]) }}
+        />
+      )}
 
       {/* Delete confirmation */}
       <Dialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>
@@ -470,4 +335,3 @@ export default function SuppliersClient({ initialSuppliers, accessToken }: Props
     </div>
   )
 }
-

@@ -5,7 +5,7 @@ import { supabase as db } from './supabase.service'
 export async function getCentreByUser(userId: string) {
   return db
     .from('fitment_centres')
-    .select('fitment_centre_id, business_name, partner_id, contact_phone, business_number')
+    .select('fitment_centre_id, business_name, partner_id, contact_phone, business_number, logo_url')
     .eq('user_id', userId)
     .eq('is_active', true)
     .single()
@@ -74,8 +74,7 @@ export async function listJobs(centreId: string, status?: string) {
     .from('fitment_jobs')
     .select('job_id, task_number, customer_name, customer_phone, scheduled_date, scheduled_time, tyre_pattern, tyre_size, quantity, vehicle_model, job_status, notes, earnings_amount, created_at')
     .eq('fitment_centre_id', centreId)
-    .order('scheduled_date', { ascending: true })
-    .order('scheduled_time', { ascending: true })
+    .order('created_at', { ascending: false })
 
   if (status) query = query.eq('job_status', status)
   return query
@@ -85,7 +84,14 @@ export async function getJob(centreId: string, jobId: string) {
   const [jobRes, itemsRes] = await Promise.all([
     db
       .from('fitment_jobs')
-      .select('job_id, fitment_centre_id, task_number, customer_name, customer_phone, scheduled_date, scheduled_time, tyre_pattern, tyre_size, quantity, vehicle_model, job_status, notes, fitter_notes, admin_notes, accepted_at, completed_at, earnings_amount, created_at')
+      .select(`
+        job_id, fitment_centre_id, task_number, customer_name, customer_phone,
+        scheduled_date, scheduled_time, tyre_pattern, tyre_size, quantity,
+        vehicle_model, job_status, notes, fitter_notes, admin_notes,
+        accepted_at, completed_at, earnings_amount, created_at,
+        customers ( email, phone ),
+        orders ( shipping_address_snapshot )
+      `)
       .eq('job_id', jobId)
       .eq('fitment_centre_id', centreId)
       .single(),
@@ -98,9 +104,17 @@ export async function getJob(centreId: string, jobId: string) {
 
   if (jobRes.error || !jobRes.data) return jobRes
 
-  // Attach items array — empty array if table not yet populated or query fails
-  const items = itemsRes.error ? [] : (itemsRes.data ?? [])
-  return { ...jobRes, data: { ...jobRes.data, items } }
+  const raw = jobRes.data as any
+  const flatData = {
+    ...raw,
+    customer_email:   (raw.customers as any)?.email ?? null,
+    customer_phone:   (raw.customers as any)?.phone ?? raw.customer_phone ?? null,
+    shipping_address: (raw.orders as any)?.shipping_address_snapshot ?? null,
+    items:            itemsRes.error ? [] : (itemsRes.data ?? []),
+  }
+  delete flatData.customers
+  delete flatData.orders
+  return { ...jobRes, data: flatData }
 }
 
 export async function updateJobStatus(
@@ -232,7 +246,7 @@ export async function upsertPricing(centreId: string, rows: {
 export async function getProfile(centreId: string) {
   return db
     .from('fitment_centres')
-    .select('fitment_centre_id, business_name, contact_name, email, contact_phone, business_number, partner_id, approved_status')
+    .select('fitment_centre_id, business_name, contact_name, email, contact_phone, business_number, partner_id, approved_status, logo_url')
     .eq('fitment_centre_id', centreId)
     .single()
 }
@@ -243,6 +257,7 @@ export async function updateProfile(centreId: string, payload: {
   email?:         string
   contact_phone?: string
   business_number?: string
+  logo_url?: string | null
 }) {
   return db
     .from('fitment_centres')

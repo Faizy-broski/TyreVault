@@ -167,7 +167,7 @@ export default function CreateProductWizard({ brands, collections, categories, w
                 activeTab === tab.key
                   ? 'bg-primary text-zinc-900 border border-primary'
                   : completedTabs.has(tab.key)
-                  ? 'text-zinc-700 hover:bg-zinc-100'
+                  ? 'text-zinc-700 hover:!bg-zinc-100'
                   : 'text-zinc-400 cursor-default'
               )}
             >

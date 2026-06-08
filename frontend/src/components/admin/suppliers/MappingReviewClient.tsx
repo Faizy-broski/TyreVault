@@ -123,39 +123,39 @@ export default function MappingReviewClient({
       <div className="bg-white rounded-xl border border-zinc-200 overflow-x-auto">
         <table className="w-full text-sm min-w-200">
           <thead>
-            <tr className="border-b border-zinc-100 bg-zinc-50">
-              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 w-56">Supplier Data</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 w-56">Suggested Match</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 w-24">Confidence</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Actions</th>
+            <tr className="border-b border-zinc-200 bg-zinc-50">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide w-56">Supplier Data</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide w-56">Suggested Match</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide w-24">Confidence</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-100 [&_tr:nth-child(even)]:bg-zinc-100 [&_tr:nth-child(odd)]:bg-white [&_tr:hover]:bg-amber-50 [&_tr]:transition-colors">
+          <tbody className="divide-y divide-zinc-200">
             {loading ? (
-              <tr><td colSpan={4} className="px-5 py-8 text-center text-sm text-zinc-400">Loading…</td></tr>
+              <tr><td colSpan={4} className="px-5 py-8 text-center text-sm text-muted-foreground">Loading…</td></tr>
             ) : mappings.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-5 py-10 text-center">
-                  <p className="text-sm font-medium text-zinc-700">All caught up!</p>
-                  <p className="text-xs text-zinc-400 mt-1">No mappings pending review.</p>
+                  <p className="text-sm font-medium text-foreground">All caught up!</p>
+                  <p className="text-xs text-muted-foreground mt-1">No mappings pending review.</p>
                 </td>
               </tr>
             ) : (
               mappings.map(m => (
-                <tr key={m.id} className="even:bg-zinc-50/50 hover:bg-amber-50/40 transition-colors">
+                <tr key={m.id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
                   {/* Supplier raw data */}
                   <td className="px-4 py-3 align-top">
-                    <p className="font-medium text-zinc-900 text-xs">{m.supplier_size_raw ?? '—'}</p>
-                    <p className="text-xs text-zinc-500">{m.supplier_brand_name ?? '—'} · {m.supplier_pattern_name ?? '—'}</p>
+                    <p className="font-medium text-foreground text-xs">{m.supplier_size_raw ?? '—'}</p>
+                    <p className="text-xs text-muted-foreground">{m.supplier_brand_name ?? '—'} · {m.supplier_pattern_name ?? '—'}</p>
                     {m.supplier_sku && (
-                      <p className="text-xs text-zinc-400 mt-0.5">SKU: {m.supplier_sku}</p>
+                      <p className="text-xs text-muted-foreground/60 mt-0.5">SKU: {m.supplier_sku}</p>
                     )}
                     <div className="flex gap-2 mt-1">
                       {m.supplier_price != null && (
-                        <span className="text-xs text-zinc-500">${m.supplier_price.toFixed(2)}</span>
+                        <span className="text-xs text-muted-foreground">${m.supplier_price.toFixed(2)}</span>
                       )}
                       {m.supplier_stock != null && (
-                        <span className="text-xs text-zinc-400">Qty: {m.supplier_stock}</span>
+                        <span className="text-xs text-muted-foreground/60">Qty: {m.supplier_stock}</span>
                       )}
                     </div>
                   </td>
@@ -164,14 +164,14 @@ export default function MappingReviewClient({
                   <td className="px-4 py-3 align-top">
                     {m.skus ? (
                       <>
-                        <p className="font-medium text-zinc-900 text-xs">{m.skus.tyre_size_display}</p>
-                        <p className="text-xs text-zinc-500">
+                        <p className="font-medium text-foreground text-xs">{m.skus.tyre_size_display}</p>
+                        <p className="text-xs text-muted-foreground">
                           {m.skus.brands?.brand_name ?? '—'} · {m.skus.patterns?.pattern_name ?? '—'}
                         </p>
-                        <p className="text-xs text-zinc-400 mt-0.5">SKU: {m.skus.sku}</p>
+                        <p className="text-xs text-muted-foreground/60 mt-0.5">SKU: {m.skus.sku}</p>
                       </>
                     ) : (
-                      <span className="text-xs text-zinc-400 italic">No match found</span>
+                      <span className="text-xs text-muted-foreground italic">No match found</span>
                     )}
                   </td>
 

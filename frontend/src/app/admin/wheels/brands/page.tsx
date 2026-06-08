@@ -230,17 +230,17 @@ export default function WheelBrandsPage() {
       ) : (
         <div className="mt-6 rounded-xl border border-zinc-200 overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-zinc-50 text-zinc-500 text-xs uppercase tracking-wide">
-              <tr>
-                <th className="px-4 py-3 text-left">Brand</th>
-                <th className="px-4 py-3 text-left">Description</th>
-                <th className="px-4 py-3 text-left">Status</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+            <thead>
+              <tr className="border-b border-zinc-200 bg-zinc-50">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Brand</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100 [&_tr:nth-child(even)]:bg-zinc-100 [&_tr:nth-child(odd)]:bg-white [&_tr:hover]:bg-amber-50 [&_tr]:transition-colors">
+            <tbody className="divide-y divide-zinc-200">
               {brands.map(b => (
-                <tr key={b.wheel_brand_id} className="even:bg-zinc-50/50 hover:bg-amber-50/40 transition-colors">
+                <tr key={b.wheel_brand_id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
                   <td className="px-4 py-3 font-medium text-zinc-900">
                     <div className="flex items-center gap-3">
                       {b.logo && (

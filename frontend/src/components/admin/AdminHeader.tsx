@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   Bell, ChevronDown, Menu, Search, Settings, X,
   Gauge, ClipboardList, LayoutDashboard, Truck, Archive,
   Users, Tag, CircleDollarSign, ShoppingCart, PackageOpen,
-  CircleDot, Car, Ship, Wrench,
+  CircleDot, Car, Ship, Wrench, Package, Wrench as WrenchIcon,
 } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { createClient } from '@/lib/supabase/client'
 import { type LucideIcon } from 'lucide-react'
+import { toast } from 'sonner'
 
 // ── All navigable admin pages ─────────────────────────────────────────────────
 
@@ -79,27 +80,130 @@ function Highlight({ text, query }: { text: string; query: string }) {
   )
 }
 
+// ── Notification types ────────────────────────────────────────────────────────
+
+interface Notification {
+  notification_id: string
+  type:            string
+  title:           string
+  body:            string | null
+  metadata:        Record<string, string>
+  is_read:         boolean
+  created_at:      string
+}
+
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 interface Props {
-  userEmail:          string
-  notificationCount?: number
-  onMenuToggle?:      () => void
+  userEmail:     string
+  onMenuToggle?: () => void
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export default function AdminHeader({ userEmail, notificationCount = 0, onMenuToggle }: Props) {
+export default function AdminHeader({ userEmail, onMenuToggle }: Props) {
   const router      = useRouter()
   const initials    = userEmail.slice(0, 2).toUpperCase()
   const displayName = userEmail.split('@')[0].split('.').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')
 
-  const [query,   setQuery]   = useState('')
-  const [open,    setOpen]    = useState(false)
-  const [focused, setFocused] = useState(0)
+  const [query,         setQuery]         = useState('')
+  const [open,          setOpen]          = useState(false)
+  const [focused,       setFocused]       = useState(0)
+  const [notifs,        setNotifs]        = useState<Notification[]>([])
+  const [bellOpen,      setBellOpen]      = useState(false)
 
-  const inputRef = useRef<HTMLInputElement>(null)
-  const dropRef  = useRef<HTMLDivElement>(null)
+  const inputRef  = useRef<HTMLInputElement>(null)
+  const dropRef   = useRef<HTMLDivElement>(null)
+  const bellRef   = useRef<HTMLDivElement>(null)
+
+  const unreadCount = notifs.filter(n => !n.is_read).length
+
+  // ── Load initial notifications + subscribe to new ones ─────────────────────
+  useEffect(() => {
+    const supabase = createClient()
+    let userId: string | null = null
+
+    async function init() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      userId = user.id
+
+      // Fetch latest 20 notifications
+      const { data } = await supabase
+        .from('notifications')
+        .select('notification_id, type, title, body, metadata, is_read, created_at')
+        .eq('recipient_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(20)
+      if (data) setNotifs(data as Notification[])
+
+      // Subscribe to new inserts
+      supabase
+        .channel(`admin-notifs:${userId}`)
+        .on(
+          'postgres_changes',
+          {
+            event:  'INSERT',
+            schema: 'public',
+            table:  'notifications',
+            filter: `recipient_id=eq.${userId}`,
+          },
+          (payload) => {
+            const n = payload.new as Notification
+            setNotifs(prev => [n, ...prev].slice(0, 20))
+            // Toast with link to the relevant page
+            const href = n.metadata?.order_id
+              ? `/admin/orders/${n.metadata.order_id}`
+              : n.metadata?.job_id
+              ? `/admin/fitters`
+              : '/admin/orders'
+            toast(n.title, {
+              description: n.body ?? undefined,
+              duration:    6000,
+              action: {
+                label:   'View',
+                onClick: () => router.push(href),
+              },
+            })
+          }
+        )
+        .subscribe()
+    }
+
+    init()
+    return () => { supabase.removeAllChannels() }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // ── Mark all as read ──────────────────────────────────────────────────────
+  const markAllRead = useCallback(async () => {
+    if (unreadCount === 0) return
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('recipient_id', user.id)
+      .eq('is_read', false)
+    setNotifs(prev => prev.map(n => ({ ...n, is_read: true })))
+  }, [unreadCount])
+
+  const handleBellOpen = useCallback(async () => {
+    setBellOpen(v => !v)
+    await markAllRead()
+  }, [markAllRead])
+
+  // Click-outside closes bell dropdown
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (bellRef.current && !bellRef.current.contains(e.target as Node)) {
+        setBellOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
   const matches = query.trim().length >= 1
     ? ALL_PAGES.filter(p => matchPage(p, query.trim())).slice(0, 8)
@@ -159,7 +263,7 @@ export default function AdminHeader({ userEmail, notificationCount = 0, onMenuTo
     <header className="h-14 bg-white border-b-2 border-primary/20 flex items-center gap-3 px-4 sm:px-6 shrink-0 shadow-sm">
       {/* Mobile hamburger */}
       <button type="button" onClick={onMenuToggle}
-        className="lg:hidden p-2 -ml-1 rounded-lg text-zinc-600 hover:bg-zinc-100 transition-colors" aria-label="Open menu">
+        className="lg:hidden p-2 -ml-1 rounded-lg text-zinc-600 hover:!bg-zinc-100 transition-colors" aria-label="Open menu">
         <Menu className="w-5 h-5" />
       </button>
 
@@ -249,13 +353,107 @@ export default function AdminHeader({ userEmail, notificationCount = 0, onMenuTo
           <Search className="w-[18px] h-[18px]" />
         </button>
 
-        <button type="button"
-          className="relative p-2 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors" aria-label="Notifications">
-          <Bell className="w-[18px] h-[18px]" />
-          {notificationCount > 0 && (
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-white" />
+        {/* ── Live notification bell ─────────────────────────────────── */}
+        <div ref={bellRef} className="relative">
+          <button
+            type="button"
+            onClick={handleBellOpen}
+            className="relative p-2 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors"
+            aria-label="Notifications"
+          >
+            <Bell className="w-[18px] h-[18px]" />
+            {unreadCount > 0 && (
+              <>
+                <span className="absolute top-1 right-1 min-w-[16px] h-4 flex items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white px-1 ring-2 ring-white">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+                <span className="absolute top-1 right-1 h-4 w-4 rounded-full bg-red-500 animate-ping opacity-40" />
+              </>
+            )}
+          </button>
+
+          {bellOpen && (
+            <div className="absolute right-0 top-full mt-2 w-96 rounded-2xl border border-zinc-200 bg-white shadow-2xl z-50 overflow-hidden">
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 bg-zinc-50">
+                <div className="flex items-center gap-2">
+                  <Bell className="w-4 h-4 text-amber-500" />
+                  <p className="text-sm font-bold text-zinc-800">Notifications</p>
+                  {unreadCount > 0 && (
+                    <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[11px] font-bold text-zinc-900 leading-none">
+                      {unreadCount}
+                    </span>
+                  )}
+                </div>
+                <button type="button" onClick={() => setBellOpen(false)} className="rounded-lg p-1 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-200 transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {notifs.length === 0 ? (
+                <div className="px-5 py-12 text-center">
+                  <Bell className="w-8 h-8 text-zinc-200 mx-auto mb-3" />
+                  <p className="text-sm font-medium text-zinc-400">No notifications yet</p>
+                </div>
+              ) : (
+                <ul className="max-h-80 overflow-y-auto divide-y divide-zinc-100">
+                  {notifs.map(n => {
+                    const href = n.metadata?.order_id
+                      ? `/admin/orders/${n.metadata.order_id}`
+                      : '/admin/orders'
+                    const age = (() => {
+                      const diff = Date.now() - new Date(n.created_at).getTime()
+                      const m = Math.floor(diff / 60_000)
+                      if (m < 1)  return 'just now'
+                      if (m < 60) return `${m}m ago`
+                      const h = Math.floor(m / 60)
+                      if (h < 24) return `${h}h ago`
+                      return `${Math.floor(h / 24)}d ago`
+                    })()
+                    return (
+                      <li key={n.notification_id}>
+                        <Link
+                          href={href}
+                          onClick={() => setBellOpen(false)}
+                          className={`flex gap-3.5 px-5 py-4 hover:bg-zinc-50 transition-colors ${!n.is_read ? 'bg-amber-50/50' : ''}`}
+                        >
+                          <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${!n.is_read ? 'bg-amber-100' : 'bg-zinc-100'}`}>
+                            {n.type === 'new_order'    ? <Package className={`w-4 h-4 ${!n.is_read ? 'text-amber-600' : 'text-zinc-500'}`} />
+                           : n.type === 'job_assigned' ? <WrenchIcon className={`w-4 h-4 ${!n.is_read ? 'text-amber-600' : 'text-zinc-500'}`} />
+                           : <Bell className={`w-4 h-4 ${!n.is_read ? 'text-amber-600' : 'text-zinc-500'}`} />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-semibold truncate ${!n.is_read ? 'text-zinc-900' : 'text-zinc-600'}`}>
+                              {n.title}
+                            </p>
+                            {n.body && <p className="text-xs text-zinc-500 truncate mt-0.5">{n.body}</p>}
+                            <p className="text-[11px] text-zinc-400 mt-1 font-medium">{age}</p>
+                          </div>
+                          {!n.is_read && (
+                            <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-amber-400" />
+                          )}
+                        </Link>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+
+              {/* Footer */}
+              <div className="border-t border-zinc-100 px-5 py-3 bg-zinc-50 flex items-center justify-between">
+                <Link href="/admin/orders" onClick={() => setBellOpen(false)}
+                  className="text-sm font-bold text-primary hover:underline">
+                  View all jobs →
+                </Link>
+                {unreadCount > 0 && (
+                  <button type="button" onClick={markAllRead} className="text-xs text-zinc-400 hover:text-zinc-600 transition-colors">
+                    Mark all read
+                  </button>
+                )}
+              </div>
+            </div>
           )}
-        </button>
+        </div>
 
         <Link href="/admin/settings"
           className="p-2 rounded-lg text-violet-500 hover:bg-violet-50 transition-colors" aria-label="Settings">

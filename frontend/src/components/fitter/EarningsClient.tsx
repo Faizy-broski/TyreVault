@@ -32,11 +32,11 @@ function PayoutBadge({ status }: { status: 'paid' | 'pending' }) {
 
 function TableSkeleton() {
   return Array.from({ length: 5 }).map((_, i) => (
-    <TableRow key={i} className={`border-zinc-100 ${i % 2 === 1 ? 'bg-zinc-50/40' : 'bg-white'}`}>
-      <TableCell className="px-5 py-3.5"><Skeleton className="h-3.5 w-20" /></TableCell>
-      <TableCell className="px-5 py-3.5"><Skeleton className="h-4 w-32" /></TableCell>
-      <TableCell className="px-5 py-3.5"><Skeleton className="h-4 w-16" /></TableCell>
-      <TableCell className="px-5 py-3.5"><Skeleton className="h-5 w-14 rounded-full" /></TableCell>
+    <TableRow key={i}>
+      <TableCell><Skeleton className="h-3.5 w-20" /></TableCell>
+      <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+      <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+      <TableCell><Skeleton className="h-5 w-14 rounded-full" /></TableCell>
     </TableRow>
   ))
 }
@@ -136,7 +136,7 @@ export default function EarningsClient({
 
       {/* Earnings table */}
       <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 bg-zinc-50/50">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200 bg-zinc-50/50">
           <h2 className="text-sm font-semibold text-zinc-900">Recent Earnings</h2>
           {!loading && total > 0 && (
             <span className="text-xs text-zinc-400">{total} records</span>
@@ -175,11 +175,11 @@ export default function EarningsClient({
 
         <Table>
           <TableHeader>
-            <TableRow className="border-b-2 border-zinc-100 bg-zinc-50 hover:bg-zinc-50">
-              <TableHead className="px-5 py-3 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider h-auto">Date</TableHead>
-              <TableHead className="px-5 py-3 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider h-auto">Customer</TableHead>
-              <TableHead className="px-5 py-3 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider h-auto">Amount</TableHead>
-              <TableHead className="px-5 py-3 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider h-auto">Status</TableHead>
+            <TableRow className="border-b border-zinc-200 bg-zinc-50 hover:bg-zinc-50 odd:bg-zinc-50 even:bg-zinc-50">
+              <TableHead>Date</TableHead>
+              <TableHead>Customer</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -189,28 +189,23 @@ export default function EarningsClient({
               <TableRow className="hover:bg-transparent border-0">
                 <TableCell colSpan={4} className="py-16 text-center">
                   <div className="flex flex-col items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-zinc-100 border border-zinc-200 flex items-center justify-center">
-                      <CircleDollarSign className="w-5 h-5 text-zinc-300" />
+                    <div className="w-12 h-12 rounded-2xl bg-muted border border-border flex items-center justify-center">
+                      <CircleDollarSign className="w-5 h-5 text-muted-foreground/40" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-zinc-500">No earnings yet</p>
-                      <p className="text-xs text-zinc-400 mt-0.5">Completed jobs will appear here</p>
+                      <p className="text-sm font-semibold text-muted-foreground">No earnings yet</p>
+                      <p className="text-xs text-muted-foreground/60 mt-0.5">Completed jobs will appear here</p>
                     </div>
                   </div>
                 </TableCell>
               </TableRow>
             ) : (
-              earnings.map((e, index) => (
-                <TableRow
-                  key={e.id}
-                  className={`border-zinc-100 hover:bg-amber-50/50 transition-colors duration-150 ${
-                    index % 2 === 1 ? 'bg-zinc-50/40' : 'bg-white'
-                  }`}
-                >
-                  <TableCell className="px-5 py-3.5 text-zinc-500 text-xs">{fmtShortDate(e.created_at)}</TableCell>
-                  <TableCell className="px-5 py-3.5 text-zinc-900 font-semibold text-sm">{e.customer_name ?? '—'}</TableCell>
-                  <TableCell className="px-5 py-3.5 text-zinc-800 font-medium text-sm">{fmtCurrency(e.amount)}</TableCell>
-                  <TableCell className="px-5 py-3.5">
+              earnings.map((e) => (
+                <TableRow key={e.id}>
+                  <TableCell className="text-muted-foreground text-xs">{fmtShortDate(e.created_at)}</TableCell>
+                  <TableCell className="text-foreground font-semibold">{e.customer_name ?? '—'}</TableCell>
+                  <TableCell className="text-foreground font-medium">{fmtCurrency(e.amount)}</TableCell>
+                  <TableCell>
                     <PayoutBadge status={e.status} />
                   </TableCell>
                 </TableRow>
@@ -220,7 +215,7 @@ export default function EarningsClient({
         </Table>
 
         {/* Pagination */}
-        <div className="flex flex-wrap items-center justify-between gap-y-2 px-5 py-3 border-t border-zinc-100 bg-zinc-50/30 text-xs text-zinc-400">
+        <div className="flex flex-wrap items-center justify-between gap-y-2 px-5 py-3 border-t border-zinc-200 bg-zinc-50/30 text-xs text-muted-foreground">
           <span>{earnings.length > 0 ? `1 — ${earnings.length} of ${total}` : '0 results'}</span>
           <div className="flex items-center gap-3">
             <span>{page} of {totalPages || 1} pages</span>

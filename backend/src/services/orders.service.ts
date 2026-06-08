@@ -1,6 +1,7 @@
 import { supabase as db } from './supabase.service'
 import { notificationQueue } from '../queues'
 import { calcFittingCost } from '../routes/stripe.routes'
+import { insertNotifications, getAdminUserIds } from './notifications.service'
 
 const PAGE_SIZE = 20
 
@@ -296,7 +297,7 @@ export async function listWarehouses(includeInactive = false) {
   let q = db.from('warehouses').select(
     'warehouse_id, warehouse_name, warehouse_type, state, suburb, postcode, address, ' +
     'contact_name, contact_phone, contact_email, is_own_warehouse, is_supplier_warehouse, is_active, created_at'
-  ).order('warehouse_name')
+  ).order('created_at', { ascending: false })
   if (!includeInactive) q = q.eq('is_active', true)
   const { data, error } = await q
   return { data, error }
@@ -359,7 +360,7 @@ export async function listShippingMethods() {
 // ── Create order (storefront checkout) ──────────────────────────────────────
 
 export interface CreateOrderPayload {
-  customer: { email: string; first_name: string; last_name: string }
+  customer: { email: string; first_name: string; last_name: string; phone?: string }
   items: Array<{ product_id: string; quantity: number; unit_price: number }>
   shipping_address: { line1: string; line2?: string; suburb: string; state: string; postcode: string }
   fitment_centre_id?:   string | null
@@ -379,6 +380,13 @@ export async function createOrder(payload: CreateOrderPayload) {
 
   if (existing) {
     customerId = existing.customer_id
+    // Keep phone up to date if customer provided one and we don't have it yet
+    if (payload.customer.phone) {
+      await db.from('customers')
+        .update({ phone: payload.customer.phone })
+        .eq('customer_id', customerId)
+        .is('phone', null)
+    }
   } else {
     const { data: newCust, error: custErr } = await db
       .from('customers')
@@ -386,6 +394,7 @@ export async function createOrder(payload: CreateOrderPayload) {
         email:      payload.customer.email,
         first_name: payload.customer.first_name,
         last_name:  payload.customer.last_name,
+        phone:      payload.customer.phone ?? null,
       })
       .select('customer_id')
       .single()
@@ -393,10 +402,10 @@ export async function createOrder(payload: CreateOrderPayload) {
     customerId = newCust.customer_id
   }
 
-  // 2. Generate order number ONX-YYYYMMDD-XXXX
+  // 2. Generate order number TVT-YYYYMMDD-XXXX
   const datePart  = new Date().toISOString().slice(0, 10).replace(/-/g, '')
   const rand      = String(Math.floor(Math.random() * 9000) + 1000)
-  const orderNumber = `ONX-${datePart}-${rand}`
+  const orderNumber = `TVT-${datePart}-${rand}`
 
   // 3. Server-side fitting cost calculation
   let fittingCost = 0
@@ -548,6 +557,22 @@ export async function createOrder(payload: CreateOrderPayload) {
           scheduled_date:   'To be arranged — fitter will contact customer',
         }).catch(() => {})
       }
+
+      // In-app notification → fitter (fire-and-forget)
+      const { data: centre } = await db
+        .from('fitment_centres')
+        .select('user_id')
+        .eq('fitment_centre_id', payload.fitment_centre_id!)
+        .maybeSingle()
+      if (centre?.user_id) {
+        insertNotifications([{
+          recipient_id: centre.user_id,
+          type:         'job_assigned',
+          title:        `New job ${jobNum}`,
+          body:         `${customerName} · ${tyreSize ?? ''} · ${totalQty} tyre${totalQty !== 1 ? 's' : ''}`.trim(),
+          metadata:     { order_id: order.order_id, order_number: orderNumber, job_id: newJob.job_id },
+        }]).catch(() => {})
+      }
     }
   }
 
@@ -558,7 +583,19 @@ export async function createOrder(payload: CreateOrderPayload) {
     description: `Order ${orderNumber} placed via storefront checkout`,
   })
 
-  // 10. Fire order confirmation email (best-effort)
+  // 10. In-app notifications → all admins (fire-and-forget)
+  const customerFull = `${payload.customer.first_name} ${payload.customer.last_name}`.trim()
+  getAdminUserIds().then(adminIds =>
+    insertNotifications(adminIds.map(id => ({
+      recipient_id: id,
+      type:         'new_order',
+      title:        `New order ${orderNumber}`,
+      body:         `${customerFull} · A$${payload.total_amount.toFixed(2)}`,
+      metadata:     { order_id: order.order_id, order_number: orderNumber },
+    })))
+  ).catch(() => {})
+
+  // 11. Fire order confirmation email (best-effort)
   notificationQueue?.add('order_confirmed', {
     type:           'order_confirmed',
     customer_email: payload.customer.email,

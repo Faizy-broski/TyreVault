@@ -51,7 +51,6 @@ export default async function FitterLayout({ children }: { children: React.React
           <FitterHeader
             centre={centre}
             userEmail={user.email ?? ''}
-            notificationCount={0}
           />
           <main className="flex-1 overflow-y-auto overflow-x-hidden">
             {children}

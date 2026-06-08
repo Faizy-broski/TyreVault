@@ -222,7 +222,7 @@ export default function EditProductWizard({
                   'flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors',
                   activeTab === tab.key
                     ? 'bg-primary text-zinc-900 border border-primary'
-                    : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'
+                    : 'text-zinc-500 hover:text-zinc-900 hover:!bg-zinc-100'
                 )}
               >
                 <span className={cn(

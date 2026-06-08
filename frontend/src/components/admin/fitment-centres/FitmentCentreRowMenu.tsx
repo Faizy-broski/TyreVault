@@ -136,7 +136,7 @@ export default function FitmentCentreRowMenu({ centre, accessToken, onDeleted }:
         size="icon-sm"
         aria-label="Centre actions"
         onClick={toggle}
-        className="p-1.5 rounded-md border border-zinc-200 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors"
+        className="p-1.5 rounded-md border border-zinc-200 text-zinc-400 hover:!bg-zinc-100 hover:text-zinc-700 transition-colors"
       >
         <MoreVertical className="w-4 h-4" />
       </Button>

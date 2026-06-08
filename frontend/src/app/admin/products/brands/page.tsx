@@ -85,28 +85,39 @@ export default function BrandsPage() {
           <h1 className="text-xl font-semibold text-zinc-900">Brands</h1>
           <p className="text-sm text-zinc-500 mt-0.5">Manage tyre brand identities, logos, and positioning</p>
         </div>
-        <Link
-          href="/admin/products/brands/new"
-          className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition-colors shadow-sm"
-        >
-          <Plus className="w-4 h-4" /> New Brand
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/products/import?type=brands"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-200 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+            </svg>
+            Bulk Import
+          </Link>
+          <Link
+            href="/admin/products/brands/new"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition-colors shadow-sm"
+          >
+            <Plus className="w-4 h-4" /> New Brand
+          </Link>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-zinc-200 overflow-x-auto shadow-sm">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-zinc-100 bg-zinc-50">
-              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Brand</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Slug</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Positioning</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Country</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Active</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">On Site</th>
+            <tr className="border-b border-zinc-200 bg-zinc-50">
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Brand</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Slug</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Positioning</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Country</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Active</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">On Site</th>
               <th className="px-5 py-3 w-20" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-300">
+          <tbody className="divide-y divide-zinc-200">
             {loading ? (
               <>
                 {[1,2,3,4].map(i => (
@@ -130,19 +141,19 @@ export default function BrandsPage() {
               </tr>
             ) : (
               brands.map(brand => (
-                <tr key={brand.brand_id} className="odd:bg-white even:bg-zinc-200 [&:hover]:bg-amber-100 transition-colors duration-150">
+                <tr key={brand.brand_id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
                       {brand.brand_logo ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={brand.brand_logo} alt="" className="h-8 w-8 object-contain rounded-lg border border-zinc-100 bg-zinc-50 p-0.5 shrink-0" />
+                        <img src={brand.brand_logo} alt="" className="h-8 w-8 object-contain rounded-lg border border-zinc-200 bg-zinc-50 p-0.5 shrink-0" />
                       ) : (
                         <div className="h-8 w-8 rounded-lg border border-zinc-200 bg-zinc-100 flex items-center justify-center text-zinc-400 text-xs font-bold shrink-0">
                           {brand.brand_name.slice(0, 2).toUpperCase()}
                         </div>
                       )}
                       <div>
-                        <Link href={`/admin/products/brands/${brand.brand_id}`} className="font-medium text-primary hover:underline">
+                        <Link href={`/admin/products/brands/${brand.brand_id}`} className="font-bold text-primary hover:underline">
                           {brand.brand_name}
                         </Link>
                         {brand.brand_short_description && (

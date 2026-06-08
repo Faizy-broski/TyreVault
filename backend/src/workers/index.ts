@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import { catalogueSyncWorker }  from './catalogue-sync.worker'
 import { supplierImportWorker }  from './supplier-import.worker'
+import { catalogImportWorker }   from './catalog-import.worker'
 import { fulfillmentWorker }     from './fulfillment.worker'
 import { stockSyncWorker }       from './stock-sync.worker'
 import { notificationWorker }    from './notification.worker'
@@ -13,6 +14,7 @@ async function start() {
   console.log('[Workers] All BullMQ workers started:')
   console.log('  • catalogue-sync  (concurrency: 10)')
   console.log('  • supplier-import (concurrency: 1)')
+  console.log('  • catalog-import  (concurrency: 1)')
   console.log('  • fulfillment     (concurrency: 5)')
   console.log('  • stock-sync      (concurrency: 3)')
   console.log('  • notification    (concurrency: 20)')
@@ -24,6 +26,7 @@ async function shutdown() {
   await Promise.all([
     catalogueSyncWorker.close(),
     supplierImportWorker.close(),
+    catalogImportWorker.close(),
     fulfillmentWorker.close(),
     stockSyncWorker.close(),
     notificationWorker.close(),

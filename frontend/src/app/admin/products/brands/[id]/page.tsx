@@ -22,7 +22,7 @@ const POSITIONING_COLOURS: Record<string, string> = {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
-      <div className="px-6 py-4 border-b border-zinc-100 bg-zinc-50/60">
+      <div className="px-6 py-4 border-b border-zinc-200 bg-zinc-50/60">
         <h2 className="text-sm font-semibold text-zinc-900">{title}</h2>
       </div>
       <div className="px-6 py-5">{children}</div>

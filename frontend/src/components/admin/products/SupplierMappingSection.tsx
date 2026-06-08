@@ -244,23 +244,23 @@ export default function SupplierMappingSection({ variantId, patternId, ourSkuMat
     <div className="space-y-3">
       {hasRows ? (
         <div className="rounded-lg border border-zinc-200 overflow-x-auto">
-          <table className="w-full text-sm min-w-[860px]">
+          <table className="w-full text-sm min-w-215">
             <thead>
               <tr className="bg-zinc-50 border-b border-zinc-100">
-                <th className="px-3 py-2.5 text-left text-xs font-medium text-zinc-500 w-48">SUPPLIER NAME</th>
-                <th className="px-3 py-2.5 text-left text-xs font-medium text-zinc-500 w-36">CONNECTION</th>
-                <th className="px-3 py-2.5 text-left text-xs font-medium text-zinc-500 w-36">SUPPLIER SKU</th>
-                <th className="px-3 py-2.5 text-left text-xs font-medium text-zinc-500 w-40">OUR SKU MATCH</th>
-                <th className="px-3 py-2.5 text-left text-xs font-medium text-zinc-500 w-36">SUPPLIER COST (SYNC)</th>
-                <th className="px-3 py-2.5 text-left text-xs font-medium text-zinc-500 w-36">AVAILABLE QTY (SYNC)</th>
-                <th className="px-3 py-2.5 text-left text-xs font-medium text-zinc-500 w-20">ACTION</th>
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide w-48">Supplier Name</th>
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide w-36">Connection</th>
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide w-36">Supplier SKU</th>
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide w-40">Our SKU Match</th>
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide w-36">Supplier Cost (Sync)</th>
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide w-36">Available Qty (Sync)</th>
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide w-20">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100">
+            <tbody className="divide-y divide-zinc-200">
 
               {/* Saved rows (approved mappings) */}
               {rows.map(row => (
-                <tr key={row.id} className="hover:bg-zinc-50 transition-colors">
+                <tr key={row.id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
                   <td className="px-3 py-2.5">
                     <span className="text-sm text-zinc-800">{row.supplier_name ?? '—'}</span>
                   </td>

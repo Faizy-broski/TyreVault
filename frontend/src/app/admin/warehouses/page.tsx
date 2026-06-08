@@ -104,22 +104,22 @@ export default function WarehousesPage() {
         <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-100 bg-zinc-50">
-                <th className="px-4 py-3 text-left font-medium text-zinc-500">Name</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-500">Type</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-500">Location</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-500">Contact</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-500">Flags</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-500">Status</th>
+              <tr className="border-b border-zinc-200 bg-zinc-50">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Name</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Type</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Location</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contact</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Flags</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
                 <th className="px-4 py-3 w-20" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-300">
+            <tbody className="divide-y divide-zinc-200">
               {warehouses.length === 0 && (
                 <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-400">No warehouses yet</td></tr>
               )}
               {warehouses.map(w => (
-                <tr key={w.warehouse_id} className="odd:bg-white even:bg-zinc-200 [&:hover]:bg-amber-100 transition-colors duration-150">
+                <tr key={w.warehouse_id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
                   <td className="px-4 py-3 font-medium text-zinc-900">{w.warehouse_name}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium uppercase ${TYPE_COLOURS[w.warehouse_type] ?? 'bg-zinc-100 text-zinc-600'}`}>

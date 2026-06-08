@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { MoreVertical, Eye, Plus, Trash2, Package, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle, DialogClose } from '@/components/ui/dialog'
@@ -23,6 +22,8 @@ type Product = {
   collection: string | null
   variantCount: number
   activeVariants: number
+  totalStock: number
+  loadIndexes: string[]
   isActive: boolean
   showOnWebsite: boolean
   updatedAt: string
@@ -84,7 +85,6 @@ function InlinePublishToggle({ productId, initial, onToggled }: {
 // ── Row actions menu ───────────────────────────────────────────────────────
 
 function ProductRowMenu({ product }: { product: Product }) {
-  const router      = useRouter()
   const queryClient = useQueryClient()
   const [open, setOpen]         = useState(false)
   const [showDel, setShowDel]   = useState(false)
@@ -228,14 +228,14 @@ function SortHead({ col, label, currentSort, currentOrder, onSort }: {
   return (
     <TableHead
       onClick={() => onSort(col)}
-      className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide cursor-pointer select-none hover:text-zinc-700 transition-colors"
+      className="cursor-pointer select-none hover:text-primary/70 transition-colors"
     >
       <span className="inline-flex items-center gap-1">
         {label}
         {active ? (
           currentOrder === 'asc'
-            ? <ChevronUp className="w-3 h-3 text-zinc-700" />
-            : <ChevronDown className="w-3 h-3 text-zinc-700" />
+            ? <ChevronUp className="w-3 h-3 text-foreground" />
+            : <ChevronDown className="w-3 h-3 text-foreground" />
         ) : (
           <ChevronsUpDown className="w-3 h-3 opacity-30" />
         )}
@@ -294,45 +294,61 @@ export default function ProductsTable({
   return (
     <Table className="w-full text-sm min-w-160">
       <TableHeader>
-        <TableRow className="border-b border-zinc-200 bg-zinc-50 hover:bg-zinc-50">
+        <TableRow className="border-b border-zinc-200 bg-primary/10 hover:bg-primary/10 odd:bg-primary/10 even:bg-primary/10">
+          <TableHead className="w-12 text-center">#</TableHead>
           <SortHead col="pattern_name" label="Name"     currentSort={sortBy} currentOrder={sortOrder} onSort={onSort} />
           <SortHead col="brand_name"   label="Brand"    currentSort={sortBy} currentOrder={sortOrder} onSort={onSort} />
-          <TableHead className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Collection</TableHead>
+          <TableHead>Collection</TableHead>
           <SortHead col="variant_count" label="Variants" currentSort={sortBy} currentOrder={sortOrder} onSort={onSort} />
+          <TableHead>Load Index</TableHead>
+          <TableHead>Stock</TableHead>
           <SortHead col="show_on_website" label="Status" currentSort={sortBy} currentOrder={sortOrder} onSort={onSort} />
           <SortHead col="updated_at"   label="Updated"  currentSort={sortBy} currentOrder={sortOrder} onSort={onSort} />
-          <TableHead className="px-4 py-3 w-10"><span className="sr-only">Actions</span></TableHead>
+          <TableHead className="w-10"><span className="sr-only">Actions</span></TableHead>
         </TableRow>
       </TableHeader>
-      <TableBody className="divide-y divide-zinc-300">
-        {displayed.map(p => (
-          <TableRow key={p.id} className="odd:bg-white even:bg-zinc-200 [&:hover]:bg-amber-100 transition-colors duration-150">
-            <TableCell className="px-4 py-3">
-              <Link href={`/admin/products/${p.id}`} className="font-medium text-primary hover:underline">
+      <TableBody className="divide-y divide-zinc-200">
+        {displayed.map((p, i) => (
+          <TableRow key={p.id}>
+            <TableCell className="text-center text-xs text-zinc-400 font-mono">{i + 1}</TableCell>
+            <TableCell>
+              <Link href={`/admin/products/${p.id}`} className="font-bold text-primary hover:underline">
                 {p.name}
               </Link>
             </TableCell>
-            <TableCell className="px-4 py-3 text-zinc-600">{p.brand}</TableCell>
-            <TableCell className="px-4 py-3 text-zinc-500">{p.collection ?? '—'}</TableCell>
-            <TableCell className="px-4 py-3">
-              <span className="text-zinc-700 text-sm">{p.variantCount}</span>
+            <TableCell className="text-muted-foreground">{p.brand}</TableCell>
+            <TableCell className="text-muted-foreground">{p.collection ?? '—'}</TableCell>
+            <TableCell>
+              <span className="font-medium text-foreground">{p.variantCount}</span>
               {p.activeVariants < p.variantCount && (
-                <span className="ml-1 text-xs text-zinc-400">
+                <span className="ml-1 text-xs text-muted-foreground">
                   ({p.activeVariants} active)
                 </span>
               )}
             </TableCell>
-            <TableCell className="px-4 py-3">
+            <TableCell>
+              {(p.loadIndexes ?? []).length > 0
+                ? <span className="text-xs font-medium text-zinc-700">{(p.loadIndexes ?? []).join(' · ')}</span>
+                : <span className="text-xs text-zinc-400">—</span>
+              }
+            </TableCell>
+            <TableCell>
+              {p.totalStock > 0
+                ? <span className="text-xs font-semibold text-green-700">{p.totalStock} units</span>
+                : <span className="text-xs text-zinc-400">No stock</span>
+              }
+            </TableCell>
+            <TableCell>
               <InlinePublishToggle
                 productId={p.id}
                 initial={p.showOnWebsite}
                 onToggled={onPublishToggle}
               />
             </TableCell>
-            <TableCell className="px-4 py-3 text-zinc-400 text-xs whitespace-nowrap">
+            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
               {relativeDate(p.updatedAt)}
             </TableCell>
-            <TableCell className="px-4 py-3 text-right">
+            <TableCell className="text-right">
               <ProductRowMenu product={p} />
             </TableCell>
           </TableRow>

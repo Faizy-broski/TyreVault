@@ -28,17 +28,17 @@ const STATUS_FILTERS: { key: string; label: string }[] = [
 
 function TableSkeleton() {
   return Array.from({ length: 6 }).map((_, i) => (
-    <TableRow key={i} className={`border-zinc-100 ${i % 2 === 1 ? 'bg-zinc-50/40' : 'bg-white'}`}>
-      <TableCell className="px-5 py-3.5"><Skeleton className="h-3.5 w-20" /></TableCell>
-      <TableCell className="px-5 py-3.5">
+    <TableRow key={i}>
+      <TableCell><Skeleton className="h-3.5 w-20" /></TableCell>
+      <TableCell>
         <Skeleton className="h-4 w-28 mb-1.5" />
         <Skeleton className="h-3 w-20" />
       </TableCell>
-      <TableCell className="px-5 py-3.5"><Skeleton className="h-3.5 w-24" /></TableCell>
-      <TableCell className="px-5 py-3.5"><Skeleton className="h-3.5 w-20" /></TableCell>
-      <TableCell className="px-5 py-3.5"><Skeleton className="h-3.5 w-24" /></TableCell>
-      <TableCell className="px-5 py-3.5"><Skeleton className="h-3.5 w-16" /></TableCell>
-      <TableCell className="px-5 py-3.5"><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
+      <TableCell><Skeleton className="h-3.5 w-24" /></TableCell>
+      <TableCell><Skeleton className="h-3.5 w-20" /></TableCell>
+      <TableCell><Skeleton className="h-3.5 w-24" /></TableCell>
+      <TableCell><Skeleton className="h-3.5 w-16" /></TableCell>
+      <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
     </TableRow>
   ))
 }
@@ -92,7 +92,7 @@ export default function JobsClient() {
 
       <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
         {/* Toolbar */}
-        <div className="flex flex-wrap items-center gap-2 px-5 py-4 border-b border-zinc-100 bg-zinc-50/50">
+        <div className="flex flex-wrap items-center gap-2 px-5 py-4 border-b border-zinc-200 bg-zinc-50/50">
           <div className="flex flex-wrap items-center gap-1">
             {STATUS_FILTERS.map(f => (
               <Button
@@ -103,7 +103,7 @@ export default function JobsClient() {
                 className={`rounded-lg h-8 text-xs font-medium transition-all duration-150 ${
                   statusFilter === f.key
                     ? 'bg-primary text-zinc-900 hover:bg-primary/90 shadow-sm'
-                    : 'text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100'
+                    : 'text-zinc-500 hover:text-zinc-800 hover:!bg-zinc-100'
                 }`}
               >
                 {f.label}
@@ -125,14 +125,14 @@ export default function JobsClient() {
         {/* Table */}
         <Table>
           <TableHeader>
-            <TableRow className="border-b-2 border-zinc-100 bg-zinc-50 hover:bg-zinc-50">
-              <TableHead className="px-5 py-3 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider h-auto">Task #</TableHead>
-              <TableHead className="px-5 py-3 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider h-auto">Customer</TableHead>
-              <TableHead className="px-5 py-3 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider h-auto">Vehicle</TableHead>
-              <TableHead className="px-5 py-3 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider h-auto">Tyre</TableHead>
-              <TableHead className="px-5 py-3 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider h-auto">Date</TableHead>
-              <TableHead className="px-5 py-3 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider h-auto">Time</TableHead>
-              <TableHead className="px-5 py-3 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider h-auto">Status</TableHead>
+            <TableRow className="border-b border-zinc-200 bg-zinc-50 hover:bg-zinc-50 odd:bg-zinc-50 even:bg-zinc-50">
+              <TableHead>Task #</TableHead>
+              <TableHead>Customer</TableHead>
+              <TableHead>Vehicle</TableHead>
+              <TableHead>Tyre</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Time</TableHead>
+              <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -141,14 +141,9 @@ export default function JobsClient() {
             ) : filtered.length === 0 ? (
               <EmptyState search={search} hasFilter={!!statusFilter} />
             ) : (
-              filtered.map((job, index) => (
-                <TableRow
-                  key={job.job_id}
-                  className={`border-zinc-100 hover:bg-amber-50/50 transition-colors duration-150 ${
-                    index % 2 === 1 ? 'bg-zinc-50/40' : 'bg-white'
-                  }`}
-                >
-                  <TableCell className="px-5 py-3.5">
+              filtered.map((job) => (
+                <TableRow key={job.job_id}>
+                  <TableCell>
                     <Link
                       href={`/fitter/jobs/${job.job_id}`}
                       className="text-xs font-mono font-semibold text-primary hover:underline hover:text-primary/80 transition-colors"
@@ -156,32 +151,32 @@ export default function JobsClient() {
                       {job.task_number}
                     </Link>
                   </TableCell>
-                  <TableCell className="px-5 py-3.5">
-                    <p className="font-semibold text-zinc-900 text-sm leading-tight">{job.customer_name}</p>
+                  <TableCell>
+                    <p className="font-semibold text-foreground text-sm leading-tight">{job.customer_name}</p>
                     {job.customer_phone && (
-                      <p className="text-xs text-zinc-400 mt-0.5">{job.customer_phone}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{job.customer_phone}</p>
                     )}
                   </TableCell>
-                  <TableCell className="px-5 py-3.5 text-zinc-600 text-sm">
-                    {job.vehicle_model ?? <span className="text-zinc-300">—</span>}
+                  <TableCell className="text-muted-foreground">
+                    {job.vehicle_model ?? <span className="text-muted-foreground/30">—</span>}
                   </TableCell>
-                  <TableCell className="px-5 py-3.5">
+                  <TableCell>
                     {job.tyre_size ? (
-                      <span className="text-sm text-zinc-700">
+                      <span className="text-sm text-foreground">
                         {job.tyre_size}
-                        <span className="text-zinc-400 text-xs ml-1">× {job.quantity}</span>
+                        <span className="text-muted-foreground text-xs ml-1">× {job.quantity}</span>
                       </span>
                     ) : (
-                      <span className="text-zinc-300">—</span>
+                      <span className="text-muted-foreground/30">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="px-5 py-3.5 text-zinc-600 text-sm">
+                  <TableCell className="text-muted-foreground">
                     {fmtShortDate(job.scheduled_date)}
                   </TableCell>
-                  <TableCell className="px-5 py-3.5 text-zinc-600 text-sm">
+                  <TableCell className="text-muted-foreground">
                     {fmtTime(job.scheduled_time)}
                   </TableCell>
-                  <TableCell className="px-5 py-3.5">
+                  <TableCell>
                     <StatusBadge status={job.job_status as JobStatus} />
                   </TableCell>
                 </TableRow>
@@ -191,7 +186,7 @@ export default function JobsClient() {
         </Table>
 
         {!loading && filtered.length > 0 && (
-          <div className="px-5 py-3 border-t border-zinc-100 bg-zinc-50/30 text-xs text-zinc-400 flex items-center justify-between">
+          <div className="px-5 py-3 border-t border-zinc-200 bg-zinc-50/30 text-xs text-muted-foreground flex items-center justify-between">
             <span>Showing {filtered.length} of {jobs.length} jobs</span>
             {statusFilter && (
               <button

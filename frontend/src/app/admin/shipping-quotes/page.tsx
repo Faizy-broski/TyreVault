@@ -174,7 +174,7 @@ export default function ShippingQuotesPage() {
           <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-zinc-100 bg-zinc-50">
+                <tr className="border-b border-zinc-200 bg-zinc-50">
                   <th className="px-4 py-3 text-left font-medium text-zinc-500">Quote ID</th>
                   <th className="px-4 py-3 text-left font-medium text-zinc-500">Order</th>
                   <th className="px-4 py-3 text-left font-medium text-zinc-500">Warehouse</th>

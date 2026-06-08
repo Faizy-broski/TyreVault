@@ -1,24 +1,19 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono, Inter, Oswald } from 'next/font/google'
+import { Montserrat, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { cn } from "@/lib/utils"
 
-const inter = Inter({subsets:['latin'],variable:'--font-sans'});
-
-const geistSans = Geist({
-  variable: '--font-geist-sans',
+const montserrat = Montserrat({
   subsets: ['latin'],
+  variable: '--font-sans',
+  weight: ['300', '400', '500', '600', '700', '800', '900'],
+  display: 'swap',
 })
 
 const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
 })
-
-const oswald = Oswald({
-  subsets: ["latin"],
-  variable: "--font-oswald",
-});
 
 export const metadata: Metadata = {
   title: {
@@ -34,8 +29,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={cn("font-sans", inter.variable)}>
-      <body suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+    <html lang="en" className={cn("font-sans", montserrat.variable, geistMono.variable)}>
+      <body suppressHydrationWarning className="antialiased">
         {children}
       </body>
     </html>

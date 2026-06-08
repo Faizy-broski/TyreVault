@@ -35,6 +35,13 @@ export const adminKeys = {
   promotionDetail: (id: string)               => ['admin', 'promotions', 'detail', id]   as const,
 }
 
+export const customerKeys = {
+  me:          ()                          => ['customer', 'me']                    as const,
+  orderList:   (p: Record<string, string>) => ['customer', 'orders', 'list', p]    as const,
+  orderDetail: (id: string)                => ['customer', 'orders', 'detail', id] as const,
+  addresses:   ()                          => ['customer', 'addresses']             as const,
+}
+
 export const fitterKeys = {
   kpis:            ()                          => ['fitter', 'kpis']                              as const,
   jobs:            ()                          => ['fitter', 'jobs']                              as const,

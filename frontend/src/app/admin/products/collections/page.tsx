@@ -71,7 +71,7 @@ export default function CollectionsPage() {
       })
       if (!res.ok) throw new Error(await res.json().then((b: { error?: string }) => b.error ?? 'Failed'))
       const created: Collection = await res.json()
-      setCollections(prev => [...prev, created].sort((a, b) => a.collection_name.localeCompare(b.collection_name)))
+      setCollections(prev => [created, ...prev])
       toastSuccess('Collection created')
       setCreating(false); setNewName(''); setNewSlug(''); setNewDesc('')
     } catch (err: unknown) {
@@ -135,17 +135,17 @@ export default function CollectionsPage() {
       </div>
 
       <div className="bg-white rounded-2xl border border-zinc-200 overflow-x-auto shadow-sm">
-        <table className="w-full text-sm min-w-128">
+        <table className="w-full text-sm min-w-lg">
           <thead>
-            <tr className="border-b border-zinc-100 bg-zinc-50">
-              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Name</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Slug</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Description</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Status</th>
+            <tr className="border-b border-zinc-200 bg-zinc-50">
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Name</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Slug</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Description</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
               <th className="px-5 py-3 w-20" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-300">
+          <tbody className="divide-y divide-zinc-200">
             {creating && (
               <tr>
                 <td className="px-5 py-3">
@@ -177,7 +177,7 @@ export default function CollectionsPage() {
               <tr><td colSpan={5} className="px-5 py-8 text-center text-zinc-400">No collections yet.</td></tr>
             ) : (
               collections.map(c => (
-                <tr key={c.collection_id} className="odd:bg-white even:bg-zinc-200 [&:hover]:bg-amber-100 transition-colors duration-150">
+                <tr key={c.collection_id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
                   {editId === c.collection_id ? (
                     <>
                       <td className="px-5 py-2">

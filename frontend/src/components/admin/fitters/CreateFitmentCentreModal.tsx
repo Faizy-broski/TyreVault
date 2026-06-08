@@ -106,7 +106,7 @@ export default function CreateFitmentCentreModal({ open, onClose, onCreated }: P
             <h2 className="text-base font-semibold text-zinc-900">Create Fitment Centre</h2>
             <p className="text-xs text-zinc-500 mt-0.5">Creates a login account and activates the centre immediately</p>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 transition-colors">
+          <button onClick={onClose} className="rounded-lg p-1 text-zinc-400 hover:!bg-zinc-100 hover:text-zinc-600 transition-colors">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -256,7 +256,7 @@ export default function CreateFitmentCentreModal({ open, onClose, onCreated }: P
           <Section title="Working Hours">
             <div className="space-y-2">
               {hours.map((row, i) => (
-                <div key={row.day} className={`rounded-lg border p-3 transition-colors ${row.isClosed ? 'border-zinc-100 bg-zinc-50' : 'border-zinc-200 bg-white'}`}>
+                <div key={row.day} className={`rounded-lg border p-3 transition-colors ${row.isClosed ? 'border-zinc-200 bg-zinc-50' : 'border-zinc-200 bg-white'}`}>
                   <div className="flex items-center justify-between gap-3">
                     <span className={`text-sm font-medium w-36 shrink-0 ${row.isClosed ? 'text-zinc-400' : 'text-zinc-700'}`}>
                       {row.label}

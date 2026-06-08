@@ -47,13 +47,13 @@ export default function PricingTab({ warehouses }: Props) {
               {[
                 'Tire Size', 'SKU', 'Price ($)', 'Compare at ($)', 'Cost', 'Margin', 'Inventory', 'Low Stock Alert'
               ].map(h => (
-                <th key={h} className="px-4 py-3 text-left text-xs font-medium text-zinc-500 whitespace-nowrap">
+                <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
                   {h}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-100 [&_tr:nth-child(even)]:bg-zinc-100 [&_tr:nth-child(odd)]:bg-white [&_tr:hover]:bg-amber-50 [&_tr]:transition-colors">
+          <tbody className="divide-y divide-zinc-200">
             {variants.map((variant, index) => {
               const p       = pricing[index]
               const price   = p?.priceIncGst ?? 0
@@ -62,7 +62,7 @@ export default function PricingTab({ warehouses }: Props) {
               const isGood  = margin !== '—' && parseFloat(margin) > 0
 
               return (
-                <tr key={index} className="even:bg-zinc-50/50 hover:bg-amber-50/40 transition-colors">
+                <tr key={index} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
                   {/* Tire Size */}
                   <td className="px-4 py-3 font-medium text-zinc-800">
                     {variant.tyreSizeDisplay || '—'}

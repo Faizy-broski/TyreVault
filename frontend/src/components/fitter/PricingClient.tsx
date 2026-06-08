@@ -161,7 +161,7 @@ export default function PricingClient() {
         <div className="space-y-5">
           {TYRE_TYPES.map(tyreType => (
             <div key={tyreType.key} className="bg-white rounded-2xl border border-zinc-200 shadow-none hover:shadow-md transition-all duration-200 overflow-hidden">
-              <div className="px-5 py-4 border-b border-zinc-100 bg-zinc-50/50">
+              <div className="px-5 py-4 border-b border-zinc-200 bg-zinc-50/50">
                 <h2 className="text-sm font-semibold text-zinc-900">{tyreType.label}</h2>
                 <p className="text-xs text-zinc-500 mt-0.5">{tyreType.description}</p>
               </div>
@@ -169,13 +169,13 @@ export default function PricingClient() {
               <div className="px-2 pb-4">
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-b-2 border-zinc-100 bg-zinc-50 hover:bg-zinc-50">
-                      <TableHead className="px-3 py-3 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider h-auto">Rim Size</TableHead>
-                      <TableHead className="px-3 py-3 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider h-auto text-center">Per Tyre ($)</TableHead>
-                      <TableHead className="px-3 py-3 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider h-auto text-center">Per Pair ($)</TableHead>
-                      <TableHead className="px-3 py-3 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider h-auto text-center">Set of 4 ($)</TableHead>
-                      <TableHead className="px-3 py-3 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider h-auto text-center">Callout ($)</TableHead>
-                      <TableHead className="w-9 h-auto py-3">
+                    <TableRow className="border-b border-zinc-200 bg-zinc-50 hover:bg-zinc-50 odd:bg-zinc-50 even:bg-zinc-50">
+                      <TableHead className="px-3 text-center">Rim Size</TableHead>
+                      <TableHead className="px-3 text-center">Per Tyre ($)</TableHead>
+                      <TableHead className="px-3 text-center">Per Pair ($)</TableHead>
+                      <TableHead className="px-3 text-center">Set of 4 ($)</TableHead>
+                      <TableHead className="px-3 text-center">Callout ($)</TableHead>
+                      <TableHead className="w-9">
                         <span className="sr-only">Clear</span>
                       </TableHead>
                     </TableRow>
@@ -184,11 +184,11 @@ export default function PricingClient() {
                     {loading ? (
                       <TableSkeleton />
                     ) : (
-                      RIM_RANGES.map((rim, rimIndex) => {
+                      RIM_RANGES.map((rim) => {
                         const cell = matrix[tyreType.key][rim.key]
                         return (
-                          <TableRow key={rim.key} className={`border-zinc-100 hover:bg-amber-50/40 transition-colors duration-150 ${rimIndex % 2 === 1 ? 'bg-zinc-50/40' : 'bg-white'}`}>
-                            <TableCell className="px-3 py-2 font-medium text-zinc-700 text-sm whitespace-nowrap">
+                          <TableRow key={rim.key}>
+                            <TableCell className="px-3 py-2 font-medium text-foreground text-sm whitespace-nowrap">
                               {rim.label}
                             </TableCell>
                             <TableCell className="px-2 py-2">

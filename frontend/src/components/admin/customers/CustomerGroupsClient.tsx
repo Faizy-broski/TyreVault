@@ -359,32 +359,32 @@ export default function CustomerGroupsClient({
       <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white shadow-sm">
         <Table className="w-full text-sm">
           <TableHeader>
-            <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50">
-              <TableHead className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Name</TableHead>
-              <TableHead className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Customers ↓</TableHead>
-              <TableHead className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Discount</TableHead>
-              <TableHead className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Price Tier</TableHead>
-              <TableHead className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Updated</TableHead>
-              <TableHead className="w-10 px-4 py-3" />
+            <TableRow className="border-b border-zinc-200 bg-zinc-50 hover:bg-zinc-50 odd:bg-zinc-50 even:bg-zinc-50">
+              <TableHead>Name</TableHead>
+              <TableHead>Customers ↓</TableHead>
+              <TableHead>Discount</TableHead>
+              <TableHead>Price Tier</TableHead>
+              <TableHead>Updated</TableHead>
+              <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
-          <TableBody className="divide-y divide-zinc-100">
+          <TableBody className="divide-y divide-zinc-200">
             {localGroups.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="px-4 py-16 text-center">
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={6} className="py-16 text-center">
                   <div className="flex flex-col items-center gap-2 mx-auto">
-                    <svg className="w-10 h-10 text-zinc-200" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                    <svg className="w-10 h-10 text-muted-foreground/20" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
                     </svg>
-                    <p className="text-sm font-medium text-zinc-400">{search ? `No groups matching "${search}"` : 'No customer groups yet.'}</p>
-                    {!search && <p className="text-xs text-zinc-300">Click &quot;Create&quot; to add your first group.</p>}
+                    <p className="text-sm font-medium text-muted-foreground">{search ? `No groups matching "${search}"` : 'No customer groups yet.'}</p>
+                    {!search && <p className="text-xs text-muted-foreground/60">Click &quot;Create&quot; to add your first group.</p>}
                   </div>
                 </TableCell>
               </TableRow>
             ) : (
               localGroups.map((group) => (
-                <TableRow key={group.group_id} className={`even:bg-zinc-100 hover:bg-amber-50 transition-colors duration-150 ${deletingId === group.group_id ? 'opacity-40 pointer-events-none' : ''}`}>
-                  <TableCell className="px-4 py-3 font-medium text-zinc-800">
+                <TableRow key={group.group_id} className={deletingId === group.group_id ? 'opacity-40 pointer-events-none' : ''}>
+                  <TableCell className="font-medium text-foreground">
                     {editingId === group.group_id ? (
                       <div className="flex items-center gap-2">
                         <Input
@@ -425,19 +425,19 @@ export default function CustomerGroupsClient({
                       </Link>
                     )}
                   </TableCell>
-                  <TableCell className="px-4 py-3 text-zinc-600">{group.customer_count}</TableCell>
-                  <TableCell className="px-4 py-3 text-xs text-zinc-600">
+                  <TableCell className="text-muted-foreground">{group.customer_count}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
                     {group.discount_type && group.discount_value != null
                       ? `${group.discount_type === 'percent' ? `${group.discount_value}%` : `$${group.discount_value}`}`
-                      : <span className="text-zinc-400">—</span>}
+                      : <span className="text-muted-foreground/40">—</span>}
                   </TableCell>
-                  <TableCell className="px-4 py-3 text-xs text-zinc-600">
+                  <TableCell className="text-xs text-muted-foreground">
                     {group.price_type
                       ? <span className="px-2 py-0.5 rounded-full bg-purple-50 text-purple-700">{group.price_type}</span>
-                      : <span className="text-zinc-400">—</span>}
+                      : <span className="text-muted-foreground/40">—</span>}
                   </TableCell>
-                  <TableCell className="whitespace-nowrap px-4 py-3 text-xs text-zinc-500">{fmtDateTime(group.updated_at)}</TableCell>
-                  <TableCell className="px-4 py-3">
+                  <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{fmtDateTime(group.updated_at)}</TableCell>
+                  <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
@@ -468,7 +468,7 @@ export default function CustomerGroupsClient({
           </TableBody>
         </Table>
 
-        <div className="flex items-center justify-between border-t border-zinc-100 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">
+        <div className="flex items-center justify-between border-t border-zinc-200 bg-zinc-50 px-5 py-3 text-xs text-muted-foreground">
           <span>
             {startResult} — {endResult} of {total} results
           </span>

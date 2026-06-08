@@ -42,7 +42,7 @@ async function sendEmail(to: string, subject: string, html: string) {
     return
   }
   await transporter.sendMail({
-    from:    process.env.EMAIL_FROM ?? '"Onyx Tyres" <noreply@onyxtyres.com.au>',
+    from:    process.env.EMAIL_FROM ?? '"TyreVault" <noreply@tyrevault.com.au>',
     to,
     subject,
     html,
@@ -59,7 +59,7 @@ function tplOrderConfirmed(d: Extract<NotificationJobData, { type: 'order_confir
     <p>Your reference: <strong>${d.order_number}</strong></p>
     ${rows ? `<table style="width:100%;border-collapse:collapse;margin:16px 0"><thead><tr style="background:#f4f4f5"><th style="padding:8px;text-align:left">Item</th><th style="padding:8px">Qty</th><th style="padding:8px;text-align:right">Total</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="2" style="padding:8px;font-weight:bold">Total</td><td style="padding:8px;font-weight:bold;text-align:right">$${d.total_amount.toFixed(2)}</td></tr></tfoot></table>` : ''}
     ${d.fitment_centre ? `<p>Fitment booked at <strong>${d.fitment_centre}</strong>${d.scheduled_date ? ` on ${d.scheduled_date}` : ''}.</p>` : ''}
-    <p style="color:#71717a;font-size:12px">Prices include GST. Questions? Email support@onyxtyres.com.au</p>
+    <p style="color:#71717a;font-size:12px">Prices include GST. Questions? Email support@tyrevault.com.au</p>
   </div>`
 }
 

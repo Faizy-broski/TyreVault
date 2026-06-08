@@ -156,6 +156,12 @@ export default function HeroSection() {
   const [activeTab, setActiveTab] = useState<"vehicle" | "size">("vehicle");
   const [openDialog, setOpenDialog] = useState<ActiveDialog>(null);
   const [searching, setSearching] = useState(false);
+  const [loadingOptions, setLoadingOptions] = useState<Record<string, boolean>>({
+    make: false,
+    model: false,
+    year: false,
+    variant: false,
+  });
 
   // ── Dynamic vehicle data ───────────────────────────────────────────────────
 
@@ -186,10 +192,12 @@ export default function HeroSection() {
   // ── Vehicle data fetching ──────────────────────────────────────────────────
 
   useEffect(() => {
+    setLoadingOptions((prev) => ({ ...prev, make: true }));
     fetch(`${API}/api/vehicles/makes`)
       .then((r) => r.json())
       .then(setMakes)
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoadingOptions((prev) => ({ ...prev, make: false })));
   }, []);
 
   useEffect(() => {
@@ -197,10 +205,12 @@ export default function HeroSection() {
       setModels([]);
       return;
     }
+    setLoadingOptions((prev) => ({ ...prev, model: true }));
     fetch(`${API}/api/vehicles/models?make=${encodeURIComponent(v.make)}`)
       .then((r) => r.json())
       .then(setModels)
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoadingOptions((prev) => ({ ...prev, model: false })));
   }, [v.make]);
 
   useEffect(() => {
@@ -208,12 +218,14 @@ export default function HeroSection() {
       setYears([]);
       return;
     }
+    setLoadingOptions((prev) => ({ ...prev, year: true }));
     fetch(
       `${API}/api/vehicles/years?make=${encodeURIComponent(v.make)}&model=${encodeURIComponent(v.model)}`,
     )
       .then((r) => r.json())
       .then((data: number[]) => setYears(data.map(String)))
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoadingOptions((prev) => ({ ...prev, year: false })));
   }, [v.make, v.model]);
 
   useEffect(() => {
@@ -222,6 +234,7 @@ export default function HeroSection() {
       setVariantLabelMap(new Map());
       return;
     }
+    setLoadingOptions((prev) => ({ ...prev, variant: true }));
     fetch(
       `${API}/api/vehicles/variants?make=${encodeURIComponent(v.make)}&model=${encodeURIComponent(v.model)}&year=${v.year}`,
     )
@@ -232,7 +245,8 @@ export default function HeroSection() {
         for (const variant of data) map.set(variantLabel(variant), variant.vehicle_id);
         setVariantLabelMap(map);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoadingOptions((prev) => ({ ...prev, variant: false })));
   }, [v.make, v.model, v.year]);
 
   // ── Derived ────────────────────────────────────────────────────────────────
@@ -604,6 +618,7 @@ export default function HeroSection() {
         popularOptions={POPULAR_MAKES.filter((m) => makes.includes(m))}
         selected={v.make}
         onSelect={handleMakeSelect}
+        isLoading={loadingOptions.make}
       />
       <SelectorDialog
         open={openDialog === "model"}
@@ -616,6 +631,7 @@ export default function HeroSection() {
         options={models}
         selected={v.model}
         onSelect={handleModelSelect}
+        isLoading={loadingOptions.model}
       />
       <SelectorDialog
         open={openDialog === "year"}
@@ -626,6 +642,7 @@ export default function HeroSection() {
         options={years}
         selected={v.year}
         onSelect={handleYearSelect}
+        isLoading={loadingOptions.year}
       />
       <SelectorDialog
         open={openDialog === "variant"}
@@ -636,6 +653,7 @@ export default function HeroSection() {
         options={variantDisplayLabels}
         selected={v.variant}
         onSelect={handleVariantSelect}
+        isLoading={loadingOptions.variant}
       />
 
       {/* ── Tyre size dialogs ─────────────────────────────────────────────────── */}

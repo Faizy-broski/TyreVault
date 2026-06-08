@@ -140,7 +140,7 @@ export default function ProductDetailPage() {
               <div className="flex items-center gap-3">
                 {pattern.brands?.brand_logo && (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={pattern.brands.brand_logo} alt="" className="h-9 w-9 object-contain rounded border border-zinc-100 bg-zinc-50 p-0.5 shrink-0" />
+                  <img src={pattern.brands.brand_logo} alt="" className="h-9 w-9 object-contain rounded border border-zinc-200 bg-zinc-50 p-0.5 shrink-0" />
                 )}
                 <div>
                   <h1 className="text-lg font-semibold text-zinc-900">{pattern.pattern_name}</h1>
@@ -233,7 +233,7 @@ export default function ProductDetailPage() {
             <Section title={`FAQ (${faqs.length})`}>
               <div className="space-y-3">
                 {faqs.map((faq, i) => (
-                  <div key={i} className="rounded-lg border border-zinc-100 bg-zinc-50/50 p-3">
+                  <div key={i} className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-3">
                     <p className="text-sm font-medium text-zinc-800 mb-1">{faq.question}</p>
                     <p className="text-sm text-zinc-500">{faq.answer}</p>
                   </div>
@@ -259,7 +259,7 @@ export default function ProductDetailPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-zinc-100 bg-zinc-50">
+                  <tr className="border-b border-zinc-200 bg-zinc-50">
                     <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 w-8" />
                     <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Tire Size</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500">SKU</th>

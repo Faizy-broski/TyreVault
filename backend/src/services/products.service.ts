@@ -132,7 +132,7 @@ export async function listProducts(filters: ProductListFilters) {
       created_at,
       brands!inner ( brand_id, brand_name, brand_slug ),
       collections ( collection_name ),
-      skus ( product_id, status, total_available_stock )
+      skus!inner ( product_id, status, total_available_stock, load_index )
     `, { count: 'exact' })
 
   // brand_name and variant_count are computed/joined — sort client-side; fall back to updated_at
@@ -177,6 +177,12 @@ export async function listProducts(filters: ProductListFilters) {
       activeVariantCount: Array.isArray(row.skus)
         ? (row.skus as { status: string }[]).filter(s => s.status === 'active').length
         : 0,
+      totalStock: Array.isArray(row.skus)
+        ? (row.skus as { total_available_stock: number }[]).reduce((s, sku) => s + (sku.total_available_stock ?? 0), 0)
+        : 0,
+      loadIndexes: Array.isArray(row.skus)
+        ? [...new Set((row.skus as { load_index: string | null }[]).map(s => s.load_index).filter(Boolean))].sort()
+        : [],
       isActive: row.is_active,
       showOnWebsite: row.show_on_website,
       updatedAt: row.updated_at,
@@ -1047,7 +1053,7 @@ export async function listBrandsFull() {
   const { data, error } = await supabase
     .from('brands')
     .select('brand_id, brand_name, brand_slug, brand_logo, brand_banner_image, brand_description, brand_short_description, country_of_brand, manufacturer_name, brand_positioning, warranty_info, seo_title, seo_description, is_active, show_on_website, channel_wholesale, channel_retail, channel_marketplaces, created_at, updated_at')
-    .order('brand_name')
+    .order('created_at', { ascending: false })
   if (error) throw error
   return data ?? []
 }
@@ -1077,10 +1083,11 @@ export async function deleteBrand(id: string) {
 // ── Patterns ──────────────────────────────────────────────────────────────────
 
 export async function listPatterns(brandId?: string) {
+  const selectCols = 'pattern_id, brand_id, pattern_name, pattern_slug, application_type, season_type, terrain_type, is_active, show_on_website, main_image, created_at'
   let q = supabase
     .from('patterns')
-    .select('pattern_id, brand_id, pattern_name, pattern_slug, application_type, season_type, is_active, show_on_website, main_image, created_at')
-    .order('pattern_name')
+    .select(selectCols)
+    .order('created_at', { ascending: false })
   if (brandId) q = q.eq('brand_id', brandId)
   const { data, error } = await q
   if (error) throw error
@@ -1124,21 +1131,36 @@ export type PatternPayload = {
 }
 
 export async function createPattern(payload: PatternPayload) {
+  const { category_ids, categoryIds, ...patternData } = payload as PatternPayload & { category_ids?: string[]; categoryIds?: string[] }
   const { data, error } = await supabase
     .from('patterns')
-    .insert(payload)
+    .insert(patternData)
     .select('pattern_id, pattern_name, brand_id')
     .single()
   if (error) throw error
+
+  const ids = category_ids ?? categoryIds ?? []
+  if (ids.length > 0) {
+    await supabase.from('pattern_categories').insert(ids.map(cid => ({ pattern_id: data.pattern_id, category_id: cid })))
+  }
   return data
 }
 
 export async function updatePattern(patternId: string, payload: Partial<PatternPayload>) {
+  const { category_ids, categoryIds, ...patternData } = payload as Partial<PatternPayload> & { category_ids?: string[]; categoryIds?: string[] }
   const { error } = await supabase
     .from('patterns')
-    .update({ ...payload, updated_at: new Date().toISOString() })
+    .update({ ...patternData, updated_at: new Date().toISOString() })
     .eq('pattern_id', patternId)
   if (error) throw error
+
+  const ids = category_ids ?? categoryIds
+  if (ids !== undefined) {
+    await supabase.from('pattern_categories').delete().eq('pattern_id', patternId)
+    if (ids.length > 0) {
+      await supabase.from('pattern_categories').insert(ids.map(cid => ({ pattern_id: patternId, category_id: cid })))
+    }
+  }
 }
 
 export async function deletePattern(patternId: string) {
@@ -1151,7 +1173,7 @@ export async function deletePattern(patternId: string) {
 
 export async function listCollections() {
   const { data } = await supabase
-    .from('collections').select('collection_id, collection_name, collection_slug, description, is_active, created_at').order('collection_name')
+    .from('collections').select('collection_id, collection_name, collection_slug, description, is_active, created_at').order('created_at', { ascending: false })
   return data ?? []
 }
 
@@ -1175,8 +1197,8 @@ export async function listCategories() {
   const { data } = await supabase
     .from('categories')
     .select('category_id, category_name, category_slug, category_type, parent_category_id, description, image, is_active, hidden_from_website, sort_order, created_at')
-    .order('sort_order')
-    .order('category_name')
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: false })
   return data ?? []
 }
 

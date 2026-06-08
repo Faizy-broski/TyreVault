@@ -17,7 +17,7 @@ const SEASON_TYPES       = ['all_season', 'summer', 'winter', 'all_weather']
 const PERFORMANCE_CATS   = ['touring', 'sport', 'uhp', 'eco', 'highway', 'off_road', 'winter']
 const POSITION_CATS      = ['steer', 'drive', 'trailer', 'all_position']
 const SHOULDER_TYPES     = ['open', 'closed', 'semi_open']
-const TERRAIN_TYPES      = ['highway', 'all_terrain', 'mud_terrain', 'extreme_terrain']
+const TERRAIN_TYPES      = ['highway', 'all_terrain', 'mud_terrain', 'on_off_road', 'extreme_terrain']
 
 export type PatternFormState = {
   pattern_name:              string
@@ -172,15 +172,21 @@ export default function PatternForm({ brandId: initialBrandId, brandName: initia
         const b = await res.json().catch(() => ({})) as { error?: string }
         throw new Error(b.error ?? 'Failed to save pattern')
       }
+      return res.json() as Promise<{ pattern_id?: string }>
     })
 
     try {
-      await toastPromise(req, {
+      const result = await toastPromise(req, {
         loading: isEdit ? 'Saving pattern…'  : 'Creating pattern…',
         success: isEdit ? 'Pattern updated'  : 'Pattern created',
         error:   (err: unknown) => err instanceof Error ? err.message : 'Failed to save pattern',
       })
-      router.push(brandId ? `/admin/products/brands/${brandId}` : '/admin/products/patterns')
+      const resolvedPatternId = isEdit ? patternId : result?.pattern_id
+      if (resolvedPatternId && brandId) {
+        router.push(`/admin/products/brands/${brandId}/patterns/${resolvedPatternId}`)
+      } else {
+        router.push('/admin/products/patterns')
+      }
     } catch { /* shown */ } finally { setSaving(false) }
   }
 
@@ -502,7 +508,7 @@ function CategoriesCard({
 function Card({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
-      <div className="px-6 py-4 border-b border-zinc-100 bg-zinc-50/60">
+      <div className="px-6 py-4 border-b border-zinc-200 bg-zinc-50/60">
         <h2 className="text-sm font-semibold text-zinc-900">{title}</h2>
         <p className="text-xs text-zinc-500 mt-0.5">{description}</p>
       </div>

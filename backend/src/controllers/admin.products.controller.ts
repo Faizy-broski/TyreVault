@@ -1,5 +1,8 @@
 import type { Request, Response, NextFunction } from 'express'
 import * as ProductsService from '../services/products.service'
+import Papa from 'papaparse'
+import { randomUUID } from 'crypto'
+import { enqueueCatalogImport, getCatalogImportJob } from '../services/admin.catalog-import.service'
 
 type P = Record<string, string>
 
@@ -250,7 +253,8 @@ export async function postPattern(req: Request, res: Response, next: NextFunctio
   try {
     const brandId = String((req.params as P).brandId)
     const { brand_name: _, ...rest } = req.body as Record<string, unknown>
-    res.status(201).json(await ProductsService.createPattern({ ...rest, brand_id: brandId } as ProductsService.PatternPayload))
+    const payload = { ...rest, brand_id: brandId } as ProductsService.PatternPayload
+    res.status(201).json(await ProductsService.createPattern(payload))
   } catch (err) { next(err) }
 }
 
@@ -325,5 +329,66 @@ export async function putProductCategories(req: Request, res: Response, next: Ne
     const { categoryIds } = req.body as { categoryIds: string[] }
     await ProductsService.setProductCategories((req.params as P).variantId, categoryIds ?? [])
     res.json({ success: true })
+  } catch (err) { next(err) }
+}
+
+
+// ── Bulk catalog import ───────────────────────────────────────────────────────
+
+function parseCsvFromBuffer(buffer: Buffer): Record<string, string>[] {
+  const text = buffer.toString('utf8')
+  const { data, errors } = Papa.parse<Record<string, string>>(text, {
+    header:          true,
+    skipEmptyLines:  true,
+    transformHeader: (h: string) => h.trim(),
+  })
+  if (errors.length && data.length === 0) throw new Error(errors[0].message)
+  return data
+}
+
+export async function importSkus(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No CSV file uploaded' })
+    const rows      = parseCsvFromBuffer(req.file.buffer)
+    const columnMap = JSON.parse(req.body.column_map ?? '{}') as Record<string, string>
+    const jobId     = await enqueueCatalogImport('skus', rows, columnMap, randomUUID())
+    res.status(202).json({ jobId })
+  } catch (err) { next(err) }
+}
+
+export async function importBrands(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No CSV file uploaded' })
+    const rows      = parseCsvFromBuffer(req.file.buffer)
+    const columnMap = JSON.parse(req.body.column_map ?? '{}') as Record<string, string>
+    const jobId     = await enqueueCatalogImport('brands', rows, columnMap, randomUUID())
+    res.status(202).json({ jobId })
+  } catch (err) { next(err) }
+}
+
+export async function importCategories(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No CSV file uploaded' })
+    const rows      = parseCsvFromBuffer(req.file.buffer)
+    const columnMap = JSON.parse(req.body.column_map ?? '{}') as Record<string, string>
+    const jobId     = await enqueueCatalogImport('categories', rows, columnMap, randomUUID())
+    res.status(202).json({ jobId })
+  } catch (err) { next(err) }
+}
+
+export async function importPatterns(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No CSV file uploaded' })
+    const rows      = parseCsvFromBuffer(req.file.buffer)
+    const columnMap = JSON.parse(req.body.column_map ?? '{}') as Record<string, string>
+    const jobId     = await enqueueCatalogImport('patterns', rows, columnMap, randomUUID())
+    res.status(202).json({ jobId })
+  } catch (err) { next(err) }
+}
+
+export async function getImportJob(req: Request, res: Response, next: NextFunction) {
+  try {
+    const status = await getCatalogImportJob((req.params as Record<string, string>).jobId)
+    res.json(status)
   } catch (err) { next(err) }
 }

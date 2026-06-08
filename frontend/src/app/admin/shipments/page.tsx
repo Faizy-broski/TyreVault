@@ -135,27 +135,27 @@ export default function ShipmentsPage() {
         <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-100 bg-zinc-50">
-                <th className="px-4 py-3 text-left font-medium text-zinc-500">Container</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-500">Vessel</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-500">PO</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-500">Warehouse</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-500">Status</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-500">Clearance</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-500">ETD</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-500">ETA</th>
-                <th className="px-4 py-3 text-left font-medium text-zinc-500">Arrived</th>
+              <tr className="border-b border-zinc-200 bg-zinc-50">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Container</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Vessel</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">PO</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Warehouse</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Clearance</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">ETD</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">ETA</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Arrived</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-300">
+            <tbody className="divide-y divide-zinc-200">
               {shipments.length === 0 && (
                 <tr><td colSpan={10} className="px-4 py-10 text-center text-zinc-400">No shipments found</td></tr>
               )}
               {shipments.map(s => (
                 <tr
                   key={s.shipment_id}
-                  className="odd:bg-white even:bg-zinc-200 [&:hover]:bg-amber-100 transition-colors duration-150 cursor-pointer"
+                  className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors cursor-pointer"
                   onClick={() => router.push(`/admin/shipments/${s.shipment_id}`)}
                 >
                   <td className="px-4 py-3 font-mono text-xs font-medium text-zinc-900">

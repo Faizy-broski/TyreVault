@@ -639,7 +639,7 @@ export default function FitterSelectionModal({ open, onClose, tyreQty, cartSubto
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors"
+              className="rounded-lg p-1.5 text-zinc-400 hover:text-zinc-700 hover:!bg-zinc-100 transition-colors"
             >
               <X className="w-4 h-4" />
             </button>

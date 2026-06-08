@@ -1,23 +1,57 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Menu, Search, ShoppingCart, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCartStore } from "@/stores/cart.store";
+import { createClient } from "@/lib/supabase/client";
+import type { Session } from "@supabase/supabase-js";
+import TyresDropdown from "./TyresDropdown";
 
 const navLinks = [
-  { label: "Shop Tyres", href: "/tyres", chevron: false },
-  { label: "Accessories", href: "#",     chevron: false },
-  { label: "Deals",       href: "#",     chevron: false },
+  
+  { label: "Promotions", href: "/promotions" },
+  { label: "Track Order", href: "/track-order" },
 ];
 
 export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) {
   const { openCart, itemCount } = useCartStore();
+
   const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  const [session, setSession] = useState<Session | null>(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [tyresOpen, setTyresOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const tyresRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+    createClient().auth.getSession().then(({ data: { session: s } }) => setSession(s));
+  }, []);
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+      if (tyresRef.current && !tyresRef.current.contains(e.target as Node)) {
+        setTyresOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
   const count = mounted ? itemCount() : 0;
+
+  async function handleSignOut() {
+    await createClient().auth.signOut();
+    setSession(null);
+    window.location.href = '/';
+  }
 
   return (
     <header
@@ -35,14 +69,26 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
               <Menu className="h-5 w-5" />
             </Button>
             <nav className="hidden items-center gap-8 lg:flex">
-              {navLinks.map(({ label, href, chevron }) => (
+              {/* Shop Tyres — mega dropdown */}
+              <div ref={tyresRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setTyresOpen(o => !o)}
+                  className={`flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide transition-colors duration-200 ${tyresOpen ? 'text-primary' : 'text-white hover:text-primary'}`}
+                >
+                  Shop Tyres
+                  <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${tyresOpen ? 'rotate-180 text-primary' : ''}`} />
+                </button>
+                {tyresOpen && <TyresDropdown onClose={() => setTyresOpen(false)} />}
+              </div>
+
+              {navLinks.map(({ label, href }) => (
                 <Link
                   key={label}
                   href={href}
-                  className="group flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-white transition-colors duration-200 hover:text-primary"
+                  className="text-sm font-semibold uppercase tracking-wide text-white transition-colors duration-200 hover:text-primary"
                 >
                   {label}
-                  {chevron && <ChevronDown className="h-3.5 w-3.5" />}
                 </Link>
               ))}
             </nav>
@@ -57,12 +103,69 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
 
           <div className="flex items-center gap-2">
             <div className="hidden items-center gap-1 lg:flex">
-              <Link href="/login">
-                <Button size="icon" variant="ghost" aria-label="Account" className="text-white hover:bg-transparent hover:text-primary">
-                  <User className="h-5 w-5" />
-                </Button>
-              </Link>
-              <div className="h-5 w-px bg-white/20" />
+              {/* Auth-aware user area */}
+              {!mounted ? (
+                // Fixed-size placeholder prevents layout shift during hydration
+                <div className="w-[120px] h-8" />
+              ) : session ? (
+                // Logged-in: My Account dropdown
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => setDropdownOpen(v => !v)}
+                    aria-label="My Account"
+                    aria-expanded={dropdownOpen}
+                    className="flex items-center gap-1.5 text-white hover:text-primary transition-colors px-1 py-1"
+                  >
+                    <User className="h-5 w-5" />
+                    <ChevronDown className={`h-3 w-3 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {dropdownOpen && (
+                    <div className="absolute right-0 top-full mt-2 w-44 rounded-xl border border-white/10 bg-zinc-900/95 backdrop-blur-md shadow-xl py-1 z-50">
+                      <Link
+                        href="/account/orders"
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-white hover:text-primary transition-colors"
+                      >
+                        My Orders
+                      </Link>
+                      <Link
+                        href="/account/profile"
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-white hover:text-primary transition-colors"
+                      >
+                        Profile
+                      </Link>
+                      <div className="my-1 border-t border-white/10" />
+                      <button
+                        type="button"
+                        onClick={handleSignOut}
+                        className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-zinc-400 hover:text-red-400 transition-colors"
+                      >
+                        Sign out
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                // Guest: Sign in + Register
+                <div className="flex items-center gap-3">
+                  <Link
+                    href="/login"
+                    className="text-sm font-medium text-white hover:text-primary transition-colors"
+                  >
+                    Sign in
+                  </Link>
+                  <Link
+                    href="/register"
+                    className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-zinc-900 hover:bg-primary/90 transition-colors"
+                  >
+                    Register
+                  </Link>
+                </div>
+              )}
+
+              <div className="h-5 w-px bg-white/20 mx-1" />
               <button
                 type="button"
                 onClick={openCart}
@@ -107,4 +210,3 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
     </header>
   );
 }
-
