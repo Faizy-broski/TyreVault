@@ -37,7 +37,7 @@ export const variantSchema = z.object({
   ltSizing:        z.boolean().default(false),
   plyRating:       z.string().optional(),
   loadRange:       z.string().optional(),
-  sidewall:        z.enum(['BSW', 'OWL', 'RWL']).optional(),
+  sidewall:        z.enum(['BSW', 'OWL', 'RWL', 'WSW']).optional(),
   tubeType:        z.enum(['tubeless', 'tube_type']).optional(),
   manufacturerName: z.string().optional(),
   countryOfOrigin:  z.string().min(1, 'Country of origin is required'),

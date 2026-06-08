@@ -243,7 +243,7 @@ export default function CustomerGroupDetailPage() {
 
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-zinc-100 bg-zinc-50">
+            <tr className="border-b border-zinc-200 bg-zinc-50">
               <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Email</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Name</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Account</th>
@@ -298,7 +298,7 @@ export default function CustomerGroupDetailPage() {
           </tbody>
         </table>
 
-        <div className="flex items-center justify-between border-t border-zinc-100 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">
+        <div className="flex items-center justify-between border-t border-zinc-200 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">
           <span>{members.length} member{members.length !== 1 ? 's' : ''}</span>
         </div>
       </div>

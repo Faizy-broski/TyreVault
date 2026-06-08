@@ -195,6 +195,7 @@ export default function ComplianceDocTab({ centreId, initialDocs, accessToken }:
       <div className="bg-white rounded-xl border border-zinc-200 overflow-x-auto">
         <table className="w-full text-sm min-w-160">
           <thead>
+<<<<<<< Updated upstream
             <tr className="border-b border-zinc-100 bg-zinc-50">
               <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Policy Type</th>
               <th className="px-5 py-3 text-left text-xs font-medium text-zinc-500">Provider</th>
@@ -205,6 +206,18 @@ export default function ComplianceDocTab({ centreId, initialDocs, accessToken }:
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100 [&_tr:nth-child(even)]:bg-zinc-100 [&_tr:nth-child(odd)]:bg-white [&_tr:hover]:bg-amber-50 [&_tr]:transition-colors">
+=======
+            <tr className="border-b border-zinc-200 bg-zinc-50">
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Policy Type</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Provider</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Policy Number</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Expiry</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-200 [&_tr]:transition-colors [&_tr:nth-child(even)]:bg-muted/30 [&_tr:hover]:bg-muted/60">
+>>>>>>> Stashed changes
             {docs.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-5 py-10 text-center text-sm text-zinc-400">

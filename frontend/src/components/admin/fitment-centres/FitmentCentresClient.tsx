@@ -167,6 +167,7 @@ export default function FitmentCentresClient({
         <div className="overflow-x-auto">
         <Table className="w-full text-sm">
           <TableHeader>
+<<<<<<< Updated upstream
             <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50">
               <TableHead className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Centre</TableHead>
               <TableHead className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Partner ID</TableHead>
@@ -178,6 +179,19 @@ export default function FitmentCentresClient({
             </TableRow>
           </TableHeader>
           <TableBody className="divide-y divide-zinc-300">
+=======
+            <TableRow className="border-b border-zinc-200 bg-zinc-50 hover:bg-zinc-50 odd:bg-zinc-50 even:bg-zinc-50">
+              <TableHead>Centre</TableHead>
+              <TableHead>Partner ID</TableHead>
+              <TableHead>Contact</TableHead>
+              <TableHead>ABN</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Joined</TableHead>
+              <TableHead className="w-10" />
+            </TableRow>
+          </TableHeader>
+          <TableBody className="divide-y divide-zinc-200">
+>>>>>>> Stashed changes
             {loading ? (
               <>
                 {[1,2,3,4,5].map(i => (

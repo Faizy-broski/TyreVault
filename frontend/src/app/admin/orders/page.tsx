@@ -105,13 +105,13 @@ function InlineStatusSelect({ orderId, status }: { orderId: string; status: Orde
 
 function DeliveryTypeCell({ orderType, fitmentId }: { orderType: string | null; fitmentId: string | null }) {
   if (!orderType || orderType === 'home_delivery' || orderType === 'shipping') {
-    return <span className="text-xs text-zinc-700">Home Delivery</span>
+    return <span className="text-xs text-zinc-800 font-medium">Home Delivery</span>
   }
   return (
     <span className="flex flex-col gap-0.5 text-xs">
-      <span className="text-zinc-700">Fitment Centre</span>
+      <span className="text-zinc-800 font-medium">Fitment Centre</span>
       {fitmentId && (
-        <Link href={`/admin/fitters/${fitmentId}`} className="text-primary hover:underline">
+        <Link href={`/admin/fitters/${fitmentId}`} className="font-bold text-primary hover:underline">
           #FIT-001
         </Link>
       )}
@@ -404,13 +404,21 @@ export default function OrdersPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-100 bg-zinc-50">
+              <tr className="border-b border-zinc-200 bg-primary/10">
                 {['Order #', 'Created ↓', 'Customer', 'Address', 'Delivery Type', 'Payment', 'Fulfillment', 'Items', 'Order Total', 'Actions'].map(h => (
+<<<<<<< Updated upstream
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-300">
+=======
+                  <th key={h} className="px-4 py-3 text-left text-xs font-bold text-zinc-800 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-200">
+>>>>>>> Stashed changes
               {loading ? (
                 <>
                   {[1,2,3,4,5,6,7,8].map(i => (
@@ -445,16 +453,20 @@ export default function OrdersPage() {
                   ? [o.customers.first_name, o.customers.last_name].filter(Boolean).join(' ') || o.customers.email
                   : '—'
                 return (
+<<<<<<< Updated upstream
                   <tr key={o.order_id} className="odd:bg-white even:bg-zinc-200 [&:hover]:bg-amber-100 transition-colors duration-150">
+=======
+                  <tr key={o.order_id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
+>>>>>>> Stashed changes
                     <td className="px-4 py-3">
-                      <Link href={`/admin/orders/${o.order_id}`} className="font-medium text-primary hover:underline">
+                      <Link href={`/admin/orders/${o.order_id}`} className="font-bold text-primary hover:underline">
                         {o.order_number}
                       </Link>
                     </td>
                     {/* <td className="px-4 py-3 text-xs text-zinc-500">
                       {fmtDateTime(o.created_at)}
                     </td> */}
-                    <td className="px-4 py-3 text-xs text-zinc-500">
+                    <td className="px-4 py-3 text-xs text-zinc-700">
   <div className="flex flex-col">
     <span>
       {new Date(o.created_at).toLocaleDateString('en-AU', {
@@ -463,8 +475,7 @@ export default function OrdersPage() {
         year: 'numeric',
       })}
     </span>
-
-    <span className="text-zinc-400">
+    <span className="text-zinc-500">
       {new Date(o.created_at).toLocaleTimeString('en-AU', {
         hour: '2-digit',
         minute: '2-digit',
@@ -474,12 +485,12 @@ export default function OrdersPage() {
 </td>
                     <td className="px-4 py-3">
                       {o.customers ? (
-                        <Link href={`/admin/customers/${o.customers.customer_id}`} className="text-primary hover:underline text-xs">
+                        <Link href={`/admin/customers/${o.customers.customer_id}`} className="font-bold text-primary hover:underline text-xs">
                           {customerName}
                         </Link>
                       ) : <span className="text-zinc-400 text-xs">—</span>}
                     </td>
-                    <td className="px-4 py-3 text-xs text-zinc-600 max-w-40 truncate">
+                    <td className="px-4 py-3 text-xs text-zinc-700 max-w-40 truncate">
                       {addressSnippet(o.shipping_address_snapshot)}
                     </td>
                     <td className="px-4 py-3">
@@ -491,7 +502,7 @@ export default function OrdersPage() {
                     <td className="px-4 py-3">
                       <InlineStatusSelect orderId={o.order_id} status={o.order_status} />
                     </td>
-                    <td className="px-4 py-3 text-zinc-600 text-center">
+                    <td className="px-4 py-3 text-zinc-800 text-center font-medium">
                       {o.order_items?.length ?? 0}
                     </td>
                     <td className="px-4 py-3 font-medium text-zinc-900 whitespace-nowrap">
@@ -508,7 +519,7 @@ export default function OrdersPage() {
         </div>
 
         {/* Pagination */}
-        <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-100 bg-zinc-50 text-xs text-zinc-500">
+        <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-200 bg-zinc-50 text-xs text-zinc-500">
           <span>
             {total === 0 ? '0 results' : `${Math.min((page - 1) * LIMIT + 1, total)} — ${Math.min(page * LIMIT, total)} of ${total} results`}
           </span>

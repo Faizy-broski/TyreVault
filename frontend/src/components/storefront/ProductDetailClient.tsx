@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { ShoppingCart, ChevronLeft } from 'lucide-react'
+import { ShoppingCart, ChevronLeft, ImageOff } from 'lucide-react'
 import { useCartStore } from '@/stores/cart.store'
 
 interface Sibling {
@@ -158,7 +158,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
         {/* Gallery */}
         <div className="space-y-3">
           <div className="aspect-[4/3] rounded-2xl bg-zinc-100 relative overflow-hidden">
-            {images.length > 0 ? (
+            {images.length > 0 && (images[activeImg]?.startsWith('http') || images[activeImg]?.startsWith('/')) ? (
               <Image
                 src={images[activeImg]}
                 alt={product.tyre_size_display}
@@ -168,8 +168,13 @@ export default function ProductDetailClient({ product }: { product: Product }) {
                 priority
               />
             ) : (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-32 h-32 rounded-full border-8 border-zinc-200 opacity-30" />
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-zinc-50 to-zinc-100/50">
+                <div className="relative flex items-center justify-center w-28 h-28 mb-4">
+                  <div className="absolute inset-0 rounded-full border-[4px] border-dashed border-zinc-300 animate-[spin_20s_linear_infinite]" />
+                  <div className="absolute inset-5 rounded-full border-[3px] border-zinc-300/80" />
+                  <ImageOff className="w-8 h-8 text-zinc-500 relative z-10" />
+                </div>
+                <span className="text-xs font-black text-zinc-500 uppercase tracking-[0.2em]">Image Coming Soon</span>
               </div>
             )}
           </div>

@@ -439,7 +439,11 @@ export default function CustomerDetailClient({
             <div className="overflow-x-auto">
               <Table className="w-full text-sm">
                 <TableHeader>
+<<<<<<< Updated upstream
                   <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50">
+=======
+                  <TableRow className="border-b border-zinc-200 bg-zinc-50 hover:bg-zinc-50 odd:bg-zinc-50 even:bg-zinc-50">
+>>>>>>> Stashed changes
                     {[
                       "Order #",
                       "Delivery Type",
@@ -459,7 +463,11 @@ export default function CustomerDetailClient({
                     ))}
                   </TableRow>
                 </TableHeader>
+<<<<<<< Updated upstream
                 <TableBody className="divide-y divide-zinc-100">
+=======
+                <TableBody className="divide-y divide-zinc-200">
+>>>>>>> Stashed changes
                   {filteredOrders.length === 0 ? (
                     <TableRow>
                       <TableCell
@@ -511,7 +519,11 @@ export default function CustomerDetailClient({
               </Table>
             </div>
 
+<<<<<<< Updated upstream
             <div className="flex items-center justify-between border-t border-zinc-100 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">
+=======
+            <div className="flex items-center justify-between border-t border-zinc-200 bg-zinc-50 px-5 py-3 text-xs text-muted-foreground">
+>>>>>>> Stashed changes
               <span>
                 Showing {filteredOrders.length} of {orders.length} orders
               </span>
@@ -578,6 +590,7 @@ export default function CustomerDetailClient({
             <div className="overflow-x-auto">
             <Table className="w-full text-sm">
               <TableHeader>
+<<<<<<< Updated upstream
                 <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50">
                   <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Group Name</TableHead>
                   <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500">Members</TableHead>
@@ -586,6 +599,16 @@ export default function CustomerDetailClient({
                 </TableRow>
               </TableHeader>
               <TableBody className="divide-y divide-zinc-100">
+=======
+                <TableRow className="border-b border-zinc-200 bg-zinc-50 hover:bg-zinc-50 odd:bg-zinc-50 even:bg-zinc-50">
+                  <TableHead>Group Name</TableHead>
+                  <TableHead>Members</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead className="w-20" />
+                </TableRow>
+              </TableHeader>
+              <TableBody className="divide-y divide-zinc-200">
+>>>>>>> Stashed changes
                 {localGroups.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={4} className="px-4 py-8 text-center text-sm text-zinc-400">

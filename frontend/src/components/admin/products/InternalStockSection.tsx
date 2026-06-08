@@ -119,9 +119,15 @@ export default function InternalStockSection({ variantId, patternId, retailPrice
               <th className="px-4 py-2.5 text-left text-xs font-medium text-zinc-500">RETAIL PRICE ($)</th>
             </tr>
           </thead>
+<<<<<<< Updated upstream
           <tbody className="divide-y divide-zinc-100">
             {rows.map(row => (
               <tr key={row.warehouse_id} className="hover:bg-zinc-50 transition-colors">
+=======
+          <tbody className="divide-y divide-zinc-200">
+            {rows.map(row => (
+              <tr key={row.warehouse_id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
+>>>>>>> Stashed changes
                 <td className="px-4 py-3">
                   <span className="text-sm font-semibold text-teal-600">{row.warehouse_name}</span>
                 </td>

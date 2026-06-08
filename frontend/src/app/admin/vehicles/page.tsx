@@ -114,6 +114,7 @@ export default function VehiclesPage() {
       ) : (
         <div className="mt-6 rounded-xl border border-zinc-200 overflow-hidden">
           <table className="w-full text-sm">
+<<<<<<< Updated upstream
             <thead className="bg-zinc-50 text-zinc-500 text-xs uppercase tracking-wide">
               <tr>
                 <th className="px-4 py-3 text-left">Make</th>
@@ -128,6 +129,22 @@ export default function VehiclesPage() {
                 <tr
                   key={v.vehicle_id}
                   className="odd:bg-white even:bg-zinc-200 [&:hover]:bg-amber-100 transition-colors duration-150 cursor-pointer"
+=======
+            <thead>
+              <tr className="border-b border-zinc-200 bg-zinc-50">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Make</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Model</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Series / Variant</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Years</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Body Type</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-200">
+              {vehicles.map(v => (
+                <tr
+                  key={v.vehicle_id}
+                  className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors cursor-pointer"
+>>>>>>> Stashed changes
                   onClick={() => router.push(`/admin/vehicles/${v.vehicle_id}`)}
                 >
                   <td className="px-4 py-3 font-medium text-zinc-900">{v.make}</td>

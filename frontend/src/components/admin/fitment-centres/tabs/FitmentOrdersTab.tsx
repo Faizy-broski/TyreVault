@@ -162,9 +162,15 @@ export default function FitmentOrdersTab({
     jobs.filter(j => j.job_status === s).length
 
   return (
+<<<<<<< Updated upstream
     <div className="divide-y divide-zinc-100">
       {/* KPI cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-zinc-100">
+=======
+    <div className="divide-y divide-zinc-200">
+      {/* KPI cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-zinc-200">
+>>>>>>> Stashed changes
         <KpiCard
           label="Active Now"
           value={kpis?.activeJobs ?? 0}
@@ -239,6 +245,7 @@ export default function FitmentOrdersTab({
       <div className="overflow-x-auto">
       <Table className="w-full text-sm">
         <TableHeader>
+<<<<<<< Updated upstream
           <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50">
             <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500 whitespace-nowrap">Order ID</TableHead>
             <TableHead className="px-4 py-3 text-left text-xs font-medium text-zinc-500 whitespace-nowrap">Fitment ID</TableHead>
@@ -254,6 +261,23 @@ export default function FitmentOrdersTab({
           </TableRow>
         </TableHeader>
         <TableBody className="divide-y divide-zinc-50">
+=======
+          <TableRow className="border-b border-zinc-200 bg-zinc-50 hover:bg-zinc-50 odd:bg-zinc-50 even:bg-zinc-50">
+            <TableHead>Order ID</TableHead>
+            <TableHead>Fitment ID</TableHead>
+            <TableHead>Date & Time</TableHead>
+            <TableHead>Customer</TableHead>
+            <TableHead>Services</TableHead>
+            <TableHead>Tyre</TableHead>
+            <TableHead className="text-right">Fitment</TableHead>
+            <TableHead className="text-right">Total</TableHead>
+            <TableHead className="text-right">Commission</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Payment</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody className="divide-y divide-zinc-200">
+>>>>>>> Stashed changes
           {loading ? (
             <TableRow><TableCell colSpan={11} className="px-4 py-8 text-center text-sm text-zinc-400">Loading...</TableCell></TableRow>
           ) : jobs.length === 0 ? (
@@ -322,7 +346,11 @@ export default function FitmentOrdersTab({
       </div>
 
       {/* Purchase in 12 months + Login History */}
+<<<<<<< Updated upstream
       <div className="grid grid-cols-1 gap-0 divide-y lg:grid-cols-[1fr_320px] lg:divide-y-0 lg:divide-x divide-zinc-100">
+=======
+      <div className="grid grid-cols-1 gap-0 divide-y lg:grid-cols-[1fr_320px] lg:divide-y-0 lg:divide-x divide-zinc-200">
+>>>>>>> Stashed changes
         <div className="p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-zinc-900">Purchase in 12 months</h3>
@@ -343,18 +371,33 @@ export default function FitmentOrdersTab({
           ) : (
             <table className="w-full text-xs">
               <thead>
+<<<<<<< Updated upstream
                 <tr className="border-b border-zinc-100">
                   <th className="py-2 text-left font-medium text-zinc-500">Month</th>
                   <th className="py-2 text-right font-medium text-zinc-500">Amount</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-50">
+=======
+                <tr className="border-b border-zinc-200 bg-zinc-50">
+                  <th className="px-2 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Month</th>
+                  <th className="px-2 py-2 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-200">
+>>>>>>> Stashed changes
                 {stats.purchase12Months.length === 0
                   ? <tr><td colSpan={2} className="py-4 text-center text-zinc-400">No data</td></tr>
                   : stats.purchase12Months.map(d => (
+<<<<<<< Updated upstream
                     <tr key={d.month} className="even:bg-zinc-50/50 hover:bg-amber-50/40 transition-colors">
                       <td className="py-1.5 text-zinc-600">{d.month}</td>
                       <td className="py-1.5 text-right font-medium text-zinc-800">
+=======
+                    <tr key={d.month} className="even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
+                      <td className="py-1.5 text-muted-foreground">{d.month}</td>
+                      <td className="py-1.5 text-right font-medium text-foreground">
+>>>>>>> Stashed changes
                         {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(d.amount)}
                       </td>
                     </tr>
@@ -372,6 +415,7 @@ export default function FitmentOrdersTab({
           ) : (
             <table className="w-full text-xs">
               <thead>
+<<<<<<< Updated upstream
                 <tr className="border-b border-zinc-100">
                   <th className="py-2 text-left font-medium text-zinc-500">IP</th>
                   <th className="py-2 text-left font-medium text-zinc-500">Date</th>
@@ -384,6 +428,20 @@ export default function FitmentOrdersTab({
                     <td className="py-1.5 font-mono text-zinc-600">{l.ip}</td>
                     <td className="py-1.5 text-zinc-500">{l.date}</td>
                     <td className="py-1.5 text-zinc-500">{l.area}</td>
+=======
+                <tr className="border-b border-zinc-200 bg-zinc-50">
+                  <th className="px-2 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">IP</th>
+                  <th className="px-2 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Date</th>
+                  <th className="px-2 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Area</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-200">
+                {stats.loginHistory.map((l, i) => (
+                  <tr key={i} className="even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
+                    <td className="py-1.5 font-mono text-muted-foreground">{l.ip}</td>
+                    <td className="py-1.5 text-muted-foreground">{l.date}</td>
+                    <td className="py-1.5 text-muted-foreground">{l.area}</td>
+>>>>>>> Stashed changes
                   </tr>
                 ))}
               </tbody>

@@ -79,7 +79,7 @@ export default function RichTextEditor({
       className={`w-7 h-7 flex items-center justify-center rounded text-sm transition-colors ${
         active
           ? 'bg-zinc-200 text-zinc-900'
-          : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900'
+          : 'text-zinc-500 hover:!bg-zinc-100 hover:text-zinc-900'
       }`}
     >
       {children}

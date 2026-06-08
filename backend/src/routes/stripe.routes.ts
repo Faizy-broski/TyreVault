@@ -236,7 +236,7 @@ router.get('/fitment-centres', async (req, res, next) => {
     // Distance Matrix for all centres
     const distMatrix = await getDistanceMatrix(postcode, origin, centres)
 
-    // Enrich + sort
+    // Enrich, filter to 100 km radius, and sort
     const enriched = centres.map(c => {
       const d = distMatrix[c.fitment_centre_id]
       return {
@@ -244,7 +244,8 @@ router.get('/fitment-centres', async (req, res, next) => {
         distance_km:  d ? +(d.distanceM / 1000).toFixed(1) : null,
         duration_min: d ? Math.round(d.durationS / 60) : null,
       }
-    }).sort((a, b) => {
+    }).filter(c => c.distance_km === null || c.distance_km <= 100)
+      .sort((a, b) => {
       if (a.distance_km === null && b.distance_km === null) return 0
       if (a.distance_km === null) return 1
       if (b.distance_km === null) return -1

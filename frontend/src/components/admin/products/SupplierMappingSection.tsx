@@ -256,11 +256,19 @@ export default function SupplierMappingSection({ variantId, patternId, ourSkuMat
                 <th className="px-3 py-2.5 text-left text-xs font-medium text-zinc-500 w-20">ACTION</th>
               </tr>
             </thead>
+<<<<<<< Updated upstream
             <tbody className="divide-y divide-zinc-100">
 
               {/* Saved rows (approved mappings) */}
               {rows.map(row => (
                 <tr key={row.id} className="hover:bg-zinc-50 transition-colors">
+=======
+            <tbody className="divide-y divide-zinc-200">
+
+              {/* Saved rows (approved mappings) */}
+              {rows.map(row => (
+                <tr key={row.id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
+>>>>>>> Stashed changes
                   <td className="px-3 py-2.5">
                     <span className="text-sm text-zinc-800">{row.supplier_name ?? '—'}</span>
                   </td>

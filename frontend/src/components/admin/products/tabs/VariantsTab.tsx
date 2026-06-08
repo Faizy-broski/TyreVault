@@ -125,8 +125,8 @@ export default function VariantsTab() {
   }
 
   const variantErrors = errors.variants
-  // Total columns: expand + 13 data cols + action = 15
-  const COL_SPAN = 19
+  // expand + 9 data cols + action = 11
+  const COL_SPAN = 11
 
   return (
     <div>
@@ -167,32 +167,47 @@ export default function VariantsTab() {
         <div className="border border-zinc-200 rounded-xl overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
+<<<<<<< Updated upstream
               <tr className="border-b border-zinc-200 bg-zinc-50">
+=======
+              <tr className="border-b border-zinc-200 bg-primary/10">
+>>>>>>> Stashed changes
                 <th className="w-8 px-2 py-3" />
                 {[
                   'Tire Size', 'SKU', 'Barcode (EAN)', 'Special Size',
                   'Width (mm)', 'Aspect Ratio', 'Rim Size (in)', 'Build',
-                  'Speed Rating', 'Load Index', 'Fuel Rating', 'Wet', 'Noise',
-                  'Run Flat', 'XL', 'LT', 'Country of Origin *', 'Action',
+                  'Country *', 'Action',
                 ].map(h => (
+<<<<<<< Updated upstream
                   <th key={h} className="px-3 py-3 text-left font-medium text-zinc-500 whitespace-nowrap text-xs">
+=======
+                  <th key={h} className="px-3 py-3 text-left font-bold text-zinc-800 uppercase tracking-wide whitespace-nowrap text-xs">
+>>>>>>> Stashed changes
                     {h}
                   </th>
                 ))}
               </tr>
             </thead>
+<<<<<<< Updated upstream
             <tbody className="divide-y divide-zinc-100 [&_tr:nth-child(even)]:bg-zinc-100 [&_tr:nth-child(odd)]:bg-white [&_tr:hover]:bg-amber-50 [&_tr]:transition-colors">
               {fields.map((field, index) => (
                 <Fragment key={field.id}>
                   {/* ── Summary row ──────────────────────────────── */}
                   <tr className={expanded.has(index) ? 'bg-amber-50/60' : 'even:bg-zinc-50/50 hover:bg-amber-50/40 transition-colors'}>
+=======
+            <tbody className="divide-y divide-zinc-200">
+              {fields.map((field, index) => (
+                <Fragment key={field.id}>
+                  {/* ── Summary row ──────────────────────────────── */}
+                  <tr className={expanded.has(index) ? 'bg-muted/50' : 'odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors'}>
+>>>>>>> Stashed changes
                     {/* Expand toggle */}
                     <td className="px-2 py-2 text-center">
                       <button
                         type="button"
                         aria-label={expanded.has(index) ? 'Collapse row' : 'Expand row'}
                         onClick={() => toggleExpand(index)}
-                        className="rounded p-0.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors"
+                        className="rounded p-0.5 text-zinc-400 hover:text-zinc-700 hover:!bg-zinc-100 transition-colors"
                       >
                         <svg
                           className={`w-4 h-4 transition-transform duration-150 ${expanded.has(index) ? 'rotate-90' : ''}`}
@@ -243,7 +258,7 @@ export default function VariantsTab() {
                         className="w-16 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
                       />
                     </td>
-                    {/* Profile */}
+                    {/* Aspect Ratio / Profile */}
                     <td className="px-3 py-2">
                       <input
                         type="number"
@@ -268,58 +283,6 @@ export default function VariantsTab() {
                         <option value="">—</option>
                         {CONSTRUCTION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                       </select>
-                    </td>
-                    {/* Speed Rating */}
-                    <td className="px-3 py-2">
-                      <input
-                        {...register(`variants.${index}.speedRating`)}
-                        placeholder="W"
-                        className="w-14 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      />
-                    </td>
-                    {/* Load Index */}
-                    <td className="px-3 py-2">
-                      <input
-                        {...register(`variants.${index}.loadIndex`)}
-                        placeholder="92"
-                        className="w-14 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      />
-                    </td>
-                    {/* Fuel Rating */}
-                    <td className="px-3 py-2">
-                      <input
-                        {...register(`variants.${index}.fuelRating`)}
-                        placeholder="D"
-                        className="w-12 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      />
-                    </td>
-                    {/* Wet Grip */}
-                    <td className="px-3 py-2">
-                      <input
-                        {...register(`variants.${index}.wetGrip`)}
-                        placeholder="B"
-                        className="w-12 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      />
-                    </td>
-                    {/* Noise dB */}
-                    <td className="px-3 py-2">
-                      <input
-                        {...register(`variants.${index}.noiseDb`)}
-                        placeholder="72dB"
-                        className="w-16 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      />
-                    </td>
-                    {/* Runflat */}
-                    <td className="px-3 py-2 text-center">
-                      <input type="checkbox" {...register(`variants.${index}.runflat`)} className="rounded border-zinc-300 accent-primary" />
-                    </td>
-                    {/* XL Reinforced */}
-                    <td className="px-3 py-2 text-center">
-                      <input type="checkbox" {...register(`variants.${index}.xlReinforced`)} className="rounded border-zinc-300 accent-primary" />
-                    </td>
-                    {/* LT (Light Truck) */}
-                    <td className="px-3 py-2 text-center">
-                      <input type="checkbox" {...register(`variants.${index}.ltSizing`)} className="rounded border-zinc-300 accent-primary" />
                     </td>
                     {/* Country of Origin */}
                     <td className="px-3 py-2">

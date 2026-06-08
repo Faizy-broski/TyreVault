@@ -16,6 +16,7 @@ interface SelectorDialogProps {
   popularOptions?: string[];
   selected?: string;
   onSelect: (value: string) => void;
+  isLoading?: boolean;
 }
 
 export function SelectorDialog({
@@ -28,6 +29,7 @@ export function SelectorDialog({
   popularOptions,
   selected,
   onSelect,
+  isLoading,
 }: SelectorDialogProps) {
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -117,7 +119,13 @@ export function SelectorDialog({
 
           {/* Scrollable list */}
           <div className="max-h-67 overflow-y-auto overscroll-contain py-1">
-            {filtered.length === 0 ? (
+            {isLoading ? (
+              <div className="flex items-center justify-center gap-2 py-12">
+                <div className="h-2 w-2 animate-bounce rounded-full bg-[#d9a407] [animation-delay:-0.3s]" />
+                <div className="h-2 w-2 animate-bounce rounded-full bg-[#d9a407] [animation-delay:-0.15s]" />
+                <div className="h-2 w-2 animate-bounce rounded-full bg-[#d9a407]" />
+              </div>
+            ) : filtered.length === 0 ? (
               <p className="py-10 text-center text-sm text-gray-400/80">
                 No results for &ldquo;{query}&rdquo;
               </p>

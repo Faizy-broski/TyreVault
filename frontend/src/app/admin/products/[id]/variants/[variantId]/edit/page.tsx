@@ -138,8 +138,8 @@ export default function EditVariantPage() {
       eMark:            String(fd.get('eMark')      ?? '').trim() || undefined,
       dotCode:          String(fd.get('dotCode')    ?? '').trim() || undefined,
       utqg:             String(fd.get('utqg')       ?? '').trim() || undefined,
-      runflat:              fd.get('runflat')      === 'true',
-      xlReinforced:         fd.get('xlReinforced') === 'true',
+      runflat:              fd.get('runflat')      === 'on',
+      xlReinforced:         fd.get('xlReinforced') === 'on',
       ltSizing:             fd.get('ltSizing')     === 'on',
       status:               String(fd.get('status') ?? 'active') as 'active' | 'inactive' | 'discontinued',
       compareAtPrice:       fd.get('compareAtPrice')       ? Number(fd.get('compareAtPrice'))       : null,
@@ -229,56 +229,49 @@ export default function EditVariantPage() {
 
           <section>
             <h2 className="text-sm font-medium text-zinc-700 mb-3">Technical Specifications</h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Construction"       name="constructionType" placeholder="R"  defaultValue={sku.construction_type} />
-              <Field label="Load Index"         name="loadIndex"        placeholder="91" defaultValue={sku.load_index} />
-              <Field label="Speed Rating"       name="speedRating"      placeholder="V"  defaultValue={sku.speed_rating} />
-              <Field label="Load/Speed Rating"  name="loadSpeedRating"  placeholder="91V" defaultValue={sku.load_speed_rating} />
-              <Field label="Fuel Rating"        name="fuelRating"       placeholder="C"  defaultValue={sku.fuel_rating} />
-              <Field label="Wet Grip"           name="wetGrip"          placeholder="A"  defaultValue={sku.wet_grip} />
-              <Field label="Noise (dB)"         name="noiseDb"          placeholder="68" defaultValue={sku.noise_db} />
-              <Field label="Noise Class"        name="noiseClass"       placeholder="1"  defaultValue={sku.noise_class} />
-              <Field label="Ply Rating"         name="plyRating"        placeholder="10" defaultValue={sku.ply_rating} />
-              <Field label="Load Range"         name="loadRange"        placeholder="E"  defaultValue={sku.load_range} />
-              <Field label="Country of Origin"  name="countryOfOrigin"  placeholder="China" defaultValue={sku.country_of_origin} />
-              <Field label="Manufacturer"       name="manufacturerName" defaultValue={sku.manufacturer_name} />
-              <Field label="Factory Name"       name="factoryName"      defaultValue={sku.factory_name} />
-              <Field label="Factory Country"    name="factoryCountry"   defaultValue={sku.factory_country} />
+            {/* Row 1: Load Index | Speed Rating | Load/Speed | Construction */}
+            <div className="grid grid-cols-2 gap-4 mb-4 sm:grid-cols-4">
+              <Field label="Load Index"        name="loadIndex"       placeholder="91"  defaultValue={sku.load_index} />
+              <Field label="Speed Rating"      name="speedRating"     placeholder="V"   defaultValue={sku.speed_rating} />
+              <Field label="Load/Speed"        name="loadSpeedRating" placeholder="91V" defaultValue={sku.load_speed_rating} />
+              <SelectField label="Construction" name="constructionType" defaultValue={sku.construction_type ?? 'R'} options={[
+                { value: 'R', label: 'R (Radial)' },
+                { value: 'D', label: 'D (Diagonal)' },
+                { value: 'B', label: 'B (Belted)' },
+              ]} />
             </div>
-            <div className="grid grid-cols-1 gap-4 mt-4 sm:grid-cols-2">
+            {/* Row 2: Ply Rating | Load Range | Sidewall */}
+            <div className="grid grid-cols-1 gap-4 mb-4 sm:grid-cols-3">
+              <Field label="Ply Rating" name="plyRating" placeholder="e.g. 10PR" defaultValue={sku.ply_rating} />
+              <SelectField label="Load Range" name="loadRange" defaultValue={sku.load_range ?? ''} options={[
+                { value: '', label: 'N/A' },
+                { value: 'B', label: 'B' },
+                { value: 'C', label: 'C' },
+                { value: 'D', label: 'D' },
+                { value: 'E', label: 'E' },
+                { value: 'F', label: 'F' },
+                { value: 'G', label: 'G' },
+              ]} />
               <SelectField label="Sidewall" name="sidewall" defaultValue={sku.sidewall ?? ''} options={[
-                { value: '', label: '—' },
-                { value: 'BSW', label: 'BSW (Black Sidewall)' },
+                { value: '',    label: '—' },
+                { value: 'BSW', label: 'BSW (Black)' },
                 { value: 'OWL', label: 'OWL (Outlined White Letters)' },
                 { value: 'RWL', label: 'RWL (Raised White Letters)' },
-              ]} />
-              <SelectField label="Tube Type" name="tubeType" defaultValue={sku.tube_type ?? ''} options={[
-                { value: '', label: '—' },
-                { value: 'tubeless', label: 'Tubeless' },
-                { value: 'tube_type', label: 'Tube Type' },
-              ]} />
-              <SelectField label="Runflat" name="runflat" defaultValue={sku.runflat ? 'true' : 'false'} options={[
-                { value: 'false', label: 'No' },
-                { value: 'true',  label: 'Yes' },
-              ]} />
-              <SelectField label="XL Reinforced" name="xlReinforced" defaultValue={sku.xl_reinforced ? 'true' : 'false'} options={[
-                { value: 'false', label: 'No' },
-                { value: 'true',  label: 'Yes' },
-              ]} />
-              <SelectField label="Status" name="status" defaultValue={sku.status ?? 'active'} options={[
-                { value: 'active',       label: 'Active' },
-                { value: 'inactive',     label: 'Inactive' },
-                { value: 'discontinued', label: 'Discontinued' },
+                { value: 'WSW', label: 'WSW (White Sidewall)' },
               ]} />
             </div>
-            <div className="flex flex-wrap gap-6 mt-4">
+            {/* Row 3: checkboxes */}
+            <div className="flex flex-wrap items-center gap-8 border-t border-zinc-100 pt-4">
               <label className="flex items-center gap-2 cursor-pointer text-sm text-zinc-700 select-none">
-                <input
-                  type="checkbox"
-                  name="ltSizing"
-                  defaultChecked={sku.lt_sizing ?? false}
-                  className="h-4 w-4 rounded border-zinc-300 accent-primary"
-                />
+                <input type="checkbox" name="xlReinforced" defaultChecked={sku.xl_reinforced ?? false} className="h-4 w-4 rounded border-zinc-300 accent-primary" />
+                XL / Reinforced
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer text-sm text-zinc-700 select-none">
+                <input type="checkbox" name="runflat" defaultChecked={sku.runflat ?? false} className="h-4 w-4 rounded border-zinc-300 accent-primary" />
+                Runflat
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer text-sm text-zinc-700 select-none">
+                <input type="checkbox" name="ltSizing" defaultChecked={sku.lt_sizing ?? false} className="h-4 w-4 rounded border-zinc-300 accent-primary" />
                 LT (Light Truck)
               </label>
             </div>
@@ -287,15 +280,33 @@ export default function EditVariantPage() {
           <section>
             <h2 className="text-sm font-medium text-zinc-700 mb-3">Extended Specifications</h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Section Width"     name="sectionWidth"    type="number" step="0.1" defaultValue={sku.section_width} />
-              <Field label="Tread Depth (mm)"  name="treadDepth"      type="number" step="0.1" defaultValue={sku.tread_depth} />
-              <Field label="Tyre Weight (kg)"  name="tyreWeight"      type="number" step="0.1" defaultValue={sku.tyre_weight} />
-              <Field label="Overall Dia (mm)"  name="overallDiameter" type="number" step="0.1" defaultValue={sku.overall_diameter} />
-              <Field label="Max Load"          name="maxLoad"         defaultValue={sku.max_load} />
-              <Field label="Max Pressure"      name="maxPressure"     defaultValue={sku.max_pressure} />
-              <Field label="E-Mark"            name="eMark"           defaultValue={sku.e_mark} />
-              <Field label="DOT Code"          name="dotCode"         defaultValue={sku.dot_code} />
-              <Field label="UTQG"              name="utqg"            defaultValue={sku.utqg} />
+              <Field label="Fuel Rating"        name="fuelRating"      placeholder="C"  defaultValue={sku.fuel_rating} />
+              <Field label="Wet Grip"           name="wetGrip"         placeholder="A"  defaultValue={sku.wet_grip} />
+              <Field label="Noise (dB)"         name="noiseDb"         placeholder="68" defaultValue={sku.noise_db} />
+              <Field label="Noise Class"        name="noiseClass"      placeholder="1"  defaultValue={sku.noise_class} />
+              <Field label="Section Width"      name="sectionWidth"    type="number" step="0.1" defaultValue={sku.section_width} />
+              <Field label="Tread Depth (mm)"   name="treadDepth"      type="number" step="0.1" defaultValue={sku.tread_depth} />
+              <Field label="Tyre Weight (kg)"   name="tyreWeight"      type="number" step="0.1" defaultValue={sku.tyre_weight} />
+              <Field label="Overall Dia (mm)"   name="overallDiameter" type="number" step="0.1" defaultValue={sku.overall_diameter} />
+              <Field label="Max Load"           name="maxLoad"         defaultValue={sku.max_load} />
+              <Field label="Max Pressure"       name="maxPressure"     defaultValue={sku.max_pressure} />
+              <Field label="E-Mark"             name="eMark"           defaultValue={sku.e_mark} />
+              <Field label="DOT Code"           name="dotCode"         defaultValue={sku.dot_code} />
+              <Field label="UTQG"               name="utqg"            defaultValue={sku.utqg} />
+              <Field label="Country of Origin"  name="countryOfOrigin" placeholder="China" defaultValue={sku.country_of_origin} />
+              <Field label="Manufacturer"       name="manufacturerName" defaultValue={sku.manufacturer_name} />
+              <Field label="Factory Name"       name="factoryName"     defaultValue={sku.factory_name} />
+              <Field label="Factory Country"    name="factoryCountry"  defaultValue={sku.factory_country} />
+              <SelectField label="Tube Type" name="tubeType" defaultValue={sku.tube_type ?? ''} options={[
+                { value: '',          label: '—' },
+                { value: 'tubeless',  label: 'Tubeless' },
+                { value: 'tube_type', label: 'Tube Type' },
+              ]} />
+              <SelectField label="Status" name="status" defaultValue={sku.status ?? 'active'} options={[
+                { value: 'active',       label: 'Active' },
+                { value: 'inactive',     label: 'Inactive' },
+                { value: 'discontinued', label: 'Discontinued' },
+              ]} />
             </div>
           </section>
 

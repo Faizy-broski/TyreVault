@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Save, Building2, User, Mail, Phone, Hash, BadgeCheck } from 'lucide-react'
+import { Save, Building2, User, Mail, Phone, Hash, BadgeCheck, Upload, Trash2 } from 'lucide-react'
+import Image from 'next/image'
 import { useQueryClient } from '@tanstack/react-query'
 import { Button }   from '@/components/ui/button'
 import { Input }    from '@/components/ui/input'
@@ -54,16 +55,21 @@ const EMPTY_FORM: FormState = {
 
 export default function ProfileClient() {
   const queryClient = useQueryClient()
-  const [form,    setForm]    = useState<FormState>(EMPTY_FORM)
-  const [saving,  setSaving]  = useState(false)
-  const [saved,   setSaved]   = useState(false)
-  const [error,   setError]   = useState('')
+  const [form,         setForm]         = useState<FormState>(EMPTY_FORM)
+  const [saving,       setSaving]       = useState(false)
+  const [saved,        setSaved]        = useState(false)
+  const [error,        setError]        = useState('')
+  const [logoUrl,      setLogoUrl]      = useState<string | null>(null)
+  const [logoUploading, setLogoUploading] = useState(false)
+  const [logoError,    setLogoError]    = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const seeded = useRef(false)
 
   const { data: profile, isPending: loading } = useFitterProfile()
 
   useEffect(() => {
-    if (profile && !seeded.current) {
+    if (!profile) return
+    if (!seeded.current) {
       setForm({
         business_name:   profile.business_name    ?? '',
         contact_name:    profile.contact_name     ?? '',
@@ -73,11 +79,73 @@ export default function ProfileClient() {
       })
       seeded.current = true
     }
+    if (!logoUploading) {
+      setLogoUrl(profile.logo_url ?? null)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile])
 
   function handleChange(field: keyof FormState, value: string) {
     setForm(prev => ({ ...prev, [field]: value }))
     setSaved(false)
+  }
+
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !profile) return
+    if (file.size > 2 * 1024 * 1024) { setLogoError('Image must be under 2 MB.'); return }
+    setLogoError('')
+    setLogoUploading(true)
+    try {
+      const supabase  = createClient()
+      const ext       = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
+      const path      = `${profile.fitment_centre_id}/logo.${ext}`
+      const { error: upErr } = await supabase.storage
+        .from('fitter-logos')
+        .upload(path, file, { upsert: true, contentType: file.type })
+      if (upErr) { setLogoError('Upload failed: ' + upErr.message); return }
+
+      const { data: { publicUrl } } = supabase.storage.from('fitter-logos').getPublicUrl(path)
+      const bustedUrl = `${publicUrl}?t=${Date.now()}`
+
+      const token = await getToken()
+      const saveRes = await fetch(`${BACKEND_API_URL}/api/fitter/portal/profile`, {
+        method:  'PUT',
+        headers: createBackendHeaders(token, { 'Content-Type': 'application/json' }),
+        body:    JSON.stringify({ ...form, logo_url: publicUrl }),
+      })
+      if (!saveRes.ok) { setLogoError('Photo uploaded but failed to save to profile. Try again.'); return }
+      setLogoUrl(bustedUrl)
+      queryClient.invalidateQueries({ queryKey: fitterKeys.profile() })
+    } finally {
+      setLogoUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  async function handleLogoRemove() {
+    if (!profile || !logoUrl) return
+    setLogoError('')
+    setLogoUploading(true)
+    try {
+      const supabase = createClient()
+      // Remove all logo.* files for this centre
+      const { data: files } = await supabase.storage
+        .from('fitter-logos')
+        .list(profile.fitment_centre_id)
+      if (files?.length) {
+        await supabase.storage.from('fitter-logos')
+          .remove(files.map(f => `${profile.fitment_centre_id}/${f.name}`))
+      }
+      const token = await getToken()
+      await fetch(`${BACKEND_API_URL}/api/fitter/portal/profile`, {
+        method:  'PUT',
+        headers: createBackendHeaders(token, { 'Content-Type': 'application/json' }),
+        body:    JSON.stringify({ ...form, logo_url: null }),
+      })
+      setLogoUrl(null)
+      queryClient.invalidateQueries({ queryKey: fitterKeys.profile() })
+    } finally { setLogoUploading(false) }
   }
 
   async function handleSave() {
@@ -133,7 +201,7 @@ export default function ProfileClient() {
 
           {/* Business details */}
           <div className="bg-white rounded-2xl border border-zinc-200 shadow-none hover:shadow-md transition-all duration-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-zinc-100 bg-zinc-50/50 flex items-center gap-2">
+            <div className="px-5 py-4 border-b border-zinc-200 bg-zinc-50/50 flex items-center gap-2">
               <Building2 className="w-4 h-4 text-zinc-400" />
               <h2 className="text-sm font-semibold text-zinc-900">Business Details</h2>
             </div>
@@ -192,7 +260,7 @@ export default function ProfileClient() {
 
           {/* Contact person details */}
           <div className="bg-white rounded-2xl border border-zinc-200 shadow-none hover:shadow-md transition-all duration-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-zinc-100 bg-zinc-50/50 flex items-center gap-2">
+            <div className="px-5 py-4 border-b border-zinc-200 bg-zinc-50/50 flex items-center gap-2">
               <User className="w-4 h-4 text-zinc-400" />
               <h2 className="text-sm font-semibold text-zinc-900">Contact Person</h2>
             </div>
@@ -238,9 +306,71 @@ export default function ProfileClient() {
         {/* ── Sidebar info card ── */}
         <div className="shrink-0 space-y-4">
 
+          {/* Profile picture */}
+          <div className="bg-white rounded-2xl border border-zinc-200 shadow-none hover:shadow-md transition-all duration-200 overflow-hidden">
+            <div className="px-5 py-4 border-b border-zinc-200 bg-zinc-50/50 flex items-center gap-2">
+              <User className="w-4 h-4 text-zinc-400" />
+              <h3 className="text-sm font-semibold text-zinc-900">Profile Picture</h3>
+            </div>
+            <div className="p-5 flex flex-col items-center gap-4">
+              {/* Avatar preview */}
+              <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-zinc-200 bg-zinc-100 shrink-0">
+                {logoUrl ? (
+                  <Image src={logoUrl} alt="Profile" fill className="object-cover" unoptimized />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <User className="w-10 h-10 text-zinc-300" />
+                  </div>
+                )}
+                {logoUploading && (
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-full">
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
+              </div>
+
+              {logoError && <p className="text-xs text-red-500 text-center">{logoError}</p>}
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={handleLogoUpload}
+              />
+
+              <div className="flex flex-col gap-2 w-full">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={logoUploading || loading}
+                  className="w-full gap-2 rounded-lg bg-primary text-zinc-900 hover:bg-primary/90 text-xs font-semibold"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  {logoUrl ? 'Change photo' : 'Upload photo'}
+                </Button>
+                {logoUrl && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleLogoRemove}
+                    disabled={logoUploading}
+                    className="w-full gap-2 rounded-lg text-red-500 hover:bg-red-50 hover:text-red-600 text-xs font-semibold"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Remove photo
+                  </Button>
+                )}
+              </div>
+              <p className="text-[11px] text-zinc-400 text-center">JPG, PNG or WebP · Max 2 MB</p>
+            </div>
+          </div>
+
           {/* Account info */}
           <div className="bg-white rounded-2xl border border-zinc-200 shadow-none hover:shadow-md transition-all duration-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-zinc-100 bg-zinc-50/50 flex items-center gap-2">
+            <div className="px-5 py-4 border-b border-zinc-200 bg-zinc-50/50 flex items-center gap-2">
               <BadgeCheck className="w-4 h-4 text-zinc-400" />
               <h3 className="text-sm font-semibold text-zinc-900">Account Info</h3>
             </div>

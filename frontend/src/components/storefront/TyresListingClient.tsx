@@ -3,7 +3,7 @@
 import { useState, useTransition, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Image from 'next/image'
-import { Search, SlidersHorizontal, X, ShoppingCart, ChevronDown } from 'lucide-react'
+import { Search, SlidersHorizontal, X, ShoppingCart, ChevronDown, ImageOff } from 'lucide-react'
 import { useCartStore } from '@/stores/cart.store'
 import type { TyreSku, TyreFacets, TyreSearchFilters } from '@/lib/supabase/search.types'
 import { PAGE_SIZE } from '@/lib/supabase/search.types'
@@ -62,7 +62,7 @@ function TyreCard({ hit, onAddToCart }: { hit: TyreSku; onAddToCart: (hit: TyreS
     <div className="group flex flex-col rounded-2xl border border-zinc-200 bg-white hover:shadow-xl hover:-translate-y-1 transition-all duration-200 overflow-hidden">
       <a href={hit.product_slug ? `/tyres/${hit.product_slug}` : `/tyres?brand_id=${hit.brand_id}`} className="block">
         <div className="aspect-[4/3] bg-zinc-50 relative overflow-hidden">
-          {hit.main_image && hit.main_image.startsWith('http') ? (
+          {hit.main_image && (hit.main_image.startsWith('http') || hit.main_image.startsWith('/')) ? (
             <Image
               src={hit.main_image}
               alt={hit.tyre_size_display}
@@ -71,8 +71,13 @@ function TyreCard({ hit, onAddToCart }: { hit: TyreSku; onAddToCart: (hit: TyreS
               sizes="(max-width: 768px) 50vw, 25vw"
             />
           ) : (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-16 h-16 rounded-full border-[3px] border-zinc-200 opacity-50" />
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-zinc-50 to-zinc-100/50">
+              <div className="relative flex items-center justify-center w-16 h-16 mb-2">
+                <div className="absolute inset-0 rounded-full border-[3px] border-dashed border-zinc-300 animate-[spin_20s_linear_infinite]" />
+                <div className="absolute inset-3 rounded-full border-2 border-zinc-300/80" />
+                <ImageOff className="w-5 h-5 text-zinc-500" />
+              </div>
+              <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">No Image</span>
             </div>
           )}
           {hasPromo && (

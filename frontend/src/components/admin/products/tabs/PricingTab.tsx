@@ -53,7 +53,11 @@ export default function PricingTab({ warehouses }: Props) {
               ))}
             </tr>
           </thead>
+<<<<<<< Updated upstream
           <tbody className="divide-y divide-zinc-100 [&_tr:nth-child(even)]:bg-zinc-100 [&_tr:nth-child(odd)]:bg-white [&_tr:hover]:bg-amber-50 [&_tr]:transition-colors">
+=======
+          <tbody className="divide-y divide-zinc-200">
+>>>>>>> Stashed changes
             {variants.map((variant, index) => {
               const p       = pricing[index]
               const price   = p?.priceIncGst ?? 0
@@ -62,7 +66,11 @@ export default function PricingTab({ warehouses }: Props) {
               const isGood  = margin !== '—' && parseFloat(margin) > 0
 
               return (
+<<<<<<< Updated upstream
                 <tr key={index} className="even:bg-zinc-50/50 hover:bg-amber-50/40 transition-colors">
+=======
+                <tr key={index} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
+>>>>>>> Stashed changes
                   {/* Tire Size */}
                   <td className="px-4 py-3 font-medium text-zinc-800">
                     {variant.tyreSizeDisplay || '—'}

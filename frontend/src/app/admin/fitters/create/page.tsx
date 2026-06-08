@@ -275,7 +275,7 @@ export default function CreateFitmentCentrePage() {
           <div className="space-y-2.5">
             {hours.map((row, i) => (
               <div key={row.day} className={`flex flex-wrap items-center gap-3 rounded-xl border px-4 py-3 transition-colors ${
-                row.isClosed ? 'border-zinc-100 bg-zinc-50' : 'border-zinc-200 bg-white'
+                row.isClosed ? 'border-zinc-200 bg-zinc-50' : 'border-zinc-200 bg-white'
               }`}>
                 <span className={`text-sm font-medium w-36 shrink-0 ${row.isClosed ? 'text-zinc-400' : 'text-zinc-700'}`}>
                   {row.label}
@@ -381,7 +381,7 @@ export default function CreateFitmentCentrePage() {
 function Card({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
-      <div className="px-6 py-4 border-b border-zinc-100 bg-zinc-50/60">
+      <div className="px-6 py-4 border-b border-zinc-200 bg-zinc-50/60">
         <h2 className="text-sm font-semibold text-zinc-900">{title}</h2>
         <p className="text-xs text-zinc-500 mt-0.5">{description}</p>
       </div>

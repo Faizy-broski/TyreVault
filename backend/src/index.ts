@@ -51,6 +51,8 @@ import adminVehiclesRoutes       from './routes/admin.vehicles.routes'
 import adminInventoryRoutes      from './routes/admin.inventory.routes'
 import vehiclesRoutes           from './routes/vehicles.routes'
 import sseRoutes                from './routes/sse.routes'
+import customerAccountRoutes    from './routes/customer-account.routes'
+import storefrontTrackingRoutes from './routes/storefront.tracking.routes'
 app.use('/api/admin/products',          adminProductsRoutes)
 app.use('/api/admin/customers',         adminCustomersRoutes)
 app.use('/api/admin/orders',            adminOrdersRoutes)
@@ -73,6 +75,8 @@ app.use('/api/products',               storefrontProductsRoutes)
 app.use('/api/cart',                   cartRoutes)
 app.use('/api/stripe',                 stripeRoutes)
 app.use('/api/orders',                 ordersRoutes)
+app.use('/api/customer',               customerAccountRoutes)
+app.use('/api',                        storefrontTrackingRoutes)
 // app.use('/api/make-model', makeModelRoutes)
 
 // --- Error handler (must be last) ---

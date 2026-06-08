@@ -20,7 +20,7 @@ const EMPTY_VARIANT: VariantFormValues = {
   sku: '', tyreSizeDisplay: '', width: undefined, profile: undefined, rimSize: 0,
   constructionType: undefined, speedRating: '', loadIndex: '', loadSpeedRating: '',
   fuelRating: '', wetGrip: '', noiseDb: '', noiseClass: '', runflat: false,
-  xlReinforced: false, plyRating: '', loadRange: '', sidewall: undefined,
+  xlReinforced: false, ltSizing: false, plyRating: '', loadRange: '', sidewall: undefined,
   tubeType: undefined, manufacturerName: '', countryOfOrigin: '',
   factoryName: '', factoryCountry: '', sectionWidth: undefined,
   treadDepth: undefined, tyreWeight: undefined, overallDiameter: undefined,
@@ -106,8 +106,8 @@ export default function EditVariantsTab({
     e.target.value = ''
   }
 
-  // Total columns in new-variants table: expand + 13 data + action = 15
-  const COL_SPAN = 15
+  // expand + 8 data cols + action = 10
+  const COL_SPAN = 10
 
   return (
     <div className="space-y-6">
@@ -134,9 +134,15 @@ export default function EditVariantsTab({
                   ))}
                 </tr>
               </thead>
+<<<<<<< Updated upstream
               <tbody className="divide-y divide-zinc-100 [&_tr:nth-child(even)]:bg-zinc-100 [&_tr:nth-child(odd)]:bg-white [&_tr:hover]:bg-amber-50 [&_tr]:transition-colors">
                 {existingSkus.map(sku => (
                   <tr key={sku.product_id} className="even:bg-zinc-50/50 hover:bg-amber-50/40 transition-colors">
+=======
+              <tbody className="divide-y divide-zinc-200">
+                {existingSkus.map(sku => (
+                  <tr key={sku.product_id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
+>>>>>>> Stashed changes
                     <td className="px-4 py-3 font-medium text-zinc-800">{sku.tyre_size_display}</td>
                     <td className="px-4 py-3 text-zinc-500 text-xs">{sku.sku}</td>
                     <td className="px-4 py-3 text-zinc-600">{sku.total_available_stock} units</td>
@@ -201,13 +207,17 @@ export default function EditVariantsTab({
           <div className="border border-zinc-200 rounded-xl overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
+<<<<<<< Updated upstream
                 <tr className="border-b border-zinc-200 bg-zinc-50">
+=======
+                <tr className="border-b border-zinc-200 bg-primary/10">
+>>>>>>> Stashed changes
                   <th className="w-8 px-2 py-3" />
                   {[
                     'Tire Size', 'SKU', 'Width', 'Ratio', 'Rim', 'Build',
-                    'Speed', 'Load Idx', 'Fuel', 'Wet', 'Noise', 'Run Flat',
                     'Country *', 'Action',
                   ].map(h => (
+<<<<<<< Updated upstream
                     <th key={h} className="px-3 py-3 text-left font-medium text-zinc-500 whitespace-nowrap text-xs">{h}</th>
                   ))}
                 </tr>
@@ -217,13 +227,24 @@ export default function EditVariantsTab({
                   <Fragment key={field.id}>
                     {/* ── Summary row ────────────────────────────── */}
                     <tr className={expanded.has(index) ? 'bg-amber-50/60' : 'even:bg-zinc-50/50 hover:bg-amber-50/40 transition-colors'}>
+=======
+                    <th key={h} className="px-3 py-3 text-left font-bold text-zinc-800 uppercase tracking-wide whitespace-nowrap text-xs">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-200">
+                {fields.map((field, index) => (
+                  <Fragment key={field.id}>
+                    {/* ── Summary row ────────────────────────────── */}
+                    <tr className={expanded.has(index) ? 'bg-muted/50' : 'odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors'}>
+>>>>>>> Stashed changes
                       {/* Expand toggle */}
                       <td className="px-2 py-2 text-center">
                         <button
                           type="button"
                           aria-label={expanded.has(index) ? 'Collapse row' : 'Expand row'}
                           onClick={() => toggleExpand(index)}
-                          className="rounded p-0.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors"
+                          className="rounded p-0.5 text-zinc-400 hover:text-zinc-700 hover:!bg-zinc-100 transition-colors"
                         >
                           <svg
                             className={`w-4 h-4 transition-transform duration-150 ${expanded.has(index) ? 'rotate-90' : ''}`}
@@ -262,30 +283,6 @@ export default function EditVariantsTab({
                           <option value="">—</option>
                           {CONSTRUCTION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                         </select>
-                      </td>
-                      <td className="px-3 py-2">
-                        <input {...register(`variants.${index}.speedRating`)} placeholder="W"
-                          className="w-14 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                      </td>
-                      <td className="px-3 py-2">
-                        <input {...register(`variants.${index}.loadIndex`)} placeholder="92"
-                          className="w-14 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                      </td>
-                      <td className="px-3 py-2">
-                        <input {...register(`variants.${index}.fuelRating`)} placeholder="D"
-                          className="w-12 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                      </td>
-                      <td className="px-3 py-2">
-                        <input {...register(`variants.${index}.wetGrip`)} placeholder="B"
-                          className="w-12 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                      </td>
-                      <td className="px-3 py-2">
-                        <input {...register(`variants.${index}.noiseDb`)} placeholder="72dB"
-                          className="w-16 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                      </td>
-                      <td className="px-3 py-2 text-center">
-                        <input type="checkbox" {...register(`variants.${index}.runflat`)}
-                          className="rounded border-zinc-300 text-zinc-900" />
                       </td>
                       <td className="px-3 py-2">
                         <input {...register(`variants.${index}.countryOfOrigin`)} placeholder="AU"

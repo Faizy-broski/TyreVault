@@ -12,6 +12,7 @@ export interface FitterProfile {
   business_number:   string | null
   partner_id:        string
   approved_status:   string | null
+  logo_url:          string | null
 }
 
 export interface WorkingHour {
@@ -30,10 +31,11 @@ export interface FitterServices {
 
 export interface FitmentCentre {
   fitment_centre_id: string
-  business_name: string
+  business_name:     string
   partner_id:        string
   contact_phone:     string | null
   business_number:   string | null
+  logo_url:          string | null
   user_id:           string | null
   is_active:         boolean
 }
@@ -46,11 +48,21 @@ export interface FitmentJobItem {
   unit_price:   number | null
 }
 
+export interface ShippingAddress {
+  line1:    string
+  line2?:   string | null
+  suburb:   string
+  state:    string
+  postcode: string
+}
+
 export interface FitmentJob {
   job_id:             string
   task_number:        string
   customer_name:      string
   customer_phone:     string | null
+  customer_email?:    string | null
+  shipping_address?:  ShippingAddress | null
   scheduled_date:     string | null
   scheduled_time:     string | null
   tyre_pattern:       string | null

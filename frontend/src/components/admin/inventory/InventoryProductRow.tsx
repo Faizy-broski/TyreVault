@@ -166,9 +166,15 @@ export default function InventoryProductRow({ row, accessToken, onApproved, onRe
                 <th className="px-4 py-2 text-left font-medium text-zinc-500">ACTIONS</th>
               </tr>
             </thead>
+<<<<<<< Updated upstream
             <tbody className="divide-y divide-zinc-100">
               {row.supplier_mappings.map(m => (
                 <tr key={m.map_id} className="hover:bg-zinc-50 transition-colors">
+=======
+            <tbody className="divide-y divide-zinc-200">
+              {row.supplier_mappings.map(m => (
+                <tr key={m.map_id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
+>>>>>>> Stashed changes
                   {/* Supplier name + connection */}
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-1.5">

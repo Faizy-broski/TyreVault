@@ -128,8 +128,8 @@ export async function putProfile(req: Request, res: Response, next: NextFunction
   try {
     const centreId = await resolvecentreId(req, res)
     if (!centreId) return
-    const { business_name, contact_name, email, contact_phone, business_number } = req.body
-    const { error } = await S.updateProfile(centreId, { business_name, contact_name, email, contact_phone, business_number })
+    const { business_name, contact_name, email, contact_phone, business_number, logo_url } = req.body
+    const { error } = await S.updateProfile(centreId, { business_name, contact_name, email, contact_phone, business_number, logo_url })
     if (error) return next(error)
     res.json({ success: true })
   } catch (err) { next(err) }

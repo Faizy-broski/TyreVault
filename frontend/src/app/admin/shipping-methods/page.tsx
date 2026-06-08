@@ -205,6 +205,7 @@ export default function ShippingMethodsPage() {
         <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
           <table className="w-full text-sm">
             <thead>
+<<<<<<< Updated upstream
               <tr className="border-b border-zinc-100 bg-zinc-50">
                 <th className="px-4 py-3 text-left font-medium text-zinc-500">Method Name</th>
                 <th className="px-4 py-3 text-left font-medium text-zinc-500">Type</th>
@@ -214,11 +215,26 @@ export default function ShippingMethodsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-300">
+=======
+              <tr className="border-b border-zinc-200 bg-zinc-50">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Method Name</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Type</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">API / Provider</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-200">
+>>>>>>> Stashed changes
               {methods.length === 0 && (
                 <tr><td colSpan={5} className="px-4 py-8 text-center text-zinc-400">No shipping methods yet</td></tr>
               )}
               {methods.map(m => (
+<<<<<<< Updated upstream
                 <tr key={m.shipping_method_id} className="odd:bg-white even:bg-zinc-200 [&:hover]:bg-amber-100 transition-colors duration-150">
+=======
+                <tr key={m.shipping_method_id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
+>>>>>>> Stashed changes
                   <td className="px-4 py-3 font-medium text-zinc-900">{m.method_name}</td>
                   <td className="px-4 py-3">
                     {m.method_type ? (

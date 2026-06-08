@@ -133,6 +133,7 @@ export default function PurchaseOrdersPage() {
         <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
           <table className="w-full text-sm">
             <thead>
+<<<<<<< Updated upstream
               <tr className="border-b border-zinc-100 bg-zinc-50">
                 <th className="px-4 py-3 text-left font-medium text-zinc-500">PO Number</th>
                 <th className="px-4 py-3 text-left font-medium text-zinc-500">Supplier</th>
@@ -146,13 +147,32 @@ export default function PurchaseOrdersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-300">
+=======
+              <tr className="border-b border-zinc-200 bg-zinc-50">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">PO Number</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Supplier</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Warehouse</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Order Date</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">ETA</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Items</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Total</th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-200">
+>>>>>>> Stashed changes
               {pos.length === 0 && (
                 <tr><td colSpan={9} className="px-4 py-10 text-center text-zinc-400">No purchase orders found</td></tr>
               )}
               {pos.map(po => (
                 <tr
                   key={po.po_id}
+<<<<<<< Updated upstream
                   className="odd:bg-white even:bg-zinc-200 [&:hover]:bg-amber-100 transition-colors duration-150 cursor-pointer"
+=======
+                  className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors cursor-pointer"
+>>>>>>> Stashed changes
                   onClick={() => router.push(`/admin/purchase-orders/${po.po_id}`)}
                 >
                   <td className="px-4 py-3 font-mono text-xs font-medium text-zinc-900">{po.po_number}</td>

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { Badge } from '@/components/ui/badge'
@@ -450,9 +451,18 @@ export default function CategoriesPage() {
           <h1 className="text-xl font-semibold text-zinc-900">Categories</h1>
           <p className="text-sm text-zinc-500 mt-0.5">Classify tyres by season, application, performance, position, and terrain</p>
         </div>
-        <Button onClick={() => router.push('/admin/products/categories/new')} className="flex items-center gap-1.5 text-sm shrink-0">
-          <Plus className="w-4 h-4" /> New Category
-        </Button>
+        <div className="flex items-center gap-2">
+          <Link href="/admin/products/import?type=categories"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-200 transition-colors">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+            </svg>
+            Bulk Import
+          </Link>
+          <Button onClick={() => router.push('/admin/products/categories/new')} className="flex items-center gap-1.5 text-sm shrink-0">
+            <Plus className="w-4 h-4" /> New Category
+          </Button>
+        </div>
       </div>
 
       {/* Type filter pills */}
@@ -477,6 +487,7 @@ export default function CategoriesPage() {
       <div className="bg-white rounded-2xl border border-zinc-200 overflow-x-auto shadow-sm">
         <table className="w-full text-sm">
           <thead>
+<<<<<<< Updated upstream
             <tr className="border-b border-zinc-100 bg-zinc-50">
               <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Name</th>
               <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Slug</th>
@@ -489,11 +500,23 @@ export default function CategoriesPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-300">
+=======
+            <tr className="border-b border-zinc-200 bg-primary/10">
+              <th className="px-5 py-3 text-left text-xs font-bold text-zinc-800 uppercase tracking-wide">Name</th>
+              <th className="px-5 py-3 text-left text-xs font-bold text-zinc-800 uppercase tracking-wide">Slug</th>
+              <th className="px-5 py-3 text-left text-xs font-bold text-zinc-800 uppercase tracking-wide">Type</th>
+              <th className="px-5 py-3 text-left text-xs font-bold text-zinc-800 uppercase tracking-wide">Status</th>
+              <th className="px-5 py-3 text-left text-xs font-bold text-zinc-800 uppercase tracking-wide">Visibility</th>
+              <th className="px-5 py-3 w-20" />
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-200">
+>>>>>>> Stashed changes
             {loading ? (
               <>
                 {[1,2,3,4].map(i => (
                   <tr key={i}>
-                    {[1,2,3,4,5,6,7].map(j => (
+                    {[1,2,3,4,5].map(j => (
                       <td key={j} className="px-5 py-3"><div className="h-4 bg-zinc-100 rounded animate-pulse" style={{ width: `${60 + j * 10}px` }} /></td>
                     ))}
                     <td className="px-5 py-3" />
@@ -502,13 +525,17 @@ export default function CategoriesPage() {
               </>
             ) : displayed.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-5 py-12 text-center text-zinc-400">
+                <td colSpan={6} className="px-5 py-12 text-center text-zinc-400">
                   {filterType ? `No ${filterType} categories yet.` : 'No categories yet.'}
                 </td>
               </tr>
             ) : (
               displayed.map(c => (
+<<<<<<< Updated upstream
                 <tr key={c.category_id} className="odd:bg-white even:bg-zinc-200 [&:hover]:bg-amber-100 transition-colors duration-150">
+=======
+                <tr key={c.category_id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
+>>>>>>> Stashed changes
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-2.5">
                       {c.image && (
@@ -524,19 +551,14 @@ export default function CategoriesPage() {
                       {c.category_type}
                     </Badge>
                   </td>
-                  <td className="px-5 py-3 text-xs text-zinc-500">
-                    {c.parent_category_id ? (
-                      <span className="inline-flex items-center gap-1">
-                        <span className="text-zinc-300">↳</span>
-                        {nameMap[c.parent_category_id] ?? <span className="italic text-zinc-400">unknown</span>}
-                      </span>
-                    ) : <span className="text-zinc-300">—</span>}
-                  </td>
-                  <td className="px-5 py-3 text-zinc-500 text-xs max-w-[180px] truncate">{c.description ?? '—'}</td>
-                  <td className="px-5 py-3 text-xs text-zinc-500 text-center">{c.sort_order ?? '—'}</td>
                   <td className="px-5 py-3">
                     <Badge className={`text-xs rounded-full border-0 ${c.is_active ? 'bg-green-50 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
                       {c.is_active ? 'Active' : 'Inactive'}
+                    </Badge>
+                  </td>
+                  <td className="px-5 py-3">
+                    <Badge className={`text-xs rounded-full border-0 ${c.hidden_from_website ? 'bg-zinc-100 text-zinc-500' : 'bg-blue-50 text-blue-700'}`}>
+                      {c.hidden_from_website ? 'Hidden' : 'Visible'}
                     </Badge>
                   </td>
                   <td className="px-5 py-3">

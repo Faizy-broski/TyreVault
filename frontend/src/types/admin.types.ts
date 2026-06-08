@@ -573,6 +573,9 @@ export interface Supplier {
   payment_terms:     string | null
   stock_access_type: StockAccessType | null
   api_connected:     boolean
+  api_endpoint:      string | null
+  api_key:           string | null
+  api_auth_type:     'api_key' | 'bearer' | 'basic' | null
   is_active:         boolean
   created_at:        string
   updated_at:        string

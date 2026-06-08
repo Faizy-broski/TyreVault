@@ -137,6 +137,6 @@ export const useCartStore = create<CartStore>()(
         return get().subtotal() + (fittingSelection?.totalFittingCost ?? 0)
       },
     }),
-    { name: 'onyx-cart-v2' }
+    { name: 'tyrevault-cart-v2' }
   )
 )

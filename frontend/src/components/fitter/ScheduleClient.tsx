@@ -98,7 +98,7 @@ export default function ScheduleClient() {
             variant="ghost"
             size="icon"
             onClick={() => setMonday(prev => addDays(prev, -7))}
-            className="h-8 w-8 rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
+            className="h-8 w-8 rounded-lg text-zinc-500 hover:!bg-zinc-100 hover:text-zinc-900 transition-colors"
             aria-label="Previous week"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -110,7 +110,7 @@ export default function ScheduleClient() {
             variant="ghost"
             size="icon"
             onClick={() => setMonday(prev => addDays(prev, 7))}
-            className="h-8 w-8 rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
+            className="h-8 w-8 rounded-lg text-zinc-500 hover:!bg-zinc-100 hover:text-zinc-900 transition-colors"
             aria-label="Next week"
           >
             <ChevronRight className="w-4 h-4" />
@@ -215,7 +215,7 @@ export default function ScheduleClient() {
 
         {/* Footer summary */}
         {!loading && (
-          <div className="px-6 py-2.5 border-t border-zinc-100 bg-zinc-50/30 flex items-center justify-between text-xs text-zinc-400">
+          <div className="px-6 py-2.5 border-t border-zinc-200 bg-zinc-50/30 flex items-center justify-between text-xs text-zinc-400">
             <span>{jobs.length > 0 ? `${jobs.length} appointment${jobs.length !== 1 ? 's' : ''} this week` : 'No appointments this week'}</span>
             <button
               type="button"

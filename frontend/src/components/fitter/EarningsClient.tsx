@@ -136,7 +136,7 @@ export default function EarningsClient({
 
       {/* Earnings table */}
       <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 bg-zinc-50/50">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200 bg-zinc-50/50">
           <h2 className="text-sm font-semibold text-zinc-900">Recent Earnings</h2>
           {!loading && total > 0 && (
             <span className="text-xs text-zinc-400">{total} records</span>
@@ -175,11 +175,19 @@ export default function EarningsClient({
 
         <Table>
           <TableHeader>
+<<<<<<< Updated upstream
             <TableRow className="border-b-2 border-zinc-100 bg-zinc-50 hover:bg-zinc-50">
               <TableHead className="px-5 py-3 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider h-auto">Date</TableHead>
               <TableHead className="px-5 py-3 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider h-auto">Customer</TableHead>
               <TableHead className="px-5 py-3 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider h-auto">Amount</TableHead>
               <TableHead className="px-5 py-3 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider h-auto">Status</TableHead>
+=======
+            <TableRow className="border-b border-zinc-200 bg-zinc-50 hover:bg-zinc-50 odd:bg-zinc-50 even:bg-zinc-50">
+              <TableHead>Date</TableHead>
+              <TableHead>Customer</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead>Status</TableHead>
+>>>>>>> Stashed changes
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -220,7 +228,11 @@ export default function EarningsClient({
         </Table>
 
         {/* Pagination */}
+<<<<<<< Updated upstream
         <div className="flex flex-wrap items-center justify-between gap-y-2 px-5 py-3 border-t border-zinc-100 bg-zinc-50/30 text-xs text-zinc-400">
+=======
+        <div className="flex flex-wrap items-center justify-between gap-y-2 px-5 py-3 border-t border-zinc-200 bg-zinc-50/30 text-xs text-muted-foreground">
+>>>>>>> Stashed changes
           <span>{earnings.length > 0 ? `1 — ${earnings.length} of ${total}` : '0 results'}</span>
           <div className="flex items-center gap-3">
             <span>{page} of {totalPages || 1} pages</span>

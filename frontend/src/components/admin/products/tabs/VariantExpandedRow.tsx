@@ -35,62 +35,106 @@ export default function VariantExpandedRow({ index }: { index: number }) {
   return (
     <div className="space-y-6 py-1">
 
-      {/* ── Load & Speed ──────────────────────────────────────────── */}
+      {/* ── Technical Specifications ──────────────────────────────── */}
       <div>
-        <p className={sectionHdrCls}>Load &amp; Speed</p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <p className={sectionHdrCls}>Technical Specifications</p>
+        {/* Row 1: Load Index | Speed Rating | Load/Speed | Construction */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
           <div>
-            <label className={labelCls}>Load/Speed Rating</label>
+            <label className={labelCls}>Load Index</label>
             <input
-              {...register(`variants.${index}.loadSpeedRating`)}
-              placeholder="95W"
+              {...register(`variants.${index}.loadIndex`)}
+              placeholder="92"
               className={inputCls}
             />
           </div>
           <div>
+            <label className={labelCls}>Speed Rating</label>
+            <input
+              {...register(`variants.${index}.speedRating`)}
+              placeholder="W"
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Load/Speed</label>
+            <input
+              {...register(`variants.${index}.loadSpeedRating`)}
+              placeholder="92W"
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Construction</label>
+            <select {...register(`variants.${index}.constructionType`)} className={selectCls}>
+              <option value="">—</option>
+              <option value="R">R (Radial)</option>
+              <option value="ZR">ZR (Z-Radial)</option>
+              <option value="D">D (Diagonal)</option>
+              <option value="-">- (Cross-ply)</option>
+            </select>
+          </div>
+        </div>
+        {/* Row 2: Ply Rating | Load Range | Sidewall */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+          <div>
             <label className={labelCls}>Ply Rating</label>
             <input
               {...register(`variants.${index}.plyRating`)}
-              placeholder="10PR"
+              placeholder="e.g. 10PR"
               className={inputCls}
             />
           </div>
           <div>
             <label className={labelCls}>Load Range</label>
-            <input
-              {...register(`variants.${index}.loadRange`)}
-              placeholder="E"
-              className={inputCls}
-            />
-          </div>
-          <div className="flex items-center gap-2 pt-5">
-            <input
-              type="checkbox"
-              id={`xl-${index}`}
-              {...register(`variants.${index}.xlReinforced`)}
-              className="rounded border-zinc-300"
-            />
-            <label htmlFor={`xl-${index}`} className="text-sm text-zinc-700">
-              XL Reinforced
-            </label>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Sidewall & Tube ───────────────────────────────────────── */}
-      <div>
-        <p className={sectionHdrCls}>Sidewall &amp; Tube</p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div>
-            <label className={labelCls}>Sidewall</label>
-            <select {...register(`variants.${index}.sidewall`)} className={selectCls}>
-              <option value="">—</option>
-              {(['BSW', 'OWL', 'RWL'] as const).map(t => (
-                <option key={t} value={t}>{t}</option>
+            <select {...register(`variants.${index}.loadRange`)} className={selectCls}>
+              <option value="">N/A</option>
+              {(['B', 'C', 'D', 'E', 'F', 'G'] as const).map(r => (
+                <option key={r} value={r}>{r}</option>
               ))}
             </select>
           </div>
           <div>
+            <label className={labelCls}>Sidewall</label>
+            <select {...register(`variants.${index}.sidewall`)} className={selectCls}>
+              <option value="">—</option>
+              <option value="BSW">BSW (Black)</option>
+              <option value="OWL">OWL (Outlined White Letters)</option>
+              <option value="RWL">RWL (Raised White Letters)</option>
+              <option value="WSW">WSW (White Sidewall)</option>
+            </select>
+          </div>
+        </div>
+        {/* Row 3: checkboxes + Tube Type */}
+        <div className="flex flex-wrap items-end gap-6 border-t border-zinc-100 pt-3">
+          <label className="flex items-center gap-2 cursor-pointer text-sm text-zinc-700 select-none">
+            <input
+              type="checkbox"
+              id={`xl-${index}`}
+              {...register(`variants.${index}.xlReinforced`)}
+              className="h-4 w-4 rounded border-zinc-300"
+            />
+            XL / Reinforced
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer text-sm text-zinc-700 select-none">
+            <input
+              type="checkbox"
+              id={`runflat-${index}`}
+              {...register(`variants.${index}.runflat`)}
+              className="h-4 w-4 rounded border-zinc-300"
+            />
+            Runflat
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer text-sm text-zinc-700 select-none">
+            <input
+              type="checkbox"
+              id={`lt-${index}`}
+              {...register(`variants.${index}.ltSizing`)}
+              className="h-4 w-4 rounded border-zinc-300"
+            />
+            LT (Light Truck)
+          </label>
+          <div className="ml-auto w-40">
             <label className={labelCls}>Tube Type</label>
             <select {...register(`variants.${index}.tubeType`)} className={selectCls}>
               <option value="">—</option>
@@ -190,6 +234,30 @@ export default function VariantExpandedRow({ index }: { index: number }) {
       <div>
         <p className={sectionHdrCls}>Compliance &amp; Ratings</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div>
+            <label className={labelCls}>Fuel Rating</label>
+            <input
+              {...register(`variants.${index}.fuelRating`)}
+              placeholder="C"
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Wet Grip</label>
+            <input
+              {...register(`variants.${index}.wetGrip`)}
+              placeholder="A"
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Noise (dB)</label>
+            <input
+              {...register(`variants.${index}.noiseDb`)}
+              placeholder="72dB"
+              className={inputCls}
+            />
+          </div>
           <div>
             <label className={labelCls}>Noise Class</label>
             <input

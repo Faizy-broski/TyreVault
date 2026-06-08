@@ -277,6 +277,7 @@ export default function PaymentSettlementTab({
         <div className="overflow-x-auto">
         <Table className="w-full text-sm">
           <TableHeader>
+<<<<<<< Updated upstream
             <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50">
               <TableHead className="px-5 py-3 text-left text-xs font-medium text-zinc-500 whitespace-nowrap">Period</TableHead>
               <TableHead className="px-5 py-3 text-right text-xs font-medium text-zinc-500">Orders</TableHead>
@@ -290,6 +291,21 @@ export default function PaymentSettlementTab({
             </TableRow>
           </TableHeader>
           <TableBody className="divide-y divide-zinc-100">
+=======
+            <TableRow className="border-b border-zinc-200 bg-zinc-50 hover:bg-zinc-50 odd:bg-zinc-50 even:bg-zinc-50">
+              <TableHead>Period</TableHead>
+              <TableHead className="text-right">Orders</TableHead>
+              <TableHead className="text-right">Gross</TableHead>
+              <TableHead className="text-right">Adjustments</TableHead>
+              <TableHead className="text-right">Net Payout</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Payment Date</TableHead>
+              <TableHead>Reference</TableHead>
+              <TableHead>Invoice</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody className="divide-y divide-zinc-200">
+>>>>>>> Stashed changes
             {loading ? (
               <TableRow><TableCell colSpan={9} className="px-5 py-8 text-center text-sm text-zinc-400">Loading...</TableCell></TableRow>
             ) : history.length === 0 ? (

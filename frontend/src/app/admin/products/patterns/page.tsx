@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { Badge } from '@/components/ui/badge'
 import { toastError, toastSuccess } from '@/lib/toast'
-import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import { MoreHorizontal, Pencil, Trash2, Upload } from 'lucide-react'
 import type { Brand } from '@/types/admin.types'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
@@ -19,6 +19,7 @@ interface Pattern {
   pattern_slug:     string
   application_type: string
   season_type:      string | null
+  terrain_type:     string | null
   is_active:        boolean
   show_on_website:  boolean
   main_image:       string | null
@@ -65,7 +66,7 @@ function RowActions({
       <button
         type="button"
         onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
-        className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors"
+        className="rounded-lg p-1.5 text-zinc-400 hover:!bg-zinc-100 hover:text-zinc-700 transition-colors"
         aria-label="Actions"
       >
         <MoreHorizontal className="w-4 h-4" />
@@ -279,12 +280,21 @@ export default function PatternsPage() {
           <h1 className="text-xl font-semibold text-zinc-900">Patterns</h1>
           <p className="text-sm text-zinc-500 mt-0.5">All tyre patterns across every brand</p>
         </div>
-        <Link
-          href="/admin/products/patterns/new"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-zinc-900 hover:bg-primary/90 transition-colors"
-        >
-          + New Pattern
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/products/import?type=patterns"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-200 transition-colors"
+          >
+            <Upload className="w-4 h-4" />
+            Bulk Import
+          </Link>
+          <Link
+            href="/admin/products/patterns/new"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-zinc-900 hover:bg-primary/90 transition-colors"
+          >
+            + New Pattern
+          </Link>
+        </div>
       </div>
 
       {/* Filters */}
@@ -321,6 +331,7 @@ export default function PatternsPage() {
       <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
+<<<<<<< Updated upstream
             <tr className="border-b border-zinc-100 bg-zinc-50">
               <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Pattern</th>
               <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Brand</th>
@@ -332,6 +343,20 @@ export default function PatternsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-300">
+=======
+            <tr className="border-b border-zinc-200 bg-primary/10">
+              <th className="px-5 py-3 text-left text-xs font-bold text-zinc-800 uppercase tracking-wide">Pattern</th>
+              <th className="px-5 py-3 text-left text-xs font-bold text-zinc-800 uppercase tracking-wide">Brand</th>
+              <th className="px-5 py-3 text-left text-xs font-bold text-zinc-800 uppercase tracking-wide">Application</th>
+              <th className="px-5 py-3 text-left text-xs font-bold text-zinc-800 uppercase tracking-wide">Season</th>
+              <th className="px-5 py-3 text-left text-xs font-bold text-zinc-800 uppercase tracking-wide">Terrain</th>
+              <th className="px-5 py-3 text-left text-xs font-bold text-zinc-800 uppercase tracking-wide">Status</th>
+              <th className="px-5 py-3 text-left text-xs font-bold text-zinc-800 uppercase tracking-wide">Website</th>
+              <th className="px-5 py-3 w-16" />
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-200">
+>>>>>>> Stashed changes
             {loading ? (
               [1,2,3,4,5].map(i => (
                 <tr key={i}>
@@ -353,7 +378,11 @@ export default function PatternsPage() {
               displayed.map(p => (
                 <tr
                   key={p.pattern_id}
+<<<<<<< Updated upstream
                   className="odd:bg-white even:bg-zinc-200 [&:hover]:bg-amber-100 transition-colors duration-150 cursor-pointer"
+=======
+                  className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors cursor-pointer"
+>>>>>>> Stashed changes
                   onClick={() => router.push(`/admin/products/brands/${p.brand_id}/patterns/${p.pattern_id}`)}
                 >
                   <td className="px-5 py-3">
@@ -372,7 +401,7 @@ export default function PatternsPage() {
                     <Link
                       href={`/admin/products/brands/${p.brand_id}`}
                       onClick={e => e.stopPropagation()}
-                      className="text-xs text-primary hover:underline font-medium"
+                      className="text-xs text-primary hover:underline font-bold"
                     >
                       {p.brand_name}
                     </Link>
@@ -383,7 +412,10 @@ export default function PatternsPage() {
                     </Badge>
                   </td>
                   <td className="px-5 py-3 text-xs text-zinc-500 capitalize">
-                    {p.season_type?.replace('_', ' ') ?? <span className="text-zinc-300">—</span>}
+                    {p.season_type?.replace(/_/g, ' ') ?? <span className="text-zinc-300">—</span>}
+                  </td>
+                  <td className="px-5 py-3 text-xs text-zinc-500 capitalize">
+                    {p.terrain_type?.replace(/_/g, ' ') ?? <span className="text-zinc-300">—</span>}
                   </td>
                   <td className="px-5 py-3">
                     <Badge className={`text-xs rounded-full border-0 ${p.is_active ? 'bg-green-50 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>

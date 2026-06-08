@@ -138,13 +138,17 @@ export default function AdminPromotionsPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-100 bg-zinc-50">
+              <tr className="border-b border-zinc-200 bg-zinc-50">
                 {['', 'Title', 'Discount', 'Period', 'Status', 'Homepage', ''].map((h, i) => (
                   <th key={i} className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
+<<<<<<< Updated upstream
             <tbody className="divide-y divide-zinc-300">
+=======
+            <tbody className="divide-y divide-zinc-200">
+>>>>>>> Stashed changes
               {loading ? (
                 [1,2,3,4,5].map(i => (
                   <tr key={i}>
@@ -165,7 +169,11 @@ export default function AdminPromotionsPage() {
                 const status = promotionStatus(p)
                 const busy   = deleting === p.promotion_id || toggling === p.promotion_id
                 return (
+<<<<<<< Updated upstream
                   <tr key={p.promotion_id} className={`odd:bg-white even:bg-zinc-200 [&:hover]:bg-amber-100 transition-colors duration-150 ${busy ? 'opacity-60' : ''}`}>
+=======
+                  <tr key={p.promotion_id} className={`odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors ${busy ? 'opacity-60' : ''}`}>
+>>>>>>> Stashed changes
                     {/* Thumbnail */}
                     <td className="pl-4 pr-2 py-3">
                       <div className="relative h-11 w-9 overflow-hidden rounded-lg bg-zinc-100 flex-shrink-0">

@@ -17,6 +17,8 @@ type Product = {
   collection: string | null
   variantCount: number
   activeVariants: number
+  totalStock: number
+  loadIndexes: string[]
   isActive: boolean
   showOnWebsite: boolean
   updatedAt: string
@@ -38,7 +40,7 @@ export default function AdminProductsPage() {
 
   const search    = searchParams.get('search')    ?? ''
   const page      = Number(searchParams.get('page') ?? 1)
-  const sortBy    = searchParams.get('sortBy')    ?? 'updated_at'
+  const sortBy    = searchParams.get('sortBy')    ?? 'created_at'
   const sortOrder = (searchParams.get('sortOrder') as 'asc' | 'desc') ?? 'desc'
   const brandId   = searchParams.get('brandId')   ?? ''
   const patternId = searchParams.get('patternId') ?? ''
@@ -89,15 +91,26 @@ export default function AdminProductsPage() {
 
       <div className="flex flex-col gap-3 mb-5 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-semibold text-zinc-900">Products</h1>
-        <Link
-          href="/admin/products/new"
-          className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-primary/90 transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          Create Product
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/products/import?type=skus"
+            className="flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-zinc-100 px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-200 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+            </svg>
+            Bulk Import
+          </Link>
+          <Link
+            href="/admin/products/new"
+            className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-primary/90 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Create Product
+          </Link>
+        </div>
       </div>
 
       <div className="rounded-2xl border border-zinc-200 bg-white overflow-hidden shadow-sm">
@@ -109,9 +122,7 @@ export default function AdminProductsPage() {
             <select
               value={brandId}
               onChange={e => router.push(buildHref({ brandId: e.target.value, patternId: '', page: '1' }))}
-              className={`rounded-lg border px-3 py-1.5 text-xs font-medium bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${
-                brandId ? 'border-zinc-900 text-zinc-900 bg-zinc-50' : 'border-zinc-300 text-zinc-600'
-              }`}
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-zinc-300 transition-colors cursor-pointer"
             >
               <option value="">All Brands</option>
               {brands.map(b => (
@@ -124,9 +135,7 @@ export default function AdminProductsPage() {
               <select
                 value={patternId}
                 onChange={e => router.push(buildHref({ patternId: e.target.value, page: '1' }))}
-                className={`rounded-lg border px-3 py-1.5 text-xs font-medium bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${
-                  patternId ? 'border-primary text-zinc-900 bg-primary/5' : 'border-zinc-300 text-zinc-600'
-                }`}
+                className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-zinc-300 transition-colors cursor-pointer"
               >
                 <option value="">All Patterns</option>
                 {brandPatterns.map((p: { pattern_id: string; pattern_name: string }) => (
@@ -139,9 +148,7 @@ export default function AdminProductsPage() {
             <select
               value={status}
               onChange={e => router.push(buildHref({ status: e.target.value, page: '1' }))}
-              className={`rounded-lg border px-3 py-1.5 text-xs font-medium bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${
-                status ? 'border-zinc-900 text-zinc-900 bg-zinc-50' : 'border-zinc-300 text-zinc-600'
-              }`}
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-zinc-300 transition-colors cursor-pointer"
             >
               <option value="">All Status</option>
               <option value="published">Published</option>
@@ -152,9 +159,7 @@ export default function AdminProductsPage() {
             <select
               value={stock}
               onChange={e => router.push(buildHref({ stock: e.target.value, page: '1' }))}
-              className={`rounded-lg border px-3 py-1.5 text-xs font-medium bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${
-                stock ? 'border-zinc-900 text-zinc-900 bg-zinc-50' : 'border-zinc-300 text-zinc-600'
-              }`}
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-zinc-300 transition-colors cursor-pointer"
             >
               {STOCK_FILTERS.map(f => (
                 <option key={f.value} value={f.value}>{f.label}</option>
@@ -198,7 +203,7 @@ export default function AdminProductsPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-zinc-100 bg-zinc-50">
+                <tr className="border-b border-zinc-200 bg-zinc-50">
                   {['Name', 'Brand', 'Collection', 'Variants', 'Status', 'Updated', ''].map(h => (
                     <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">{h}</th>
                   ))}

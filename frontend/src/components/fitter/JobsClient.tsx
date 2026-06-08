@@ -92,7 +92,7 @@ export default function JobsClient() {
 
       <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-hidden">
         {/* Toolbar */}
-        <div className="flex flex-wrap items-center gap-2 px-5 py-4 border-b border-zinc-100 bg-zinc-50/50">
+        <div className="flex flex-wrap items-center gap-2 px-5 py-4 border-b border-zinc-200 bg-zinc-50/50">
           <div className="flex flex-wrap items-center gap-1">
             {STATUS_FILTERS.map(f => (
               <Button
@@ -103,7 +103,7 @@ export default function JobsClient() {
                 className={`rounded-lg h-8 text-xs font-medium transition-all duration-150 ${
                   statusFilter === f.key
                     ? 'bg-primary text-zinc-900 hover:bg-primary/90 shadow-sm'
-                    : 'text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100'
+                    : 'text-zinc-500 hover:text-zinc-800 hover:!bg-zinc-100'
                 }`}
               >
                 {f.label}
@@ -125,6 +125,7 @@ export default function JobsClient() {
         {/* Table */}
         <Table>
           <TableHeader>
+<<<<<<< Updated upstream
             <TableRow className="border-b-2 border-zinc-100 bg-zinc-50 hover:bg-zinc-50">
               <TableHead className="px-5 py-3 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider h-auto">Task #</TableHead>
               <TableHead className="px-5 py-3 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider h-auto">Customer</TableHead>
@@ -133,6 +134,16 @@ export default function JobsClient() {
               <TableHead className="px-5 py-3 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider h-auto">Date</TableHead>
               <TableHead className="px-5 py-3 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider h-auto">Time</TableHead>
               <TableHead className="px-5 py-3 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider h-auto">Status</TableHead>
+=======
+            <TableRow className="border-b border-zinc-200 bg-zinc-50 hover:bg-zinc-50 odd:bg-zinc-50 even:bg-zinc-50">
+              <TableHead>Task #</TableHead>
+              <TableHead>Customer</TableHead>
+              <TableHead>Vehicle</TableHead>
+              <TableHead>Tyre</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Time</TableHead>
+              <TableHead>Status</TableHead>
+>>>>>>> Stashed changes
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -191,7 +202,11 @@ export default function JobsClient() {
         </Table>
 
         {!loading && filtered.length > 0 && (
+<<<<<<< Updated upstream
           <div className="px-5 py-3 border-t border-zinc-100 bg-zinc-50/30 text-xs text-zinc-400 flex items-center justify-between">
+=======
+          <div className="px-5 py-3 border-t border-zinc-200 bg-zinc-50/30 text-xs text-muted-foreground flex items-center justify-between">
+>>>>>>> Stashed changes
             <span>Showing {filtered.length} of {jobs.length} jobs</span>
             {statusFilter && (
               <button

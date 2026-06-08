@@ -45,7 +45,6 @@ export default function AdminShell({ userEmail, children }: Props) {
       <div className="flex flex-col flex-1 overflow-hidden min-w-0">
         <AdminHeader
           userEmail={userEmail}
-          notificationCount={0}
           onMenuToggle={() => setSidebarOpen((v) => !v)}
         />
         <main className="flex-1 overflow-y-auto">{children}</main>

@@ -250,6 +250,7 @@ export default function CustomersPage() {
         <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
+<<<<<<< Updated upstream
             <tr className="border-b border-zinc-100 bg-zinc-50">
               <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">ID</th>
               <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Email</th>
@@ -265,6 +266,23 @@ export default function CustomersPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-300">
+=======
+            <tr className="border-b border-zinc-200 bg-zinc-50">
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">ID</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Email</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Name</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Account</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Type</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
+              <th className="px-5 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Orders</th>
+              <th className="px-5 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Total Value</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Last Order</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Created</th>
+              <th className="w-8 px-5 py-3"><span className="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-200">
+>>>>>>> Stashed changes
             {loading ? (
               [1,2,3,4,5].map(i => (
                 <tr key={i}>
@@ -289,13 +307,17 @@ export default function CustomersPage() {
               customers.map((customer, idx) => {
                 const displayId = `CUST-${String((page - 1) * LIMIT + idx + 1).padStart(3, '0')}`
                 return (
+<<<<<<< Updated upstream
                   <tr key={customer.customer_id} className="odd:bg-white even:bg-zinc-200 [&:hover]:bg-amber-100 transition-colors duration-150">
+=======
+                  <tr key={customer.customer_id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
+>>>>>>> Stashed changes
                     <td className="px-5 py-3 font-mono text-xs text-zinc-500">
-                      <Link href={`/admin/customers/${customer.customer_id}`} className="text-sm font-medium text-primary hover:underline">{displayId}</Link>
+                      <Link href={`/admin/customers/${customer.customer_id}`} className="text-sm font-bold text-primary hover:underline">{displayId}</Link>
                     </td>
                     <td className="px-5 py-3 text-xs text-zinc-600">{customer.email}</td>
                     <td className="px-5 py-3">
-                      <Link href={`/admin/customers/${customer.customer_id}`} className="text-sm font-medium text-primary hover:underline">
+                      <Link href={`/admin/customers/${customer.customer_id}`} className="text-sm font-bold text-primary hover:underline">
                         {[customer.first_name, customer.last_name].filter(Boolean).join(' ') || '—'}
                       </Link>
                     </td>

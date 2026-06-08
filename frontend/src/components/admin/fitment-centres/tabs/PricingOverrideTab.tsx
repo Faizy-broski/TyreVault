@@ -189,6 +189,7 @@ export default function PricingOverrideTab({ centreId, initialRows, accessToken 
                 <div className="overflow-x-auto">
                 <Table className="w-full text-sm">
                   <TableHeader>
+<<<<<<< Updated upstream
                     <TableRow className="border-b border-zinc-100 hover:bg-transparent">
                       <TableHead className="py-3 text-left text-xs font-medium text-zinc-500 w-28">Rim Size Range</TableHead>
                       <TableHead className="py-3 text-center text-xs font-medium text-zinc-500">Per Tyre ($)</TableHead>
@@ -199,6 +200,18 @@ export default function PricingOverrideTab({ centreId, initialRows, accessToken 
                     </TableRow>
                   </TableHeader>
                   <TableBody className="divide-y divide-zinc-50">
+=======
+                    <TableRow className="border-b border-zinc-200 bg-zinc-50 hover:bg-zinc-50 odd:bg-zinc-50 even:bg-zinc-50">
+                      <TableHead className="text-center w-28">Rim Size Range</TableHead>
+                      <TableHead className="text-center">Per Tyre ($)</TableHead>
+                      <TableHead className="text-center">Per Pair ($)</TableHead>
+                      <TableHead className="text-center">Per Set of 4 ($)</TableHead>
+                      <TableHead className="text-center">Callout Fee ($)</TableHead>
+                      <TableHead className="w-8" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody className="divide-y divide-zinc-200">
+>>>>>>> Stashed changes
                     {RIM_RANGES.map(rim => {
                       const cell = matrix[tyreType.key][rim.key]
                       return (

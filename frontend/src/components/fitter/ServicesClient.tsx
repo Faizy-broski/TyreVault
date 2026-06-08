@@ -197,7 +197,7 @@ export default function ServicesClient() {
 
           {/* ── Fitting capabilities (Yes/No radio) ── */}
           <div className="bg-white rounded-2xl border border-zinc-200 shadow-none hover:shadow-md transition-all duration-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-zinc-100 bg-zinc-50/50 flex items-center gap-2">
+            <div className="px-5 py-4 border-b border-zinc-200 bg-zinc-50/50 flex items-center gap-2">
               <Wrench className="w-4 h-4 text-zinc-400" />
               <div>
                 <h2 className="text-sm font-semibold text-zinc-900">Fitting Options</h2>
@@ -241,7 +241,7 @@ export default function ServicesClient() {
 
           {/* ── Additional services (toggle switch) ── */}
           <div className="bg-white rounded-2xl border border-zinc-200 shadow-none hover:shadow-md transition-all duration-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-zinc-100 bg-zinc-50/50 flex items-center gap-2">
+            <div className="px-5 py-4 border-b border-zinc-200 bg-zinc-50/50 flex items-center gap-2">
               <Navigation className="w-4 h-4 text-zinc-400" />
               <div>
                 <h2 className="text-sm font-semibold text-zinc-900">Additional Services</h2>
@@ -254,7 +254,7 @@ export default function ServicesClient() {
               ) : (
                 <>
                   {/* Wheel alignment */}
-                  <div className={`rounded-lg border p-3.5 transition-colors duration-150 ${wheelAlignmentOn ? 'border-yellow-300 bg-primary' : 'border-zinc-100 bg-zinc-50/40'}`}>
+                  <div className={`rounded-lg border p-3.5 transition-colors duration-150 ${wheelAlignmentOn ? 'border-yellow-300 bg-primary' : 'border-zinc-200 bg-zinc-50/40'}`}>
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-zinc-800">Wheel Alignment Available</p>
@@ -282,7 +282,7 @@ export default function ServicesClient() {
                   </div>
 
                   {/* Mobile fitting */}
-                  <div className={`rounded-lg border p-3.5 transition-colors duration-150 ${mobileFitting ? 'border-yellow-300 bg-primary' : 'border-zinc-100 bg-zinc-50/40'}`}>
+                  <div className={`rounded-lg border p-3.5 transition-colors duration-150 ${mobileFitting ? 'border-yellow-300 bg-primary' : 'border-zinc-200 bg-zinc-50/40'}`}>
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-zinc-800">Mobile Fitting Available</p>
@@ -298,7 +298,7 @@ export default function ServicesClient() {
 
           {/* ── Working hours (checkbox + selects) ── */}
           <div className="bg-white rounded-2xl border border-zinc-200 shadow-none hover:shadow-md transition-all duration-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-zinc-100 bg-zinc-50/50 flex items-center gap-2">
+            <div className="px-5 py-4 border-b border-zinc-200 bg-zinc-50/50 flex items-center gap-2">
               <Clock className="w-4 h-4 text-zinc-400" />
               <div>
                 <h2 className="text-sm font-semibold text-zinc-900">Working Days &amp; Timings</h2>

@@ -359,6 +359,7 @@ export default function CustomerGroupsClient({
       <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white shadow-sm">
         <Table className="w-full text-sm">
           <TableHeader>
+<<<<<<< Updated upstream
             <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50">
               <TableHead className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Name</TableHead>
               <TableHead className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Customers ↓</TableHead>
@@ -369,6 +370,18 @@ export default function CustomerGroupsClient({
             </TableRow>
           </TableHeader>
           <TableBody className="divide-y divide-zinc-100">
+=======
+            <TableRow className="border-b border-zinc-200 bg-zinc-50 hover:bg-zinc-50 odd:bg-zinc-50 even:bg-zinc-50">
+              <TableHead>Name</TableHead>
+              <TableHead>Customers ↓</TableHead>
+              <TableHead>Discount</TableHead>
+              <TableHead>Price Tier</TableHead>
+              <TableHead>Updated</TableHead>
+              <TableHead className="w-10" />
+            </TableRow>
+          </TableHeader>
+          <TableBody className="divide-y divide-zinc-200">
+>>>>>>> Stashed changes
             {localGroups.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="px-4 py-16 text-center">
@@ -468,7 +481,11 @@ export default function CustomerGroupsClient({
           </TableBody>
         </Table>
 
+<<<<<<< Updated upstream
         <div className="flex items-center justify-between border-t border-zinc-100 bg-zinc-50 px-4 py-3 text-xs text-zinc-500">
+=======
+        <div className="flex items-center justify-between border-t border-zinc-200 bg-zinc-50 px-5 py-3 text-xs text-muted-foreground">
+>>>>>>> Stashed changes
           <span>
             {startResult} — {endResult} of {total} results
           </span>

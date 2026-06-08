@@ -189,7 +189,7 @@ export default function AdminDashboard() {
         {/* Recent Orders */}
         <div className="xl:col-span-2 flex flex-col rounded-2xl bg-white border border-zinc-200 shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden relative">
           <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-primary to-yellow-400" />
-          <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100 bg-zinc-50/50 mt-1.5">
+          <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-200 bg-zinc-50/50 mt-1.5">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-[10px] bg-primary/10 flex items-center justify-center border border-primary/20">
                 <ShoppingCart className="w-4 h-4 text-primary" />
@@ -350,7 +350,7 @@ export default function AdminDashboard() {
         {/* Recent Customers */}
         <div className="flex flex-col rounded-2xl bg-white border border-zinc-200 shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden relative">
           <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-500 to-blue-400" />
-          <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100 bg-zinc-50/50 mt-1.5">
+          <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-200 bg-zinc-50/50 mt-1.5">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-[10px] bg-blue-50 flex items-center justify-center border border-blue-100/50">
                 <Users className="w-4 h-4 text-blue-600" />
@@ -396,7 +396,7 @@ export default function AdminDashboard() {
         {/* Fitment Centres */}
         <div className="flex flex-col rounded-2xl bg-white border border-zinc-200 shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden relative">
           <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-violet-500 to-violet-400" />
-          <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100 bg-zinc-50/50 mt-1.5">
+          <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-200 bg-zinc-50/50 mt-1.5">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-[10px] bg-indigo-50 flex items-center justify-center border border-indigo-100/50">
                 <Wrench className="w-4 h-4 text-indigo-600" />

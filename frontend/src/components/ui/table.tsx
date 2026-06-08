@@ -23,7 +23,7 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   return (
     <thead
       data-slot="table-header"
-      className={cn("[&_tr]:border-b", className)}
+      className={cn("[&_tr]:border-b [&_tr]:bg-primary/10 [&_tr]:hover:bg-primary/10", className)}
       {...props}
     />
   )
@@ -57,7 +57,11 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
     <tr
       data-slot="table-row"
       className={cn(
+<<<<<<< Updated upstream
         "border-b transition-colors data-[state=selected]:bg-muted",
+=======
+        "border-b border-zinc-200 transition-colors odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 data-[state=selected]:bg-zinc-100",
+>>>>>>> Stashed changes
         className
       )}
       {...props}
@@ -70,7 +74,11 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
     <th
       data-slot="table-head"
       className={cn(
+<<<<<<< Updated upstream
         "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
+=======
+        "h-auto px-5 py-3 text-left align-middle text-xs font-bold whitespace-nowrap text-zinc-800 uppercase tracking-wide [&:has([role=checkbox])]:pr-0",
+>>>>>>> Stashed changes
         className
       )}
       {...props}

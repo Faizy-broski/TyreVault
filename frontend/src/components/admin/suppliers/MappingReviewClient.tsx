@@ -123,6 +123,7 @@ export default function MappingReviewClient({
       <div className="bg-white rounded-xl border border-zinc-200 overflow-x-auto">
         <table className="w-full text-sm min-w-200">
           <thead>
+<<<<<<< Updated upstream
             <tr className="border-b border-zinc-100 bg-zinc-50">
               <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 w-56">Supplier Data</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-zinc-500 w-56">Suggested Match</th>
@@ -131,6 +132,16 @@ export default function MappingReviewClient({
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100 [&_tr:nth-child(even)]:bg-zinc-100 [&_tr:nth-child(odd)]:bg-white [&_tr:hover]:bg-amber-50 [&_tr]:transition-colors">
+=======
+            <tr className="border-b border-zinc-200 bg-zinc-50">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide w-56">Supplier Data</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide w-56">Suggested Match</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide w-24">Confidence</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-200">
+>>>>>>> Stashed changes
             {loading ? (
               <tr><td colSpan={4} className="px-5 py-8 text-center text-sm text-zinc-400">Loading…</td></tr>
             ) : mappings.length === 0 ? (
@@ -142,7 +153,11 @@ export default function MappingReviewClient({
               </tr>
             ) : (
               mappings.map(m => (
+<<<<<<< Updated upstream
                 <tr key={m.id} className="even:bg-zinc-50/50 hover:bg-amber-50/40 transition-colors">
+=======
+                <tr key={m.id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
+>>>>>>> Stashed changes
                   {/* Supplier raw data */}
                   <td className="px-4 py-3 align-top">
                     <p className="font-medium text-zinc-900 text-xs">{m.supplier_size_raw ?? '—'}</p>

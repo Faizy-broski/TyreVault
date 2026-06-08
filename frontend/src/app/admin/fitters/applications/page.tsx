@@ -105,6 +105,7 @@ export default function FitterApplicationsPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm min-w-[520px]">
               <thead>
+<<<<<<< Updated upstream
                 <tr className="border-b border-zinc-100">
                   <th className="px-6 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Name</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">Email</th>
@@ -114,13 +115,28 @@ export default function FitterApplicationsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-300">
+=======
+                <tr className="border-b border-zinc-200 bg-zinc-50">
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Email</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Submitted</th>
+                  <th className="px-6 py-3 w-20 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-200">
+>>>>>>> Stashed changes
                 {applications.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-12 text-center text-zinc-400">No applications yet.</td>
                   </tr>
                 ) : (
                   applications.map(app => (
+<<<<<<< Updated upstream
                     <tr key={app.id} className="odd:bg-white even:bg-zinc-200 [&:hover]:bg-amber-100 transition-colors duration-150">
+=======
+                    <tr key={app.id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
+>>>>>>> Stashed changes
                       <td className="px-6 py-4 font-medium text-zinc-900">{app.full_name}</td>
                       <td className="px-6 py-4 text-zinc-600">{app.email}</td>
                       <td className="px-6 py-4">

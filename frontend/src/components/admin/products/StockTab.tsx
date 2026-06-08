@@ -152,9 +152,15 @@ export default function StockTab({ productId, patternId }: Props) {
                   <th className="px-4 py-2.5 text-right text-xs font-medium text-zinc-500">% of Total</th>
                 </tr>
               </thead>
+<<<<<<< Updated upstream
               <tbody className="divide-y divide-zinc-100 [&_tr:nth-child(even)]:bg-zinc-100 [&_tr:nth-child(odd)]:bg-white [&_tr:hover]:bg-amber-50 [&_tr]:transition-colors">
                 {data!.suppliers.map(s => (
                   <tr key={s.supplier_id} className="even:bg-zinc-50/50 hover:bg-amber-50/40 transition-colors">
+=======
+              <tbody className="divide-y divide-zinc-200">
+                {data!.suppliers.map(s => (
+                  <tr key={s.supplier_id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
+>>>>>>> Stashed changes
                     <td className="px-4 py-2.5 text-sm text-zinc-700">{s.supplier_name}</td>
                     <td className="px-4 py-2.5 text-sm text-right text-zinc-700 tabular-nums">{s.stock}</td>
                     <td className="px-4 py-2.5 text-sm text-right text-zinc-500 tabular-nums">{s.percentage}%</td>
@@ -201,11 +207,19 @@ export default function StockTab({ productId, patternId }: Props) {
                   <th className="px-4 py-2.5 text-right text-xs font-medium text-zinc-500">Last Updated</th>
                 </tr>
               </thead>
+<<<<<<< Updated upstream
               <tbody className="divide-y divide-zinc-100 [&_tr:nth-child(even)]:bg-zinc-100 [&_tr:nth-child(odd)]:bg-white [&_tr:hover]:bg-amber-50 [&_tr]:transition-colors">
                 {data!.warehouses.map(w => {
                   const row = local[w.warehouse_id]
                   return (
                     <tr key={w.warehouse_id} className="even:bg-zinc-50/50 hover:bg-amber-50/40 transition-colors">
+=======
+              <tbody className="divide-y divide-zinc-200">
+                {data!.warehouses.map(w => {
+                  const row = local[w.warehouse_id]
+                  return (
+                    <tr key={w.warehouse_id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
+>>>>>>> Stashed changes
                       <td className="px-4 py-2.5 text-sm text-zinc-700 font-medium">{w.warehouse_name}</td>
 
                       {/* Available — editable */}

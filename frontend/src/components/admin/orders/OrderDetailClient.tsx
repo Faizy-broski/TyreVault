@@ -478,7 +478,11 @@ export default function OrderDetailClient({
             <div className="overflow-x-auto">
               <Table className="w-full text-sm">
                 <TableHeader>
+<<<<<<< Updated upstream
                   <TableRow className="border-b border-zinc-100 bg-zinc-50 hover:bg-zinc-50">
+=======
+                  <TableRow className="border-b border-zinc-200 bg-zinc-50 hover:bg-zinc-50 odd:bg-zinc-50 even:bg-zinc-50">
+>>>>>>> Stashed changes
                     {['Name', 'SKU', 'Quantity', 'Price', 'VAT', 'Order Total'].map(h => (
                       <TableHead key={h} className={`px-4 py-3 text-xs font-medium text-zinc-500 ${h === 'Order Total' ? 'text-right' : 'text-left'}`}>
                         {h}
@@ -486,7 +490,11 @@ export default function OrderDetailClient({
                     ))}
                   </TableRow>
                 </TableHeader>
+<<<<<<< Updated upstream
                 <TableBody className="divide-y divide-zinc-100">
+=======
+                <TableBody className="divide-y divide-zinc-200">
+>>>>>>> Stashed changes
                   {order.order_items.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} className="px-4 py-6 text-center text-sm text-zinc-400">No items.</TableCell>
@@ -634,7 +642,11 @@ export default function OrderDetailClient({
                 </span>
               </div>
               <Table className="w-full text-sm">
+<<<<<<< Updated upstream
                 <TableBody className="divide-y divide-zinc-100">
+=======
+                <TableBody className="divide-y divide-zinc-200">
+>>>>>>> Stashed changes
                   {order.order_payments.map(p => (
                     <TableRow key={p.payment_id} className="even:bg-zinc-100 hover:bg-amber-50 transition-colors">
                       <TableCell className="px-4 py-3">
@@ -666,7 +678,7 @@ export default function OrderDetailClient({
                   ))}
                 </TableBody>
               </Table>
-              <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-100 bg-zinc-50">
+              <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-200 bg-zinc-50">
                 <span className="text-xs text-zinc-500">Total paid by customer</span>
                 <span className="text-sm font-semibold text-zinc-900">
                   {fmtCurrency(order.order_payments.reduce((s, p) => s + p.amount, 0), order.currency)} {order.currency}
@@ -725,9 +737,10 @@ export default function OrderDetailClient({
                   <div className="text-xs border-t border-zinc-100 pt-3">
                     <p className="text-zinc-400 mb-1">Shipping Address</p>
                     <address className="not-italic text-zinc-700 space-y-0.5">
-                      {addr.address_line1 && <p>{addr.address_line1}</p>}
-                      {(addr.city || addr.postal_code || addr.state) && (
-                        <p>{[addr.city, addr.state, addr.postal_code].filter(Boolean).join(' ')}</p>
+                      {(addr.line1 ?? addr.address_line1) && <p>{addr.line1 ?? addr.address_line1}</p>}
+                      {(addr.line2) && <p>{addr.line2}</p>}
+                      {((addr.suburb ?? addr.city) || addr.state || (addr.postcode ?? addr.postal_code)) && (
+                        <p>{[(addr.suburb ?? addr.city), addr.state, (addr.postcode ?? addr.postal_code)].filter(Boolean).join(' ')}</p>
                       )}
                       {addr.country && <p>{addr.country}</p>}
                     </address>
@@ -739,7 +752,7 @@ export default function OrderDetailClient({
                     <p className="text-zinc-700">
                       {Object.keys(billing).length === 0
                         ? 'Same as shipping address'
-                        : [billing.address_line1, billing.city, billing.country].filter(Boolean).join(', ')}
+                        : [billing.line1 ?? billing.address_line1, billing.suburb ?? billing.city, billing.state, billing.postcode ?? billing.postal_code].filter(Boolean).join(', ')}
                     </p>
                   </div>
                 )}

@@ -308,11 +308,19 @@ export default function MappingInterface({ supplierId, supplierName, connectionT
       <div className="bg-white rounded-xl border border-zinc-200 overflow-x-auto">
         <table className="w-full text-sm min-w-[860px]">
           <thead>
+<<<<<<< Updated upstream
             <tr className="border-b border-zinc-100 bg-zinc-50">
               <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 w-[280px]">OUR INVENTORY</th>
               <th className="px-3 py-3 text-center text-xs font-semibold text-zinc-500 w-[160px]">MATCH</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 w-[280px]">SUPPLIER CATALOGUE</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500">ACTIONS</th>
+=======
+            <tr className="border-b border-zinc-200 bg-zinc-50">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide w-70">Our Inventory</th>
+              <th className="px-3 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide w-40">Match</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide w-70">Supplier Catalogue</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Actions</th>
+>>>>>>> Stashed changes
             </tr>
           </thead>
           <tbody>

@@ -346,9 +346,15 @@ export default function SupplierDetailClient({ supplier, accessToken }: Props) {
                     <th className="px-4 py-2.5" />
                   </tr>
                 </thead>
+<<<<<<< Updated upstream
                 <tbody className="divide-y divide-zinc-100 [&_tr:nth-child(even)]:bg-zinc-100 [&_tr:nth-child(odd)]:bg-white [&_tr:hover]:bg-amber-50 [&_tr]:transition-colors">
                   {pos.map(po => (
                     <tr key={po.po_id} className="even:bg-zinc-50/50 hover:bg-amber-50/40 transition-colors">
+=======
+                <tbody className="divide-y divide-zinc-200">
+                  {pos.map(po => (
+                    <tr key={po.po_id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
+>>>>>>> Stashed changes
                       <td className="px-4 py-2.5 font-mono text-xs text-zinc-700">{po.po_number}</td>
                       <td className="px-4 py-2.5">
                         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${PO_STATUS_STYLE[po.po_status] ?? 'bg-zinc-100 text-zinc-600'}`}>
@@ -414,9 +420,15 @@ export default function SupplierDetailClient({ supplier, accessToken }: Props) {
                     <th className="px-4 py-2.5" />
                   </tr>
                 </thead>
+<<<<<<< Updated upstream
                 <tbody className="divide-y divide-zinc-100 [&_tr:nth-child(even)]:bg-zinc-100 [&_tr:nth-child(odd)]:bg-white [&_tr:hover]:bg-amber-50 [&_tr]:transition-colors">
                   {stock.map(row => (
                     <tr key={row.id} className="even:bg-zinc-50/50 hover:bg-amber-50/40 transition-colors">
+=======
+                <tbody className="divide-y divide-zinc-200">
+                  {stock.map(row => (
+                    <tr key={row.id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
+>>>>>>> Stashed changes
                       <td className="px-4 py-2.5">
                         <p className="font-mono text-xs text-zinc-700">{row.skus?.sku ?? row.product_id}</p>
                         <p className="text-xs text-zinc-400">{row.skus?.tyre_size_display ?? ''}</p>
@@ -463,7 +475,7 @@ export default function SupplierDetailClient({ supplier, accessToken }: Props) {
             onDrop={onDrop}
             onClick={() => fileInputRef.current?.click()}
             className={`cursor-pointer rounded-2xl border-2 border-dashed transition-colors p-12 flex flex-col items-center justify-center gap-3 ${
-              isDragOver ? 'border-yellow-400 bg-yellow-50' : 'border-zinc-300 bg-zinc-50 hover:border-zinc-400 hover:bg-zinc-100'
+              isDragOver ? 'border-yellow-400 bg-yellow-50' : 'border-zinc-300 bg-zinc-50 hover:border-zinc-400 hover:!bg-zinc-100'
             }`}
           >
             <svg className="w-8 h-8 text-zinc-400" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">

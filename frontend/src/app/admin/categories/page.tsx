@@ -219,7 +219,7 @@ export default function CategoriesPage() {
         <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-100 bg-zinc-50">
+              <tr className="border-b border-zinc-200 bg-zinc-50">
                 <th className="px-4 py-3 text-left font-medium text-zinc-500">Name</th>
                 <th className="px-4 py-3 text-left font-medium text-zinc-500">Slug</th>
                 <th className="px-4 py-3 text-left font-medium text-zinc-500">Type</th>
