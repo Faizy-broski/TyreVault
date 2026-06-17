@@ -32,7 +32,7 @@ const ALL_PAGES: NavPage[] = [
   { label: 'Products',               href: '/admin/products',                     icon: LayoutDashboard,  keywords: ['skus', 'tyres', 'catalogue'] },
   { label: 'Brands',                 href: '/admin/products/brands',              icon: LayoutDashboard,  keywords: ['brand', 'manufacturer'] },
   { label: 'Patterns',               href: '/admin/products/patterns',            icon: LayoutDashboard,  keywords: ['tread', 'model', 'pattern'] },
-  { label: 'Collections',            href: '/admin/products/collections',         icon: LayoutDashboard,  keywords: ['group', 'set'] },
+  // { label: 'Collections',            href: '/admin/products/collections',         icon: LayoutDashboard,  keywords: ['group', 'set'] },
   { label: 'Categories',             href: '/admin/products/categories',          icon: LayoutDashboard,  keywords: ['tags', 'type'] },
   { label: 'Warehouses',             href: '/admin/warehouses',                   icon: Archive,          keywords: ['storage', 'location', 'stock'] },
   { label: 'Suppliers',              href: '/admin/suppliers',                    icon: Truck,            keywords: ['vendor', 'wholesaler'] },

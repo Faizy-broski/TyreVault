@@ -207,6 +207,30 @@ export async function getFormMeta(req: Request, res: Response, next: NextFunctio
   } catch (err) { next(err) }
 }
 
+// ── Attributes ───────────────────────────────────────────────────────────────
+
+export async function getAttributes(_req: Request, res: Response, next: NextFunction) {
+  try { res.json(await ProductsService.listAttributes()) } catch (err) { next(err) }
+}
+
+export async function postAttribute(req: Request, res: Response, next: NextFunction) {
+  try { res.status(201).json(await ProductsService.createAttribute(req.body)) } catch (err) { next(err) }
+}
+
+export async function patchAttribute(req: Request, res: Response, next: NextFunction) {
+  try {
+    await ProductsService.updateAttribute(String((req.params as P).id), req.body)
+    res.json({ success: true })
+  } catch (err) { next(err) }
+}
+
+export async function removeAttribute(req: Request, res: Response, next: NextFunction) {
+  try {
+    await ProductsService.deleteAttribute(String((req.params as P).id))
+    res.json({ success: true })
+  } catch (err) { next(err) }
+}
+
 // ── Brands ───────────────────────────────────────────────────────────────────
 
 export async function getBrands(_req: Request, res: Response, next: NextFunction) {

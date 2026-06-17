@@ -8,7 +8,7 @@ import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { Badge } from '@/components/ui/badge'
 import { toastError } from '@/lib/toast'
 import PublishToggle from '@/components/admin/products/PublishToggle'
-import { VariantsTableActions, VariantRowMenu } from '@/components/admin/products/ProductActionsBar'
+// import { VariantsTableActions, VariantRowMenu } from '@/components/admin/products/ProductActionsBar' // VARIANTS DISABLED
 import type { Pattern, SkuListItem } from '@/types/admin.types'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
@@ -166,7 +166,7 @@ export default function ProductDetailPage() {
             {/* Core specs grid */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4">
               <Field label="Brand"       value={brand} />
-              <Field label="Collection"  value={collection} />
+              {/* <Field label="Collection"  value={collection} /> */}
               <Field label="Application" value={pattern.application_type} />
               <Field label="Season"      value={pattern.season_type?.replace(/_/g, ' ')} />
               <Field label="Performance" value={pattern.performance_category?.replace(/_/g, ' ')} />
@@ -242,14 +242,13 @@ export default function ProductDetailPage() {
             </Section>
           )}
 
-          {/* Variants */}
+          {/* VARIANTS DISABLED — section commented out; re-enable by uncommenting below
           <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
             <div className="flex flex-col gap-3 px-5 py-4 border-b border-zinc-200 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-sm font-semibold text-zinc-900">
                 Variants <span className="text-zinc-400 font-normal ml-1">({skus.length})</span>
               </h2>
               <div className="flex flex-wrap gap-2">
-                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 <VariantsTableActions patternId={id} skuStocks={skus as any} skuPrices={skus as any} onSuccess={onRefresh} />
                 <Link href={`/admin/products/${id}/variants/new`} className="rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-zinc-900 hover:bg-primary/90 transition-colors">
                   Add variant
@@ -277,17 +276,13 @@ export default function ProductDetailPage() {
                     const totalStock    = stockRows.reduce((sum: number, s: { available_stock: number }) => sum + s.available_stock, 0)
                     const locationCount = stockRows.length
                     const isOutOfStock  = totalStock === 0
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     const thumb = Array.isArray((sku as any).variant_images) && (sku as any).variant_images.length > 0
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       ? (sku as any).variant_images[0] as string : null
-
                     return (
                       <tr key={sku.product_id} className="odd:bg-white even:bg-zinc-50 [&:hover]:bg-amber-50/60 transition-colors">
                         <td className="px-4 py-3">
                           <div className="w-8 h-8 rounded bg-zinc-100 overflow-hidden flex items-center justify-center">
                             {thumb ? (
-                              // eslint-disable-next-line @next/next/no-img-element
                               <img src={thumb} alt="" className="w-full h-full object-cover" />
                             ) : (
                               <svg className="w-4 h-4 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -319,6 +314,7 @@ export default function ProductDetailPage() {
               </table>
             </div>
           </div>
+          */}
         </div>
 
         {/* ── Right sidebar ──────────────────────────────────────── */}
@@ -345,8 +341,8 @@ export default function ProductDetailPage() {
                 <dd className="text-zinc-700">{pattern.application_type ?? '—'}</dd>
               </div>
               <div className="flex justify-between gap-2">
-                <dt className="text-zinc-500 shrink-0">Collection</dt>
-                <dd className="text-zinc-700 text-right">{collection}</dd>
+                {/* <dt className="text-zinc-500 shrink-0">Collection</dt>
+                <dd className="text-zinc-700 text-right">{collection}</dd> */}
               </div>
               <div>
                 <dt className="text-zinc-500 mb-1.5">Categories</dt>

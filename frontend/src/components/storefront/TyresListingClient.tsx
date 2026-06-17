@@ -56,77 +56,99 @@ function DiscountBadge({ original, promo }: { original: number; promo: number })
 }
 
 function TyreCard({ hit, onAddToCart }: { hit: TyreSku; onAddToCart: (hit: TyreSku) => void }) {
-  const hasPromo = hit.promo_price != null && hit.price_inc_gst != null && hit.promo_price < hit.price_inc_gst
+  const hasPromo     = hit.promo_price != null && hit.price_inc_gst != null && hit.promo_price < hit.price_inc_gst
+  const displayPrice = hasPromo ? hit.promo_price! : hit.price_inc_gst
+  const href         = hit.product_slug ? `/tyres/${hit.product_slug}` : `/tyres?brand_id=${hit.brand_id}`
 
   return (
-    <div className="group flex flex-col rounded-2xl border border-zinc-200 bg-white hover:shadow-xl hover:-translate-y-1 transition-all duration-200 overflow-hidden">
-      <a href={hit.product_slug ? `/tyres/${hit.product_slug}` : `/tyres?brand_id=${hit.brand_id}`} className="block">
-        <div className="aspect-[4/3] bg-zinc-50 relative overflow-hidden">
-          {hit.main_image && (hit.main_image.startsWith('http') || hit.main_image.startsWith('/')) ? (
-            <Image
-              src={hit.main_image}
-              alt={hit.tyre_size_display}
-              fill
-              className="object-contain p-4 group-hover:scale-105 transition-transform duration-300"
-              sizes="(max-width: 768px) 50vw, 25vw"
-            />
-          ) : (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-zinc-50 to-zinc-100/50">
-              <div className="relative flex items-center justify-center w-16 h-16 mb-2">
-                <div className="absolute inset-0 rounded-full border-[3px] border-dashed border-zinc-300 animate-[spin_20s_linear_infinite]" />
-                <div className="absolute inset-3 rounded-full border-2 border-zinc-300/80" />
-                <ImageOff className="w-5 h-5 text-zinc-500" />
-              </div>
-              <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">No Image</span>
+    <div className="group flex bg-white rounded-2xl border border-zinc-100 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-200 overflow-hidden">
+
+      {/* Left — image */}
+      <a href={href} className="relative shrink-0 w-[42%] bg-zinc-50 overflow-hidden">
+        {hit.main_image && (hit.main_image.startsWith('http') || hit.main_image.startsWith('/')) ? (
+          <Image
+            src={hit.main_image}
+            alt={hit.tyre_size_display}
+            fill
+            className="object-contain p-4 group-hover:scale-105 transition-transform duration-300"
+            sizes="(max-width: 768px) 40vw, 20vw"
+          />
+        ) : (
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <div className="relative flex items-center justify-center w-14 h-14 mb-1.5">
+              <div className="absolute inset-0 rounded-full border-[3px] border-dashed border-zinc-200 animate-[spin_20s_linear_infinite]" />
+              <div className="absolute inset-3 rounded-full border-2 border-zinc-200/80" />
+              <ImageOff className="w-4 h-4 text-zinc-300" />
             </div>
-          )}
-          {hasPromo && (
-            <DiscountBadge original={hit.price_inc_gst!} promo={hit.promo_price!} />
-          )}
-        </div>
-        <div className="px-4 pt-3 pb-2 space-y-1">
-          <p className="text-[10px] font-bold text-primary uppercase tracking-[0.15em]">{hit.brand_name}</p>
-          <p className="text-sm font-bold text-zinc-900 line-clamp-1 leading-snug font-oswald uppercase tracking-wide">{hit.pattern_name}</p>
-          <p className="text-xs text-zinc-500 font-medium">{hit.tyre_size_display}</p>
-          {(hit.runflat || hit.xl_reinforced) && (
-            <div className="flex flex-wrap gap-1 pt-0.5">
-              {hit.runflat       && <span className="text-[10px] bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-full font-semibold">Runflat</span>}
-              {hit.xl_reinforced && <span className="text-[10px] bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-full font-semibold">XL</span>}
-            </div>
-          )}
-        </div>
+            <span className="text-[8px] font-black text-zinc-300 uppercase tracking-widest">No Image</span>
+          </div>
+        )}
+        {hasPromo && (
+          <DiscountBadge original={hit.price_inc_gst!} promo={hit.promo_price!} />
+        )}
       </a>
-      <div className="mt-auto border-t border-zinc-100 px-4 py-3 flex items-center justify-between gap-2">
-        <div>
-          {hit.price_inc_gst != null ? (
-            hasPromo ? (
-              <div>
-                <p className="text-[11px] text-zinc-400 line-through leading-none">
-                  ${hit.price_inc_gst.toLocaleString()}
-                </p>
-                <p className="text-base font-bold text-primary leading-tight">
-                  ${hit.promo_price!.toLocaleString()}
-                </p>
-              </div>
-            ) : (
-              <p className="text-base font-bold text-zinc-900">
-                ${hit.price_inc_gst.toLocaleString()}
-              </p>
-            )
-          ) : (
-            <p className="text-xs text-zinc-400 italic">Price on request</p>
+
+      {/* Right — details */}
+      <div className="flex flex-col flex-1 min-w-0 p-4">
+        {/* Brand */}
+        <p className="text-[10px] font-black text-primary uppercase tracking-[0.25em] truncate mb-1">
+          {hit.brand_name}
+        </p>
+
+        {/* Name + size */}
+        <a href={href} className="block flex-1">
+          <p className="text-base font-black text-zinc-900 leading-tight line-clamp-2 font-oswald uppercase tracking-wide">
+            {hit.pattern_name}
+          </p>
+          <p className="text-xs text-zinc-500 font-semibold mt-1">{hit.tyre_size_display}</p>
+          {(hit.runflat || hit.xl_reinforced) && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {hit.runflat       && <span className="text-[10px] bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-md font-bold">Runflat</span>}
+              {hit.xl_reinforced && <span className="text-[10px] bg-primary/15 text-zinc-700 px-2 py-0.5 rounded-md font-bold">XL</span>}
+            </div>
           )}
-          <StockBadge stock={hit.total_stock} />
+        </a>
+
+        {/* Price */}
+        <div className="mt-2">
+          {displayPrice != null ? (
+            <>
+              {hasPromo && (
+                <p className="text-xs text-zinc-400 line-through leading-none mb-0.5">
+                  ${hit.price_inc_gst!.toLocaleString()}
+                </p>
+              )}
+              <p className="leading-none">
+                <span className="text-xl font-black text-zinc-900">${displayPrice.toLocaleString()}</span>
+                <span className="text-sm font-semibold text-zinc-400 ml-1">Each</span>
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-zinc-400 italic font-medium">Price on request</p>
+          )}
+          <div className="mt-1">
+            <StockBadge stock={hit.total_stock} />
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={() => onAddToCart(hit)}
-          disabled={hit.total_stock === 0}
-          className="shrink-0 flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-bold text-zinc-900 hover:brightness-110 active:scale-95 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          <ShoppingCart className="w-3.5 h-3.5" />
-          Add
-        </button>
+
+        {/* Buttons */}
+        <div className="flex flex-col gap-1.5 mt-3">
+          <button
+            type="button"
+            onClick={() => onAddToCart(hit)}
+            disabled={hit.total_stock === 0}
+            className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-primary hover:brightness-110 active:scale-95 transition-all duration-150 py-2.5 text-sm font-bold text-zinc-900 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <ShoppingCart className="w-4 h-4" />
+            Add to cart
+          </button>
+          <a
+            href={href}
+            className="w-full flex items-center justify-center rounded-lg border-2 border-primary py-2 text-sm font-bold text-zinc-900 hover:bg-primary/10 transition-colors"
+          >
+            View details
+          </a>
+        </div>
       </div>
     </div>
   )
@@ -338,7 +360,7 @@ export default function TyresListingClient({ initialResult, initialFacets, initi
   return (
     <>
       {/* ── Hero banner (the Navbar floats over this) ── */}
-      <section className="relative bg-zinc-900 overflow-hidden">
+      <section className="relative bg-zinc-900 overflow-hidden -mt-[104px]">
         {/* Subtle tyre watermark */}
         <div className="pointer-events-none absolute right-0 top-0 h-full w-[400px] opacity-[0.04]">
           <Image src="/tyre.svg" alt="" fill className="object-contain object-right" />
@@ -385,7 +407,7 @@ export default function TyresListingClient({ initialResult, initialFacets, initi
       </section>
 
       {/* ── Main listing layout ── */}
-      <div className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-10">
+      <div className="mx-auto max-w-[1400px] px-4 pb-6 sm:px-6 lg:px-10">
 
         {/* Mobile top bar */}
         <div className="flex items-center justify-between gap-3 mb-4 sm:hidden">
@@ -439,14 +461,17 @@ export default function TyresListingClient({ initialResult, initialFacets, initi
 
             {/* Loading skeletons */}
             {pending && (
-              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className="rounded-2xl border border-zinc-200 bg-white overflow-hidden animate-pulse">
-                    <div className="aspect-[4/3] bg-zinc-100" />
-                    <div className="p-4 space-y-2">
-                      <div className="h-2 bg-zinc-100 rounded-full w-1/3" />
-                      <div className="h-4 bg-zinc-100 rounded-full w-3/4" />
-                      <div className="h-3 bg-zinc-100 rounded-full w-1/2" />
+                  <div key={i} className="flex rounded-2xl border border-zinc-100 bg-white shadow-md overflow-hidden animate-pulse h-44">
+                    <div className="w-[42%] bg-zinc-100 shrink-0" />
+                    <div className="flex-1 p-3.5 flex flex-col gap-2">
+                      <div className="h-2 bg-zinc-100 rounded-full w-20" />
+                      <div className="h-3.5 bg-zinc-100 rounded-full w-full" />
+                      <div className="h-3 bg-zinc-100 rounded-full w-2/3" />
+                      <div className="mt-auto h-6 bg-zinc-100 rounded-full w-1/2" />
+                      <div className="h-8 bg-zinc-100 rounded-lg w-full" />
+                      <div className="h-7 bg-zinc-100 rounded-lg w-full" />
                     </div>
                   </div>
                 ))}
@@ -474,7 +499,7 @@ export default function TyresListingClient({ initialResult, initialFacets, initi
             {/* Results grid */}
             {!pending && result && result.data.length > 0 && (
               <>
-                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {result.data.map(hit => (
                     <TyreCard key={hit.product_id} hit={hit} onAddToCart={handleAddToCart} />
                   ))}

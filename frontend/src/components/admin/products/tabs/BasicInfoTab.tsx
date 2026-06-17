@@ -36,11 +36,15 @@ export default function BasicInfoTab({ autoSlug, brands, patterns = [] }: {
   const { register, watch, setValue, formState: { errors } } = useFormContext<CreateProductFormValues>()
   const brandId = watch('brandId')
   const [patternLoading, setPatternLoading] = useState(false)
+  const [appliedPattern, setAppliedPattern] = useState<{ id: string; name: string } | null>(null)
 
   const brandPatterns = patterns.filter(p => p.brand_id === brandId)
 
   const applyPattern = useCallback(async (patternId: string) => {
-    if (!patternId || !brandId) return
+    if (!patternId || !brandId) {
+      setAppliedPattern(null)
+      return
+    }
     setPatternLoading(true)
     try {
       const { data: { session } } = await createClient().auth.getSession()
@@ -83,8 +87,11 @@ export default function BasicInfoTab({ autoSlug, brands, patterns = [] }: {
       if (Array.isArray(p.pattern_categories)) {
         setValue('categoryIds', p.pattern_categories.map((c: { category_id: string }) => c.category_id))
       }
+
+      setAppliedPattern({ id: patternId, name: p.pattern_name ?? patternId })
     } catch (err) {
       toastError(err instanceof Error ? err.message : 'Failed to load pattern details')
+      setAppliedPattern(null)
     } finally {
       setPatternLoading(false)
     }
@@ -153,12 +160,11 @@ export default function BasicInfoTab({ autoSlug, brands, patterns = [] }: {
             {errors.brandId && <p className="mt-1 text-xs text-red-600">{errors.brandId.message}</p>}
           </div>
 
-          {/* Pattern (pre-fill from existing) */}
+          {/* Pattern selector */}
           {brandPatterns.length > 0 && (
             <div>
               <label className="block text-sm font-medium text-zinc-700 mb-1">
-                Copy from pattern
-                <span className="ml-1 text-xs font-normal text-zinc-400">(pre-fills all fields)</span>
+                Pattern
               </label>
               <div className="relative">
                 <select
@@ -181,44 +187,74 @@ export default function BasicInfoTab({ autoSlug, brands, patterns = [] }: {
             </div>
           )}
 
-          {/* Title */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">Title</label>
-            <Input
-              {...register('patternName')}
-              onBlur={handleNameBlur}
-              placeholder="Michelin Pilot Sport 4"
-            />
-            {errors.patternName && <p className="mt-1 text-xs text-red-600">{errors.patternName.message}</p>}
-          </div>
-
-          {/* Slug */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">Slug</label>
-            <div className="flex items-center rounded-lg border border-zinc-300 overflow-hidden focus-within:ring-2 focus-within:ring-zinc-500/20 focus-within:border-zinc-500">
-              <span className="px-2 text-zinc-400 text-sm select-none border-r border-zinc-300 bg-zinc-50 py-2">/</span>
-              <input
-                {...register('patternSlug')}
-                placeholder={autoSlug || 'product-slug'}
-                className="flex-1 px-3 py-2 text-sm focus:outline-none bg-transparent border-0 shadow-none focus-visible:ring-0"
+          {/* Title — hidden when pattern is applied */}
+          {!appliedPattern && (
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Title</label>
+              <Input
+                {...register('patternName')}
+                onBlur={handleNameBlur}
+                placeholder="Michelin Pilot Sport 4"
               />
+              {errors.patternName && <p className="mt-1 text-xs text-red-600">{errors.patternName.message}</p>}
             </div>
-            {errors.patternSlug && <p className="mt-1 text-xs text-red-600">{errors.patternSlug.message}</p>}
+          )}
+
+          {/* Slug — hidden when pattern is applied */}
+          {!appliedPattern && (
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Slug</label>
+              <div className="flex items-center rounded-lg border border-zinc-300 overflow-hidden focus-within:ring-2 focus-within:ring-zinc-500/20 focus-within:border-zinc-500">
+                <span className="px-2 text-zinc-400 text-sm select-none border-r border-zinc-300 bg-zinc-50 py-2">/</span>
+                <input
+                  {...register('patternSlug')}
+                  placeholder={autoSlug || 'product-slug'}
+                  className="flex-1 px-3 py-2 text-sm focus:outline-none bg-transparent border-0 shadow-none focus-visible:ring-0"
+                />
+              </div>
+              {errors.patternSlug && <p className="mt-1 text-xs text-red-600">{errors.patternSlug.message}</p>}
+            </div>
+          )}
+        </div>
+
+        {/* Pattern-filled fields summary banner */}
+        {appliedPattern && (
+          <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-3">
+            <svg className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-amber-800">
+                Fields auto-filled from pattern: <span className="font-semibold">{appliedPattern.name}</span>
+              </p>
+              <p className="text-xs text-amber-600 mt-0.5">
+                Title, slug, description, images, rich text, SEO, and visibility settings were copied from this pattern.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAppliedPattern(null)}
+              className="text-xs text-amber-600 hover:text-amber-800 underline flex-shrink-0"
+            >
+              Edit manually
+            </button>
           </div>
-        </div>
+        )}
 
-        {/* Short Description */}
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-zinc-700 mb-1">Short Description</label>
-          <Textarea
-            {...register('shortDescription')}
-            rows={3}
-            placeholder="Brief description of tyre product..."
-            className="resize-none placeholder-zinc-400"
-          />
-        </div>
+        {/* Short Description — hidden when pattern applied */}
+        {!appliedPattern && (
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-zinc-700 mb-1">Short Description</label>
+            <Textarea
+              {...register('shortDescription')}
+              rows={3}
+              placeholder="Brief description of tyre product..."
+              className="resize-none placeholder-zinc-400"
+            />
+          </div>
+        )}
 
-        {/* Default Country of Origin */}
+        {/* Default Country of Origin — always visible (product-specific) */}
         <div className="mt-4">
           <label className="block text-sm font-medium text-zinc-700 mb-1">
             Default Country of Origin
@@ -232,7 +268,8 @@ export default function BasicInfoTab({ autoSlug, brands, patterns = [] }: {
           />
         </div>
 
-        {/* Media */}
+        {/* Media — hidden when pattern applied */}
+        {!appliedPattern && (
         <div className="mt-4">
           <label className="block text-sm font-medium text-zinc-700 mb-1">Media</label>
           <input
@@ -368,9 +405,11 @@ export default function BasicInfoTab({ autoSlug, brands, patterns = [] }: {
             </div>
           )}
         </div>
+        )}
       </section>
 
-      {/* ── Product Details ──────────────────────────────────────────────── */}
+      {/* ── Product Details — hidden when pattern applied ─────────────────── */}
+      {!appliedPattern && (
       <section>
         <h2 className="text-base font-semibold text-zinc-900 mb-4">Product Details</h2>
         <div className="space-y-4">
@@ -380,8 +419,10 @@ export default function BasicInfoTab({ autoSlug, brands, patterns = [] }: {
           <RichField name="tyreSpecSheet"       label="Tyre Spec Sheet" />
         </div>
       </section>
+      )}
 
-      {/* ── SEO + Visibility ─────────────────────────────────────────────── */}
+      {/* ── SEO + Visibility — hidden when pattern applied ───────────────── */}
+      {!appliedPattern && (
       <section>
         <h2 className="text-base font-semibold text-zinc-900 mb-4">SEO &amp; Visibility</h2>
 
@@ -464,6 +505,7 @@ export default function BasicInfoTab({ autoSlug, brands, patterns = [] }: {
           <p className="mt-1 text-xs text-zinc-400">Close-up tread pattern image shown on product detail page</p>
         </div>
       </section>
+      )}
 
       {/* ── FAQ List ─────────────────────────────────────────────────────── */}
       <section>

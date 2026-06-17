@@ -8,8 +8,8 @@ type Props = {
 }
 
 function calcMargin(price: number, cost: number): string {
-  if (!price || !cost || cost >= price) return '—'
-  return ((1 - cost / price) * 100).toFixed(2) + '%'
+  if (!price || !cost) return '—'
+  return ((1 - cost / price) * 100).toFixed(1) + '%'
 }
 
 export default function PricingTab({ warehouses }: Props) {
@@ -19,10 +19,11 @@ export default function PricingTab({ warehouses }: Props) {
   const pricing  = useWatch({ control, name: 'pricing'  }) ?? []
 
   if (variants.length === 0) {
+    // VARIANTS DISABLED — pricing is per-variant; show neutral empty state
     return (
       <div className="py-20 text-center">
         <p className="text-sm text-zinc-400">
-          No variants added yet. Go back to the Variants tab and add at least one variant.
+          No variants to price. Pricing will be configured after variants are added.
         </p>
       </div>
     )
@@ -55,20 +56,28 @@ export default function PricingTab({ warehouses }: Props) {
           </thead>
           <tbody className="divide-y divide-zinc-200">
             {variants.map((variant, index) => {
-              const p       = pricing[index]
-              const price   = p?.priceIncGst ?? 0
-              const cost    = p?.costPrice ?? 0
-              const margin  = calcMargin(price, cost)
-              const isGood  = margin !== '—' && parseFloat(margin) > 0
+              const p           = pricing[index]
+              const price       = p?.priceIncGst ?? 0
+              const cost        = p?.costPrice ?? 0
+              const margin      = calcMargin(price, cost)
+              const marginValue = parseFloat(margin)
+              const isGood      = margin !== '—' && marginValue > 0
+              const isNegative  = margin !== '—' && marginValue < 0
 
               return (
                 <tr key={index} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
                   {/* Tire Size */}
                   <td className="px-4 py-3 font-medium text-zinc-800">
-                    {variant.tyreSizeDisplay || '—'}
+                    {variant.tyreSizeDisplay
+                      ? variant.tyreSizeDisplay
+                      : <span className="text-xs text-zinc-300 italic">Set in Tyre Specs</span>}
                   </td>
                   {/* SKU */}
-                  <td className="px-4 py-3 text-zinc-600 text-xs">{variant.sku || '—'}</td>
+                  <td className="px-4 py-3 text-zinc-600 text-xs">
+                    {variant.sku
+                      ? variant.sku
+                      : <span className="text-zinc-300 italic">—</span>}
+                  </td>
 
                   {/* Price */}
                   <td className="px-4 py-3">
@@ -117,7 +126,10 @@ export default function PricingTab({ warehouses }: Props) {
 
                   {/* Margin — calculated, read-only */}
                   <td className="px-4 py-3">
-                    <span className={`text-sm font-medium ${isGood ? 'text-green-600' : 'text-zinc-400'}`}>
+                    <span className={`text-sm font-medium ${
+                      isGood     ? 'text-green-600' :
+                      isNegative ? 'text-red-500'   : 'text-zinc-400'
+                    }`}>
                       {margin}
                     </span>
                   </td>

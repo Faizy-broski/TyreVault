@@ -46,6 +46,12 @@ export interface FitmentJobItem {
   quantity:     number
   service_type: 'fit_only' | 'supply_and_fit' | 'alignment' | null
   unit_price:   number | null
+  skus?: {
+    sku: string
+    tyre_size_display: string | null
+    brands?: { brand_name: string } | null
+    patterns?: { pattern_name: string } | null
+  } | null
 }
 
 export interface ShippingAddress {

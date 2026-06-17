@@ -20,6 +20,12 @@ router.get('/import/jobs/:jobId',  ctrl.getImportJob)
 // Form metadata (brands, collections, categories for dropdowns)
 router.get('/meta', ctrl.getFormMeta)
 
+// Attributes CRUD (application, season, performance, position, shoulder, terrain)
+router.get('/attributes',       ctrl.getAttributes)
+router.post('/attributes',      ctrl.postAttribute)
+router.patch('/attributes/:id', ctrl.patchAttribute)
+router.delete('/attributes/:id', ctrl.removeAttribute)
+
 // Brands CRUD
 router.get('/brands',       ctrl.getBrands)
 router.post('/brands',      ctrl.postBrand)

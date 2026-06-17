@@ -125,7 +125,7 @@ export default function CategoriesTab({ collections, categories }: Props) {
           </div>
 
           {/* Collection */}
-          <div>
+          {/* <div>
             <label className="block text-sm font-medium text-zinc-700 mb-1">Collection</label>
             <CreatableCombobox
               options={collections.map(c => ({ value: c.collection_id, label: c.collection_name }))}
@@ -133,7 +133,7 @@ export default function CategoriesTab({ collections, categories }: Props) {
               onChange={v => setValue('collectionId', v)}
               placeholder="Search collection…"
             />
-          </div>
+          </div> */}
         </div>
 
         {/* Category (vehicle category — multi-select search only) */}

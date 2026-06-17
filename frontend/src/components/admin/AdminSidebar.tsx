@@ -34,7 +34,7 @@ const nav = [
     children: [
       { label: "Brands",      href: "/admin/products/brands" },
       { label: "Patterns",    href: "/admin/products/patterns" },
-      { label: "Collection",  href: "/admin/products/collections" },
+      // { label: "Collection",  href: "/admin/products/collections" },
       { label: "Categories",  href: "/admin/products/categories" },
       { label: "Warehouses",  href: "/admin/warehouses" },
     ],

@@ -9,7 +9,8 @@ import { createClient } from '@/lib/supabase/client'
 import { createProductSchema, type CreateProductFormValues } from './schema'
 import BasicInfoTab from './tabs/BasicInfoTab'
 import CategoriesTab from './tabs/CategoriesTab'
-import VariantsTab from './tabs/VariantsTab'
+// import VariantsTab from './tabs/VariantsTab' // VARIANTS DISABLED (multi-row table)
+import ProductSpecsTab from './tabs/ProductSpecsTab'
 import PricingTab from './tabs/PricingTab'
 import { cn } from '@/lib/utils/cn'
 import { Button } from '@/components/ui/button'
@@ -18,7 +19,7 @@ import { toastSuccess, toastError } from '@/lib/toast'
 const TABS = [
   { key: 'basic',      label: 'Basic Info' },
   { key: 'categories', label: 'Categories' },
-  { key: 'variants',   label: 'Variants' },
+  { key: 'variants',   label: 'Tyre Specs' },
   { key: 'pricing',    label: 'Pricing' },
 ] as const
 
@@ -61,7 +62,17 @@ export default function CreateProductWizard({ brands, collections, categories, w
       seasonType: '',
       collectionId: '',
       tags: [],
-      variants: [],
+      variants: [{
+        sku: '', barcodeEan: '', tyreSizeDisplay: '', width: undefined, profile: undefined,
+        rimSize: 0, specialSize: '', constructionType: undefined, speedRating: '', loadIndex: '',
+        loadSpeedRating: '', fuelRating: '', wetGrip: '', noiseDb: '', noiseClass: '',
+        runflat: false, xlReinforced: false, ltSizing: false, plyRating: '', loadRange: '',
+        sidewall: undefined, tubeType: undefined, manufacturerName: '', countryOfOrigin: '',
+        factoryName: '', factoryCountry: '', sectionWidth: undefined, treadDepth: undefined,
+        tyreWeight: undefined, overallDiameter: undefined, maxLoad: '', maxPressure: '',
+        eMark: '', dotCode: '', utqg: '', variantImages: [], status: 'active' as const,
+        replacementProductId: '',
+      }],
       pricing: [],
     },
   })
@@ -83,10 +94,9 @@ export default function CreateProductWizard({ brands, collections, categories, w
     if (errs.brandId)      msgs.push('Brand is required')
     if (errs.patternName)  msgs.push('Product name is required')
     if (errs.patternSlug)  msgs.push('Slug is required')
-    if (errs.variants)     msgs.push(typeof errs.variants.message === 'string' ? errs.variants.message : 'Check variant fields (SKU, tyre size, rim size required)')
+    if (errs.variants)     msgs.push('Check Tyre Specs — SKU, Tyre Size, Rim Size and Country are required')
     if (errs.pricing)      msgs.push('Fill in Price (inc. GST) for each variant')
     toastError(msgs.length ? msgs.join(' · ') : 'Please fill in all required fields before publishing')
-    // Switch to the first tab that has errors so the user can see them
     if (errs.brandId || errs.patternName || errs.patternSlug) setActiveTab('basic')
     else if (errs.variants) setActiveTab('variants')
     else if (errs.pricing)  setActiveTab('pricing')
@@ -195,7 +205,7 @@ export default function CreateProductWizard({ brands, collections, categories, w
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6">
           {activeTab === 'basic'      && <BasicInfoTab autoSlug={autoSlug} brands={brands} patterns={patterns} />}
           {activeTab === 'categories' && <CategoriesTab collections={collections} categories={categories} />}
-          {activeTab === 'variants'   && <VariantsTab />}
+          {activeTab === 'variants'   && <ProductSpecsTab />}
           {activeTab === 'pricing'    && <PricingTab warehouses={warehouses} />}
         </div>
 

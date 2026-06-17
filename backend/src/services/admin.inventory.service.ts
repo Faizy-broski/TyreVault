@@ -83,7 +83,17 @@ export async function getInventoryMappings({
     .order('tyre_size_display')
 
   if (search) {
-    skusQ = skusQ.or(`tyre_size_display.ilike.%${search}%,sku.ilike.%${search}%`)
+    const { data: b } = await supabase.from('brands').select('brand_id').ilike('brand_name', `%${search}%`)
+    const { data: p } = await supabase.from('patterns').select('pattern_id').ilike('pattern_name', `%${search}%`)
+
+    const bIds = b?.map(x => x.brand_id) || []
+    const pIds = p?.map(x => x.pattern_id) || []
+
+    const orParts = [`tyre_size_display.ilike.%${search}%`, `sku.ilike.%${search}%`]
+    if (bIds.length > 0) orParts.push(`brand_id.in.(${bIds.join(',')})`)
+    if (pIds.length > 0) orParts.push(`pattern_id.in.(${pIds.join(',')})`)
+
+    skusQ = skusQ.or(orParts.join(','))
   }
   if (includeIds !== null) skusQ = skusQ.in('product_id', includeIds)
   if (excludeIds !== null && excludeIds.length > 0) {

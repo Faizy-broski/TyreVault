@@ -8,16 +8,23 @@ import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { toastPromise, toastError } from '@/lib/toast'
 import { uploadProductImage } from '@/lib/upload-image'
-import { Check } from 'lucide-react'
-
+import { Check, ChevronDown } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
-const APPLICATION_TYPES = ['passenger', 'suv', 'truck', 'commercial', 'trailer', 'motorcycle', 'atv']
-const SEASON_TYPES       = ['all_season', 'summer', 'winter', 'all_weather']
-const PERFORMANCE_CATS   = ['touring', 'sport', 'uhp', 'eco', 'highway', 'off_road', 'winter']
-const POSITION_CATS      = ['steer', 'drive', 'trailer', 'all_position']
-const SHOULDER_TYPES     = ['open', 'closed', 'semi_open']
-const TERRAIN_TYPES      = ['highway', 'all_terrain', 'mud_terrain', 'on_off_road', 'extreme_terrain']
+import { CreatableCombobox, ComboOption } from '@/components/ui/CreatableCombobox'
+
+export type PatternAttribute = {
+  id: string
+  attribute_type: string
+  attribute_value: string
+}
 
 export type PatternFormState = {
   pattern_name:              string
@@ -79,6 +86,7 @@ export default function PatternForm({ brandId: initialBrandId, brandName: initia
   const [categories, setCategoriesList] = useState<CategoryOption[]>([])
   const [catLoading, setCatLoading]     = useState(true)
   const [catSearch, setCatSearch]       = useState('')
+  const [attributes, setAttributes]     = useState<PatternAttribute[]>([])
   const imgRef = useRef<HTMLInputElement>(null)
   const isEdit = Boolean(patternId)
 
@@ -86,18 +94,67 @@ export default function PatternForm({ brandId: initialBrandId, brandName: initia
   const brandName = brands.find(b => b.brand_id === brandId)?.brand_name ?? initialBrandName ?? ''
 
   useEffect(() => {
-    async function loadCategories() {
+    async function loadData() {
       try {
         const { data: { session } } = await createClient().auth.getSession()
         const tok = session?.access_token ?? ''
-        const res = await fetch(`${API}/api/admin/products/categories`, {
-          headers: { Authorization: `Bearer ${tok}` },
-        })
-        if (res.ok) setCategoriesList(await res.json())
+        
+        const [catRes, attrRes] = await Promise.all([
+          fetch(`${API}/api/admin/products/categories`, { headers: { Authorization: `Bearer ${tok}` } }),
+          fetch(`${API}/api/admin/products/attributes`, { headers: { Authorization: `Bearer ${tok}` } })
+        ])
+        
+        if (catRes.ok) setCategoriesList(await catRes.json())
+        if (attrRes.ok) setAttributes(await attrRes.json())
       } catch { /* non-critical */ } finally { setCatLoading(false) }
     }
-    loadCategories()
+    loadData()
   }, [])
+
+  const getOptions = (type: string): ComboOption[] => 
+    attributes.filter(a => a.attribute_type === type).map(a => ({ value: a.attribute_value, label: a.attribute_value }))
+
+  async function handleCreateAttr(type: string, value: string): Promise<ComboOption> {
+    const { data: { session } } = await createClient().auth.getSession()
+    const tok = session?.access_token ?? ''
+    const res = await fetch(`${API}/api/admin/products/attributes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
+      body: JSON.stringify({ attribute_type: type, attribute_value: value })
+    })
+    if (!res.ok) throw new Error('Failed to create attribute')
+    const created = await res.json()
+    setAttributes(prev => [...prev, created])
+    return { value: created.attribute_value, label: created.attribute_value }
+  }
+
+  async function handleEditAttr(oldVal: string, newVal: string, type: string): Promise<ComboOption> {
+    const attr = attributes.find(a => a.attribute_type === type && a.attribute_value === oldVal)
+    if (!attr) throw new Error('Not found')
+    const { data: { session } } = await createClient().auth.getSession()
+    const tok = session?.access_token ?? ''
+    const res = await fetch(`${API}/api/admin/products/attributes/${attr.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
+      body: JSON.stringify({ attribute_value: newVal })
+    })
+    if (!res.ok) throw new Error('Failed to update attribute')
+    setAttributes(prev => prev.map(a => a.id === attr.id ? { ...a, attribute_value: newVal } : a))
+    return { value: newVal, label: newVal }
+  }
+
+  async function handleDeleteAttr(val: string, type: string): Promise<void> {
+    const attr = attributes.find(a => a.attribute_type === type && a.attribute_value === val)
+    if (!attr) throw new Error('Not found')
+    const { data: { session } } = await createClient().auth.getSession()
+    const tok = session?.access_token ?? ''
+    const res = await fetch(`${API}/api/admin/products/attributes/${attr.id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${tok}` }
+    })
+    if (!res.ok) throw new Error('Failed to delete attribute')
+    setAttributes(prev => prev.filter(a => a.id !== attr.id))
+  }
 
   function set(key: keyof PatternFormState, val: string | boolean) {
     setForm(prev => ({ ...prev, [key]: val }))
@@ -271,49 +328,99 @@ export default function PatternForm({ brandId: initialBrandId, brandName: initia
               </div>
             </Card>
 
+            {/* Categories */}
+            <Card title="Categories" description="Assign this pattern to a product category.">
+              {catLoading ? (
+                <div className="h-[38px] rounded-lg bg-zinc-100 animate-pulse w-full" />
+              ) : categories.length === 0 ? (
+                <p className="text-xs text-zinc-400">No categories found. Create categories under Products → Categories first.</p>
+              ) : (
+                <Select
+                  value={form.category_ids[0] || ''}
+                  onValueChange={(val) => setForm(prev => ({ ...prev, category_ids: val ? [val] : [] }))}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a category..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map(c => (
+                      <SelectItem key={c.category_id} value={c.category_id}>
+                        {c.category_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </Card>
+
             {/* Specifications */}
             <Card title="Specifications" description="Application, season, and tyre classification.">
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                 <div>
                   <label className={lbl}>Application <Req /></label>
-                  <select value={form.application_type} onChange={e => set('application_type', e.target.value)} className={inp} required>
-                    {APPLICATION_TYPES.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
-                  </select>
+                  <CreatableCombobox
+                    value={form.application_type}
+                    onChange={v => set('application_type', v)}
+                    options={getOptions('application')}
+                    onCreate={v => handleCreateAttr('application', v)}
+                    onEdit={(oldV, newV) => handleEditAttr(oldV, newV, 'application')}
+                    onDelete={v => handleDeleteAttr(v, 'application')}
+                  />
                 </div>
                 <div>
                   <label className={lbl}>Season</label>
-                  <select value={form.season_type} onChange={e => set('season_type', e.target.value)} className={inp}>
-                    <option value="">— None —</option>
-                    {SEASON_TYPES.map(t => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}
-                  </select>
+                  <CreatableCombobox
+                    value={form.season_type}
+                    onChange={v => set('season_type', v)}
+                    options={getOptions('season')}
+                    onCreate={v => handleCreateAttr('season', v)}
+                    onEdit={(oldV, newV) => handleEditAttr(oldV, newV, 'season')}
+                    onDelete={v => handleDeleteAttr(v, 'season')}
+                  />
                 </div>
                 <div>
                   <label className={lbl}>Performance</label>
-                  <select value={form.performance_category} onChange={e => set('performance_category', e.target.value)} className={inp}>
-                    <option value="">— None —</option>
-                    {PERFORMANCE_CATS.map(t => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}
-                  </select>
+                  <CreatableCombobox
+                    value={form.performance_category}
+                    onChange={v => set('performance_category', v)}
+                    options={getOptions('performance')}
+                    onCreate={v => handleCreateAttr('performance', v)}
+                    onEdit={(oldV, newV) => handleEditAttr(oldV, newV, 'performance')}
+                    onDelete={v => handleDeleteAttr(v, 'performance')}
+                  />
                 </div>
                 <div>
                   <label className={lbl}>Position</label>
-                  <select value={form.position_category} onChange={e => set('position_category', e.target.value)} className={inp}>
-                    <option value="">— None —</option>
-                    {POSITION_CATS.map(t => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}
-                  </select>
+                  <CreatableCombobox
+                    value={form.position_category}
+                    onChange={v => set('position_category', v)}
+                    options={getOptions('position')}
+                    onCreate={v => handleCreateAttr('position', v)}
+                    onEdit={(oldV, newV) => handleEditAttr(oldV, newV, 'position')}
+                    onDelete={v => handleDeleteAttr(v, 'position')}
+                  />
                 </div>
                 <div>
                   <label className={lbl}>Shoulder</label>
-                  <select value={form.shoulder_type} onChange={e => set('shoulder_type', e.target.value)} className={inp}>
-                    <option value="">— None —</option>
-                    {SHOULDER_TYPES.map(t => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}
-                  </select>
+                  <CreatableCombobox
+                    value={form.shoulder_type}
+                    onChange={v => set('shoulder_type', v)}
+                    options={getOptions('shoulder')}
+                    onCreate={v => handleCreateAttr('shoulder', v)}
+                    onEdit={(oldV, newV) => handleEditAttr(oldV, newV, 'shoulder')}
+                    onDelete={v => handleDeleteAttr(v, 'shoulder')}
+                  />
                 </div>
                 <div>
                   <label className={lbl}>Terrain</label>
-                  <select value={form.terrain_type} onChange={e => set('terrain_type', e.target.value)} className={inp}>
-                    <option value="">— None —</option>
-                    {TERRAIN_TYPES.map(t => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}
-                  </select>
+                  <CreatableCombobox
+                    value={form.terrain_type}
+                    onChange={v => set('terrain_type', v)}
+                    options={getOptions('terrain')}
+                    onCreate={v => handleCreateAttr('terrain', v)}
+                    onEdit={(oldV, newV) => handleEditAttr(oldV, newV, 'terrain')}
+                    onDelete={v => handleDeleteAttr(v, 'terrain')}
+                  />
                 </div>
                 <div>
                   <label className={lbl}>Country of Origin</label>
@@ -390,16 +497,6 @@ export default function PatternForm({ brandId: initialBrandId, brandName: initia
               </div>
             </Card>
 
-            {/* Categories */}
-            <CategoriesCard
-              categories={categories}
-              loading={catLoading}
-              selected={form.category_ids}
-              search={catSearch}
-              onSearchChange={setCatSearch}
-              onToggle={toggleCategory}
-              inp={inp}
-            />
 
             {/* SEO */}
             <Card title="SEO" description="Search engine optimisation.">
@@ -424,86 +521,7 @@ export default function PatternForm({ brandId: initialBrandId, brandName: initia
   )
 }
 
-function CategoriesCard({
-  categories, loading, selected, search, onSearchChange, onToggle, inp,
-}: {
-  categories: CategoryOption[]
-  loading:    boolean
-  selected:   string[]
-  search:     string
-  onSearchChange: (v: string) => void
-  onToggle:   (id: string) => void
-  inp:        string
-}) {
-  const filtered = search
-    ? categories.filter(c => c.category_name.toLowerCase().includes(search.toLowerCase()))
-    : categories
 
-  const grouped = filtered.reduce<Record<string, CategoryOption[]>>((acc, c) => {
-    const t = c.category_type || 'other'
-    if (!acc[t]) acc[t] = []
-    acc[t].push(c)
-    return acc
-  }, {})
-
-  return (
-    <Card title="Categories" description="Assign this pattern to one or more product categories.">
-      {loading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="h-8 rounded-lg bg-zinc-100 animate-pulse" style={{ width: `${40 + i * 20}%` }} />
-          ))}
-        </div>
-      ) : categories.length === 0 ? (
-        <p className="text-xs text-zinc-400">No categories found. Create categories under Products → Categories first.</p>
-      ) : (
-        <div className="space-y-4">
-          <input
-            type="text"
-            value={search}
-            onChange={e => onSearchChange(e.target.value)}
-            placeholder="Search categories…"
-            className={inp}
-          />
-          {Object.keys(grouped).length === 0 ? (
-            <p className="text-xs text-zinc-400">No categories match your search.</p>
-          ) : (
-            Object.entries(grouped).map(([type, cats]) => (
-              <div key={type}>
-                <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2 capitalize">{type}</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {cats.map(cat => {
-                    const isSelected = selected.includes(cat.category_id)
-                    return (
-                      <button
-                        key={cat.category_id}
-                        type="button"
-                        onClick={() => onToggle(cat.category_id)}
-                        className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm text-left transition-colors ${
-                          isSelected
-                            ? 'border-primary/40 bg-primary/10 text-zinc-900'
-                            : 'border-zinc-200 text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50'
-                        }`}
-                      >
-                        <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${isSelected ? 'bg-primary border-primary' : 'border-zinc-300'}`}>
-                          {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
-                        </span>
-                        <span className="truncate">{cat.category_name}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            ))
-          )}
-          {selected.length > 0 && (
-            <p className="text-xs text-zinc-400">{selected.length} categor{selected.length === 1 ? 'y' : 'ies'} selected</p>
-          )}
-        </div>
-      )}
-    </Card>
-  )
-}
 
 function Card({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
   return (

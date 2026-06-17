@@ -1,9 +1,11 @@
 'use client'
 
 import { useState, useEffect, useRef, useTransition } from 'react'
-import { Phone, Calendar, Clock, Car, Package, Check, X, Play, FileText, ShieldAlert, Wrench, ChevronDown, Mail, MapPin } from 'lucide-react'
+import { Phone, Calendar, Clock, Car, Package, Check, X, Play, FileText, ShieldAlert, ChevronDown, Mail, MapPin } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
+import { useRouter } from 'next/navigation'
 import { Button }  from '@/components/ui/button'
+import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { FitmentJob, FitmentJobItem } from '@/types/fitter.types'
 import { FitterBreadcrumb } from '@/components/fitter/FitterBreadcrumb'
@@ -12,6 +14,10 @@ import { useFitterJobDetail } from '@/lib/query/fitter-hooks'
 import { fitterKeys } from '@/lib/query/keys'
 import { BACKEND_API_URL, createBackendHeaders } from '@/lib/backend-api'
 import { createClient } from '@/lib/supabase/client'
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
+import { MobileTimePicker } from '@mui/x-date-pickers/MobileTimePicker'
+import dayjs from 'dayjs'
 
 async function getToken(): Promise<string> {
   const { data: { session } } = await createClient().auth.getSession()
@@ -64,6 +70,7 @@ function LoadingSkeleton() {
 }
 
 export default function JobDetailClient({ jobId }: { jobId: string }) {
+  const router = useRouter()
   const queryClient = useQueryClient()
   const [isPending, startTransition] = useTransition()
   const [error,         setError]         = useState('')
@@ -105,6 +112,11 @@ export default function JobDetailClient({ jobId }: { jobId: string }) {
       prev?.map(j => j.job_id === jobId ? { ...j, job_status: status } : j)
     )
     queryClient.invalidateQueries({ queryKey: fitterKeys.kpis() })
+
+    if (status === 'accepted') {
+      toast.success('Job confirmed successfully!')
+      router.push('/fitter/jobs')
+    }
   }
 
   async function saveNotes() {
@@ -309,12 +321,35 @@ export default function JobDetailClient({ jobId }: { jobId: string }) {
               </div>
               <div>
                 <label className="block text-xs font-medium text-zinc-600 mb-1">Time</label>
-                <input
-                  type="time"
-                  value={scheduledTime}
-                  onChange={e => { setScheduledTime(e.target.value); setSchedSaved(false) }}
-                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                />
+                <LocalizationProvider dateAdapter={AdapterDayjs}>
+                  <MobileTimePicker
+                    value={scheduledTime ? dayjs(`2000-01-01T${scheduledTime}`) : null}
+                    onChange={(newValue) => {
+                      setScheduledTime(newValue ? newValue.format('HH:mm') : '')
+                      setSchedSaved(false)
+                    }}
+                    slotProps={{
+                      textField: {
+                        fullWidth: true,
+                        size: 'small',
+                        sx: {
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: '0.5rem',
+                            backgroundColor: '#fff',
+                            '& fieldset': { borderColor: '#e4e4e7' },
+                            '&:hover fieldset': { borderColor: '#e4e4e7' },
+                            '&.Mui-focused fieldset': { borderColor: '#fde047', borderWidth: '2px' },
+                          },
+                          '& .MuiInputBase-input': {
+                            padding: '0.45rem 0.75rem',
+                            fontSize: '0.875rem',
+                            color: '#18181b',
+                          }
+                        }
+                      }
+                    }}
+                  />
+                </LocalizationProvider>
               </div>
             </div>
             <button
@@ -328,8 +363,42 @@ export default function JobDetailClient({ jobId }: { jobId: string }) {
           </div>
         )}
 
-        {/* Tyre details */}
-        {(job.tyre_pattern || job.tyre_size) && (
+        {/* Tyre / product details — detailed line items when available, compact fallback otherwise */}
+        {job.items && job.items.length > 0 ? (
+          <div className="bg-white rounded-2xl border border-zinc-200 px-5 py-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Package className="w-4 h-4 text-zinc-400" />
+              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Tyre Details</p>
+            </div>
+            <div className="space-y-3">
+              {job.items.map((item: FitmentJobItem) => (
+                <div key={item.job_item_id} className="flex gap-3 text-sm py-2 border-b border-zinc-100 last:border-0">
+                  <span className="inline-flex items-center justify-center w-7 h-7 mt-0.5 rounded-full bg-zinc-100 text-zinc-600 text-xs font-bold shrink-0">
+                    {item.quantity}×
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    {item.skus ? (
+                      <>
+                        <p className="font-semibold text-zinc-900">
+                          {[item.skus.brands?.brand_name, item.skus.patterns?.pattern_name].filter(Boolean).join(' ') || 'Tyre'}
+                        </p>
+                        <p className="text-xs text-zinc-500 mt-0.5">
+                          {item.skus.tyre_size_display}
+                          {item.skus.sku ? ` · SKU: ${item.skus.sku}` : ''}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="font-semibold text-zinc-900">Tyre</p>
+                    )}
+                    <p className="text-[10px] text-zinc-400 mt-1 uppercase tracking-wider font-semibold">
+                      {item.service_type ? SERVICE_LABEL[item.service_type] ?? item.service_type : 'Supply & Fit'}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (job.tyre_pattern || job.tyre_size) ? (
           <div className="bg-white rounded-2xl border border-zinc-200 px-5 py-4">
             <div className="flex items-center gap-2 mb-3">
               <Package className="w-4 h-4 text-zinc-400" />
@@ -340,37 +409,7 @@ export default function JobDetailClient({ jobId }: { jobId: string }) {
               {[job.tyre_size, job.quantity ? `× ${job.quantity}` : null].filter(Boolean).join(' ')}
             </p>
           </div>
-        )}
-
-        {/* Linked job items (fitment_job_items) — shown when populated by admin/order flow */}
-        {job.items && job.items.length > 0 && (
-          <div className="bg-white rounded-2xl border border-zinc-200 px-5 py-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Wrench className="w-4 h-4 text-zinc-400" />
-              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Items to Fit</p>
-            </div>
-            <div className="space-y-2">
-              {job.items.map((item: FitmentJobItem) => (
-                <div key={item.job_item_id} className="flex items-center justify-between text-sm py-1.5 border-b border-zinc-50 last:border-0">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-zinc-100 text-zinc-500 text-[10px] font-bold shrink-0">
-                      {item.quantity}
-                    </span>
-                    <span className="text-zinc-700">
-                      {item.service_type ? SERVICE_LABEL[item.service_type] ?? item.service_type : 'Fit'}
-                      {item.product_id && (
-                        <span className="ml-1.5 text-xs text-zinc-400 font-mono">{item.product_id.slice(0, 8)}</span>
-                      )}
-                    </span>
-                  </div>
-                  {item.unit_price != null && (
-                    <span className="text-zinc-600 font-medium">{fmtCurrency(item.unit_price)}</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        ) : null}
 
         {/* Status timestamps */}
         {(job.accepted_at || job.completed_at) && (

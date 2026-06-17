@@ -9,6 +9,7 @@ import { useCartStore } from "@/stores/cart.store";
 import { createClient } from "@/lib/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 import TyresDropdown from "./TyresDropdown";
+import AuthModal from "@/components/storefront/account/AuthModal";
 
 const navLinks = [
   
@@ -23,8 +24,16 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
   const [session, setSession] = useState<Session | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [tyresOpen, setTyresOpen] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalTab, setAuthModalTab] = useState<"login" | "register">("login");
+
   const dropdownRef = useRef<HTMLDivElement>(null);
   const tyresRef = useRef<HTMLDivElement>(null);
+
+  const openAuthModal = (tab: "login" | "register") => {
+    setAuthModalTab(tab);
+    setAuthModalOpen(true);
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -150,18 +159,20 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
               ) : (
                 // Guest: Sign in + Register
                 <div className="flex items-center gap-3">
-                  <Link
-                    href="/login"
+                  <button
+                    type="button"
+                    onClick={() => openAuthModal("login")}
                     className="text-sm font-medium text-white hover:text-primary transition-colors"
                   >
                     Sign in
-                  </Link>
-                  <Link
-                    href="/register"
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openAuthModal("register")}
                     className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-zinc-900 hover:bg-primary/90 transition-colors"
                   >
                     Register
-                  </Link>
+                  </button>
                 </div>
               )}
 
@@ -207,6 +218,11 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
           </div>
         </div>
       </div>
+      <AuthModal 
+        open={authModalOpen} 
+        onOpenChange={setAuthModalOpen} 
+        defaultTab={authModalTab} 
+      />
     </header>
   );
 }

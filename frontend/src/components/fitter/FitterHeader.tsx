@@ -51,10 +51,12 @@ export default function FitterHeader({ centre, userEmail }: Props) {
 
   useEffect(() => {
     const supabase = createClient()
+    let cancelled = false
+    let channel: ReturnType<typeof supabase.channel> | null = null
 
     async function init() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (cancelled || !user) return
 
       const { data } = await supabase
         .from('notifications')
@@ -62,9 +64,10 @@ export default function FitterHeader({ centre, userEmail }: Props) {
         .eq('recipient_id', user.id)
         .order('created_at', { ascending: false })
         .limit(20)
-      if (data) setNotifs(data as Notification[])
+      if (!cancelled && data) setNotifs(data as Notification[])
+      if (cancelled) return
 
-      supabase
+      channel = supabase
         .channel(`fitter-notifs:${user.id}`)
         .on(
           'postgres_changes',
@@ -91,7 +94,10 @@ export default function FitterHeader({ centre, userEmail }: Props) {
     }
 
     init()
-    return () => { supabase.removeAllChannels() }
+    return () => {
+      cancelled = true
+      if (channel) supabase.removeChannel(channel)
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

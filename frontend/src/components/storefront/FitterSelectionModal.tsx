@@ -157,6 +157,7 @@ function StationsStep({
   postcode,
   centres,
   loading,
+  fetchError,
   onSelect,
   onChangePostcode,
   onSkip,
@@ -164,6 +165,7 @@ function StationsStep({
   postcode:         string
   centres:          Centre[]
   loading:          boolean
+  fetchError:       string | null
   onSelect:         (c: Centre) => void
   onChangePostcode: () => void
   onSkip:           () => void
@@ -205,6 +207,39 @@ function StationsStep({
             {[1,2,3].map(i => <div key={i} className="h-24 rounded-xl bg-zinc-100 animate-pulse" />)}
           </div>
           <div className="w-1/2 rounded-xl bg-zinc-100 animate-pulse" />
+        </div>
+      </div>
+    )
+  }
+
+  // Network / API error
+  if (!loading && fetchError) {
+    return (
+      <div className="flex flex-col h-full items-center justify-center text-center gap-5 py-8">
+        <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center">
+          <AlertCircle className="w-7 h-7 text-red-400" />
+        </div>
+        <div>
+          <p className="font-semibold text-zinc-900">Something went wrong</p>
+          <p className="text-sm text-zinc-500 mt-1 max-w-xs">
+            We couldn&apos;t load fitting stations right now. Please try again.
+          </p>
+        </div>
+        <div className="flex flex-col gap-2 w-full max-w-xs">
+          <button
+            type="button"
+            onClick={onChangePostcode}
+            className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-zinc-900 hover:bg-primary/90 transition-colors"
+          >
+            Try again
+          </button>
+          <button
+            type="button"
+            onClick={onSkip}
+            className="w-full rounded-xl border border-zinc-300 py-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
+          >
+            Skip fitting — Continue to checkout
+          </button>
         </div>
       </div>
     )
@@ -564,6 +599,7 @@ export default function FitterSelectionModal({ open, onClose, tyreQty, cartSubto
   const [postcode, setPostcode] = useState('')
   const [centres,  setCentres]  = useState<Centre[]>([])
   const [loading,  setLoading]  = useState(false)
+  const [fetchError, setFetchError] = useState<string | null>(null)
   const [selected, setSelected] = useState<Centre | null>(null)
   const [savedName, setSavedName] = useState('')
 
@@ -582,12 +618,16 @@ export default function FitterSelectionModal({ open, onClose, tyreQty, cartSubto
 
   const fetchCentres = useCallback(async (pc: string) => {
     setLoading(true)
+    setFetchError(null)
     try {
       const res  = await fetch(`${API}/api/stripe/fitment-centres?postcode=${pc}`)
+      if (!res.ok) throw new Error(`Server error ${res.status}`)
       const data = await res.json()
       setCentres(Array.isArray(data) ? data : [])
-    } catch { setCentres([]) }
-    finally { setLoading(false) }
+    } catch (err) {
+      setFetchError(err instanceof Error ? err.message : 'Failed to load fitting stations')
+      setCentres([])
+    } finally { setLoading(false) }
   }, [])
 
   function handlePostcodeContinue(pc: string) {
@@ -655,6 +695,7 @@ export default function FitterSelectionModal({ open, onClose, tyreQty, cartSubto
                 postcode={postcode}
                 centres={centres}
                 loading={loading}
+                fetchError={fetchError}
                 onSelect={handleSelectCentre}
                 onChangePostcode={() => setStep(0)}
                 onSkip={handleSkip}

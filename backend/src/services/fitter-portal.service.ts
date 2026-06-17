@@ -90,7 +90,12 @@ export async function getJob(centreId: string, jobId: string) {
         vehicle_model, job_status, notes, fitter_notes, admin_notes,
         accepted_at, completed_at, earnings_amount, created_at,
         customers ( email, phone ),
-        orders ( shipping_address_snapshot )
+        orders (
+          shipping_address_snapshot,
+          order_items ( order_item_id, product_id, quantity, unit_price,
+            skus ( sku, tyre_size_display, brands(brand_name), patterns(pattern_name) )
+          )
+        )
       `)
       .eq('job_id', jobId)
       .eq('fitment_centre_id', centreId)
@@ -98,19 +103,35 @@ export async function getJob(centreId: string, jobId: string) {
 
     db
       .from('fitment_job_items')
-      .select('job_item_id, product_id, quantity, service_type, unit_price')
+      .select('job_item_id, product_id, quantity, service_type, unit_price, skus (sku, tyre_size_display, brands(brand_name), patterns(pattern_name))')
       .eq('job_id', jobId),
   ])
 
   if (jobRes.error || !jobRes.data) return jobRes
 
   const raw = jobRes.data as any
+
+  // Use fitment_job_items when available; fall back to order_items for jobs
+  // created before fitment_job_items had the unit_price column.
+  let items: any[] = itemsRes.error ? [] : (itemsRes.data ?? [])
+  if (items.length === 0) {
+    const orderItems: any[] = (raw.orders as any)?.order_items ?? []
+    items = orderItems.map((oi: any) => ({
+      job_item_id:  oi.order_item_id,
+      product_id:   oi.product_id,
+      quantity:     oi.quantity,
+      service_type: 'supply_and_fit' as const,
+      unit_price:   oi.unit_price,
+      skus:         oi.skus ?? null,
+    }))
+  }
+
   const flatData = {
     ...raw,
     customer_email:   (raw.customers as any)?.email ?? null,
     customer_phone:   (raw.customers as any)?.phone ?? raw.customer_phone ?? null,
     shipping_address: (raw.orders as any)?.shipping_address_snapshot ?? null,
-    items:            itemsRes.error ? [] : (itemsRes.data ?? []),
+    items,
   }
   delete flatData.customers
   delete flatData.orders

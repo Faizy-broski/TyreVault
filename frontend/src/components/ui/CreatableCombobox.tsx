@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { toast } from 'sonner'
 
 export interface ComboOption {
   value: string
@@ -21,6 +22,8 @@ interface CreatableComboboxProps {
   onChange:    (value: string) => void
   /** Called when user creates a new option. Return the created option. */
   onCreate?:   (inputValue: string) => Promise<ComboOption>
+  onEdit?:     (oldValue: string, newValue: string) => Promise<ComboOption>
+  onDelete?:   (value: string) => Promise<void>
   placeholder?: string
   label?:       string
   disabled?:    boolean
@@ -32,34 +35,28 @@ export function CreatableCombobox({
   value,
   onChange,
   onCreate,
+  onEdit,
+  onDelete,
   placeholder = 'Select or type…',
   disabled,
   className = '',
 }: CreatableComboboxProps) {
-  const [options, setOptions] = useState<ComboOption[]>(initialOptions)
   const [open, setOpen]       = useState(false)
   const [query, setQuery]     = useState('')
   const [creating, setCreating] = useState(false)
+  const [editingValue, setEditingValue] = useState<string | null>(null)
+  const [editInput, setEditInput]       = useState('')
   const [error, setError]     = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef     = useRef<HTMLInputElement>(null)
 
-  // Keep options in sync if parent refreshes the list
-  useEffect(() => {
-    setOptions(prev => {
-      const existingValues = new Set(prev.map(o => o.value))
-      const newOpts = initialOptions.filter(o => !existingValues.has(o.value))
-      return newOpts.length ? [...prev, ...newOpts] : prev
-    })
-  }, [initialOptions])
-
-  const selected = options.find(o => o.value === value)
+  const selected = initialOptions.find(o => o.value === value)
 
   const filtered = query
-    ? options.filter(o => o.label.toLowerCase().includes(query.toLowerCase()))
-    : options
+    ? initialOptions.filter(o => o.label.toLowerCase().includes(query.toLowerCase()))
+    : initialOptions
 
-  const exactMatch = options.some(o => o.label.toLowerCase() === query.toLowerCase())
+  const exactMatch = initialOptions.some(o => o.label.toLowerCase() === query.toLowerCase())
   const canCreate  = !!onCreate && query.trim().length > 0 && !exactMatch
 
   useEffect(() => {
@@ -93,7 +90,6 @@ export function CreatableCombobox({
     setError('')
     try {
       const created = await onCreate(query.trim())
-      setOptions(prev => [...prev, created])
       onChange(created.value)
       setOpen(false)
       setQuery('')
@@ -151,26 +147,96 @@ export function CreatableCombobox({
             {filtered.length === 0 && !canCreate && (
               <li className="px-3 py-2 text-sm text-zinc-400 text-center">No options found</li>
             )}
-            {filtered.map(opt => (
-              <li key={opt.value}>
-                <button
-                  type="button"
-                  onClick={() => selectOption(opt)}
-                  className={`w-full text-left px-3 py-2 text-sm transition-colors flex items-center justify-between ${
-                    opt.value === value
-                      ? 'bg-primary/10 text-zinc-900 font-medium'
-                      : 'text-zinc-700 hover:bg-zinc-50'
-                  }`}
-                >
-                  {opt.label}
-                  {opt.value === value && (
-                    <svg className="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
+            {filtered.map(opt => {
+              if (editingValue === opt.value) {
+                return (
+                  <li key={opt.value} className="px-3 py-1 flex items-center gap-2">
+                    <input
+                      type="text"
+                      autoFocus
+                      value={editInput}
+                      onChange={e => setEditInput(e.target.value)}
+                      onKeyDown={async e => {
+                        if (e.key === 'Escape') setEditingValue(null)
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          if (!onEdit || !editInput.trim()) return
+                          try {
+                            const updated = await onEdit(opt.value, editInput.trim())
+                            if (value === opt.value) onChange(updated.value)
+                            setEditingValue(null)
+                          } catch (err) { setError(err instanceof Error ? err.message : 'Failed to update') }
+                        }
+                      }}
+                      className="flex-1 min-w-0 rounded border border-zinc-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                    <button type="button" onClick={() => setEditingValue(null)} className="text-xs text-zinc-400 hover:text-zinc-600">
+                      Cancel
+                    </button>
+                  </li>
+                )
+              }
+
+              return (
+                <li key={opt.value} className="group flex items-stretch">
+                  <button
+                    type="button"
+                    onClick={() => selectOption(opt)}
+                    className={`flex-1 text-left px-3 py-2 text-sm transition-colors flex items-center justify-between min-w-0 ${
+                      opt.value === value
+                        ? 'bg-primary/10 text-zinc-900 font-medium'
+                        : 'text-zinc-700 hover:bg-zinc-50'
+                    }`}
+                  >
+                    <span className="truncate">{opt.label}</span>
+                    {opt.value === value && (
+                      <svg className="w-4 h-4 text-primary shrink-0 ml-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </button>
+                  {/* Actions */}
+                  {(onEdit || onDelete) && (
+                    <div className="flex items-center gap-0.5 px-1.5 shrink-0">
+                      {onEdit && (
+                        <button type="button" onClick={() => { setEditingValue(opt.value); setEditInput(opt.label) }} className="p-1.5 text-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-colors rounded" title="Edit">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
+                        </button>
+                      )}
+                      {onDelete && (
+                        <button type="button" onClick={async () => {
+                          toast(<span className="text-base font-medium">Delete "{opt.label}"?</span>, {
+                            position: 'top-center',
+                            action: {
+                              label: 'Delete',
+                              onClick: async () => {
+                                try {
+                                  await onDelete(opt.value)
+                                  if (value === opt.value) onChange('')
+                                  toast.success(`Deleted "${opt.label}"`, { position: 'top-center' })
+                                } catch(err) { setError(err instanceof Error ? err.message : 'Failed to delete') }
+                              }
+                            },
+                            actionButtonStyle: {
+                              backgroundColor: '#ef4444',
+                              color: 'white',
+                              fontWeight: 500,
+                              fontSize: '0.875rem',
+                              padding: '0.5rem 1rem'
+                            },
+                            cancel: {
+                              label: 'Cancel',
+                            },
+                          })
+                        }} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors rounded" title="Delete">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                      )}
+                    </div>
                   )}
-                </button>
-              </li>
-            ))}
+                </li>
+              )
+            })}
 
             {/* Create option */}
             {canCreate && (

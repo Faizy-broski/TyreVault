@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import CreateProductWizard from '@/components/admin/products/CreateProductWizard'
+import CreateProductForm from '@/components/admin/products/CreateProductForm'
 import { toastError } from '@/lib/toast'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
@@ -61,7 +61,7 @@ export default function NewProductPage() {
   }
 
   return (
-    <CreateProductWizard
+    <CreateProductForm
       brands={meta.brands}
       collections={meta.collections}
       categories={meta.categories}

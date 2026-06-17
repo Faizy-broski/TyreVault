@@ -1263,3 +1263,46 @@ export async function setProductCategories(productId: string, categoryIds: strin
     if (error) throw error
   }
 }
+
+// ── Attributes ───────────────────────────────────────────────────────────────
+
+export async function listAttributes() {
+  const { data, error } = await supabase
+    .from('product_attributes')
+    .select('*')
+    .order('attribute_type', { ascending: true })
+    .order('attribute_value', { ascending: true })
+  if (error && error.code !== '42P01') throw error // Ignore relation does not exist error if table not yet created
+  return data ?? []
+}
+
+export async function createAttribute(payload: { attribute_type: string; attribute_value: string }) {
+  if (!payload.attribute_type || !payload.attribute_value) throw new Error('Missing fields')
+  const { data, error } = await supabase
+    .from('product_attributes')
+    .insert({
+      attribute_type: payload.attribute_type,
+      attribute_value: payload.attribute_value,
+    })
+    .select()
+    .single()
+  if (error) throw new Error(error.message)
+  return data
+}
+
+export async function updateAttribute(id: string, payload: { attribute_value: string }) {
+  if (!payload.attribute_value) throw new Error('Missing attribute_value')
+  const { error } = await supabase
+    .from('product_attributes')
+    .update({ attribute_value: payload.attribute_value })
+    .eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+export async function deleteAttribute(id: string) {
+  const { error } = await supabase
+    .from('product_attributes')
+    .delete()
+    .eq('id', id)
+  if (error) throw new Error(error.message)
+}

@@ -154,14 +154,11 @@ function ProductRowMenu({ product }: { product: Product }) {
               </svg>
               Edit product
             </Link>
-            <Link
-              href={`/admin/products/${product.id}/variants/new`}
-              className="flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
-              onClick={() => setOpen(false)}
-            >
-              <Plus className="w-3.5 h-3.5 text-zinc-400" />
+            {/* VARIANTS DISABLED — Add variant menu item hidden
+            <Link href={`/admin/products/${product.id}/variants/new`} ...>
               Add variant
             </Link>
+            */}
             <div className="border-t border-zinc-100 my-1" />
             <Button
               type="button"
@@ -260,11 +257,7 @@ export default function ProductsTable({
   onSort: (col: string) => void
 }) {
   const displayed = (() => {
-    if (sortBy === 'variant_count') {
-      return [...products].sort((a, b) =>
-        sortOrder === 'asc' ? a.variantCount - b.variantCount : b.variantCount - a.variantCount
-      )
-    }
+    // if (sortBy === 'variant_count') { ... } // VARIANTS DISABLED
     if (sortBy === 'brand_name') {
       return [...products].sort((a, b) =>
         sortOrder === 'asc' ? a.brand.localeCompare(b.brand) : b.brand.localeCompare(a.brand)
@@ -298,8 +291,8 @@ export default function ProductsTable({
           <TableHead className="w-12 text-center">#</TableHead>
           <SortHead col="pattern_name" label="Name"     currentSort={sortBy} currentOrder={sortOrder} onSort={onSort} />
           <SortHead col="brand_name"   label="Brand"    currentSort={sortBy} currentOrder={sortOrder} onSort={onSort} />
-          <TableHead>Collection</TableHead>
-          <SortHead col="variant_count" label="Variants" currentSort={sortBy} currentOrder={sortOrder} onSort={onSort} />
+          {/* <TableHead>Collection</TableHead> */}
+          {/* <SortHead col="variant_count" label="Variants" ... /> */}{/* VARIANTS DISABLED */}
           <TableHead>Load Index</TableHead>
           <TableHead>Stock</TableHead>
           <SortHead col="show_on_website" label="Status" currentSort={sortBy} currentOrder={sortOrder} onSort={onSort} />
@@ -317,15 +310,15 @@ export default function ProductsTable({
               </Link>
             </TableCell>
             <TableCell className="text-muted-foreground">{p.brand}</TableCell>
-            <TableCell className="text-muted-foreground">{p.collection ?? '—'}</TableCell>
+            {/* <TableCell className="text-muted-foreground">{p.collection ?? '—'}</TableCell> */}
+            {/* VARIANTS DISABLED — variant count cell hidden
             <TableCell>
               <span className="font-medium text-foreground">{p.variantCount}</span>
               {p.activeVariants < p.variantCount && (
-                <span className="ml-1 text-xs text-muted-foreground">
-                  ({p.activeVariants} active)
-                </span>
+                <span className="ml-1 text-xs text-muted-foreground">({p.activeVariants} active)</span>
               )}
             </TableCell>
+            */}
             <TableCell>
               {(p.loadIndexes ?? []).length > 0
                 ? <span className="text-xs font-medium text-zinc-700">{(p.loadIndexes ?? []).join(' · ')}</span>

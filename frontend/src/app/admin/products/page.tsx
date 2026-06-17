@@ -204,7 +204,7 @@ export default function AdminProductsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-zinc-200 bg-zinc-50">
-                  {['Name', 'Brand', 'Collection', 'Variants', 'Status', 'Updated', ''].map(h => (
+                  {['Name', 'Brand', 'Variants', 'Status', 'Updated', ''].map(h => (
                     <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>

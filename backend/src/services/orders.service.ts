@@ -503,7 +503,7 @@ export async function createOrder(payload: CreateOrderPayload) {
         .eq('customer_id', customerId)
         .maybeSingle(),
       db.from('skus')
-        .select('tyre_size_display')
+        .select('tyre_size_display, brands(brand_name), patterns(pattern_name)')
         .eq('product_id', payload.items[0]?.product_id ?? '')
         .maybeSingle(),
       db.from('fitment_centres')
@@ -515,7 +515,9 @@ export async function createOrder(payload: CreateOrderPayload) {
     const cust        = custRes.data
     const customerName  = cust ? `${cust.first_name} ${cust.last_name}`.trim() : payload.customer.first_name
     const customerPhone = cust?.phone ?? null
-    const tyreSize      = skuRes.data?.tyre_size_display ?? null
+    const skuData       = skuRes.data as any
+    const tyreSize      = skuData?.tyre_size_display ?? null
+    const tyrePattern   = [skuData?.brands?.brand_name, skuData?.patterns?.pattern_name].filter(Boolean).join(' ') || null
     const fitterEmail   = centreRes.data?.email ?? null
     const fittingPrice  = Number(centreRes.data?.fitting_price ?? 0)
     const earningsAmt   = +(fittingPrice * totalQty).toFixed(2)
@@ -528,6 +530,7 @@ export async function createOrder(payload: CreateOrderPayload) {
       job_status:        'pending',
       customer_name:     customerName,
       customer_phone:    customerPhone,
+      tyre_pattern:      tyrePattern,
       tyre_size:         tyreSize,
       quantity:          totalQty,
       earnings_amount:   earningsAmt > 0 ? earningsAmt : null,

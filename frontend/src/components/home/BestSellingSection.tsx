@@ -140,9 +140,19 @@ export default function BestSellingSection() {
         </div>
 
         {loading ? (
-          <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+          <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="h-80 animate-pulse rounded-3xl bg-zinc-100" />
+              <div key={i} className="flex rounded-2xl border border-zinc-100 bg-white shadow-md overflow-hidden animate-pulse h-44">
+                <div className="w-[42%] bg-zinc-100 shrink-0" />
+                <div className="flex-1 p-3.5 flex flex-col gap-2">
+                  <div className="h-2 bg-zinc-100 rounded-full w-20" />
+                  <div className="h-3.5 bg-zinc-100 rounded-full w-full" />
+                  <div className="h-3 bg-zinc-100 rounded-full w-2/3" />
+                  <div className="mt-auto h-6 bg-zinc-100 rounded-full w-1/2" />
+                  <div className="h-8 bg-zinc-100 rounded-lg w-full" />
+                  <div className="h-7 bg-zinc-100 rounded-lg w-full" />
+                </div>
+              </div>
             ))}
           </div>
         ) : pages.length === 0 ? (
@@ -154,7 +164,7 @@ export default function BestSellingSection() {
                 {pages.map((page, pageIndex) => (
                   <div key={pageIndex} className="min-w-0 flex-[0_0_100%]">
                     <motion.div
-                      className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4"
+                      className="grid grid-cols-1 gap-5 sm:grid-cols-2"
                       initial="hidden"
                       whileInView="visible"
                       viewport={viewport}

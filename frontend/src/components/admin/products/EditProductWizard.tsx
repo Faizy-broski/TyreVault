@@ -8,7 +8,8 @@ import { createClient } from '@/lib/supabase/client'
 import { editProductSchema, type EditProductFormValues } from './schema'
 import BasicInfoTab from './tabs/BasicInfoTab'
 import CategoriesTab from './tabs/CategoriesTab'
-import EditVariantsTab from './tabs/EditVariantsTab'
+// import EditVariantsTab from './tabs/EditVariantsTab' // VARIANTS DISABLED (multi-row table)
+import ProductSpecsTab from './tabs/ProductSpecsTab'
 import PricingTab from './tabs/PricingTab'
 import { cn } from '@/lib/utils/cn'
 import { Button } from '@/components/ui/button'
@@ -17,7 +18,7 @@ import { toastSuccess, toastError } from '@/lib/toast'
 const TABS = [
   { key: 'basic',      label: 'Basic Info' },
   { key: 'categories', label: 'Categories' },
-  { key: 'variants',   label: 'Variants' },
+  { key: 'variants',   label: 'Tyre Specs' },
   { key: 'pricing',    label: 'Pricing' },
 ] as const
 
@@ -39,12 +40,13 @@ interface Props {
   collections: { collection_id: string; collection_name: string }[]
   categories:  { category_id: string; category_name: string; category_type: string }[]
   warehouses:  { warehouse_id: string; warehouse_name: string }[]
+  patterns?:   { pattern_id: string; pattern_name: string; brand_id: string }[]
 }
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 export default function EditProductWizard({
-  patternId, initialData, existingSkus, brands, collections, categories, warehouses,
+  patternId, initialData, existingSkus, brands, collections, categories, warehouses, patterns = [],
 }: Props) {
   const router      = useRouter()
   const [activeTab, setActiveTab] = useState<TabKey>('basic')
@@ -115,7 +117,7 @@ export default function EditProductWizard({
         throw new Error(patchBody.error ?? patchBody.message ?? `Failed to update product (${patchRes.status})`)
       }
 
-      // 2. POST new variants (if any were added in the Variants tab)
+      // POST / PATCH the single product spec (variants[0])
       for (let i = 0; i < (values.variants ?? []).length; i++) {
         const v = values.variants[i]
         const p = (values.pricing ?? [])[i] ?? {}
@@ -130,47 +132,47 @@ export default function EditProductWizard({
               profile:          v.profile,
               rimSize:          v.rimSize,
               constructionType: v.constructionType,
-              loadIndex:        v.loadIndex || undefined,
+              loadIndex:        v.loadIndex       || undefined,
               loadSpeedRating:  v.loadSpeedRating || undefined,
-              speedRating:      v.speedRating || undefined,
-              fuelRating:       v.fuelRating || undefined,
-              wetGrip:          v.wetGrip || undefined,
-              noiseDb:          v.noiseDb || undefined,
-              noiseClass:       v.noiseClass || undefined,
+              speedRating:      v.speedRating     || undefined,
+              fuelRating:       v.fuelRating      || undefined,
+              wetGrip:          v.wetGrip         || undefined,
+              noiseDb:          v.noiseDb         || undefined,
+              noiseClass:       v.noiseClass      || undefined,
               runflat:          v.runflat,
               xlReinforced:     v.xlReinforced,
-              plyRating:        v.plyRating || undefined,
-              loadRange:        v.loadRange || undefined,
+              plyRating:        v.plyRating       || undefined,
+              loadRange:        v.loadRange       || undefined,
               sidewall:         v.sidewall,
               tubeType:         v.tubeType,
               countryOfOrigin:  v.countryOfOrigin,
               manufacturerName: v.manufacturerName || undefined,
-              factoryName:      v.factoryName || undefined,
-              factoryCountry:   v.factoryCountry || undefined,
+              factoryName:      v.factoryName     || undefined,
+              factoryCountry:   v.factoryCountry  || undefined,
               sectionWidth:     v.sectionWidth,
               treadDepth:       v.treadDepth,
               tyreWeight:       v.tyreWeight,
               overallDiameter:  v.overallDiameter,
-              maxLoad:          v.maxLoad || undefined,
-              maxPressure:      v.maxPressure || undefined,
-              eMark:            v.eMark || undefined,
-              dotCode:          v.dotCode || undefined,
-              utqg:             v.utqg || undefined,
-              variantImages:    v.variantImages ?? [],
+              maxLoad:          v.maxLoad         || undefined,
+              maxPressure:      v.maxPressure     || undefined,
+              eMark:            v.eMark           || undefined,
+              dotCode:          v.dotCode         || undefined,
+              utqg:             v.utqg            || undefined,
+              variantImages:    v.variantImages   ?? [],
             },
             pricing: {
-              priceIncGst:   p.priceIncGst,
+              priceIncGst:    p.priceIncGst,
               compareAtPrice: p.compareAtPrice,
               costPrice:      p.costPrice,
-              inventory:      p.inventory ?? 0,
-              lowStockAlert:  p.lowStockAlert ?? 10,
+              inventory:      p.inventory      ?? 0,
+              lowStockAlert:  p.lowStockAlert  ?? 10,
               warehouseId:    p.warehouseId,
             },
           }),
         })
         if (!variantRes.ok) {
           const body = await variantRes.json().catch(() => ({}))
-          throw new Error(body.error ?? `Failed to add variant ${v.sku || i + 1}`)
+          throw new Error(body.error ?? `Failed to save product specs (${v.sku || i + 1})`)
         }
       }
 
@@ -242,34 +244,15 @@ export default function EditProductWizard({
         {/* ── Tab content ──────────────────────────────────── */}
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6">
           {activeTab === 'basic' && (
-            <BasicInfoTab autoSlug={autoSlug} brands={brands} />
+            <BasicInfoTab autoSlug={autoSlug} brands={brands} patterns={patterns} />
           )}
           {activeTab === 'categories' && (
             <CategoriesTab collections={collections} categories={categories} />
           )}
-          {activeTab === 'variants' && (
-            <EditVariantsTab patternId={patternId} existingSkus={existingSkus} />
-          )}
+          {activeTab === 'variants' && <ProductSpecsTab />}
           {activeTab === 'pricing' && (
-            <div>
-              {(methods.watch('variants') ?? []).length === 0 ? (
-                <div className="py-20 text-center">
-                  <p className="text-sm text-zinc-500 mb-1">No new variants to price.</p>
-                  <p className="text-xs text-zinc-400">
-                    To edit prices for existing variants, use the{' '}
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab('variants')}
-                      className="underline text-zinc-500 hover:text-zinc-700 bg-transparent p-0 border-0 cursor-pointer"
-                    >
-                      Variants tab
-                    </button>{' '}
-                    and click "Edit specs →" on any variant.
-                  </p>
-                </div>
-              ) : (
-                <PricingTab warehouses={warehouses} />
-              )}
+            <div className="py-20 text-center">
+              <p className="text-sm text-zinc-400">Pricing will be configured after variants are added.</p>
             </div>
           )}
         </div>

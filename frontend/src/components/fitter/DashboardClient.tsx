@@ -296,6 +296,7 @@ export default function DashboardClient({
   centreId:    string
 }) {
   const queryClient  = useQueryClient()
+  const router = useRouter()
   const [activeTab, setTab] = useState<JobStatus>('pending')
 
   // Server pre-populates cache via initialData — no loading spinner on first render
@@ -353,6 +354,10 @@ export default function DashboardClient({
       if (status === 'completed') return { ...prev, scheduledThisWeek: Math.max(0, prev.scheduledThisWeek - 1), completedJobsThisMonth: prev.completedJobsThisMonth + 1 }
       return prev
     })
+
+    if (status === 'accepted') {
+      router.push('/fitter/jobs')
+    }
   }
 
   const pendingCount = (jobs ?? []).filter(j => j.job_status === 'pending').length

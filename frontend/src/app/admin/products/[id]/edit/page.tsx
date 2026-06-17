@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import EditProductWizard from '@/components/admin/products/EditProductWizard'
+import EditProductForm from '@/components/admin/products/EditProductForm'
 import type { EditProductFormValues } from '@/components/admin/products/schema'
 import { toastError } from '@/lib/toast'
 
@@ -13,6 +13,7 @@ type Meta = {
   brands:      { brand_id: string; brand_name: string }[]
   collections: { collection_id: string; collection_name: string }[]
   categories:  { category_id: string; category_name: string; category_type: string }[]
+  patterns:    { pattern_id: string; pattern_name: string; brand_id: string }[]
 }
 
 interface ExistingSku {
@@ -28,7 +29,7 @@ export default function EditProductPage() {
 
   const [initialData, setInitialData] = useState<EditProductFormValues | null>(null)
   const [existingSkus, setExistingSkus] = useState<ExistingSku[]>([])
-  const [meta, setMeta]   = useState<Meta>({ brands: [], collections: [], categories: [] })
+  const [meta, setMeta]   = useState<Meta>({ brands: [], collections: [], categories: [], patterns: [] })
   const [warehouses, setWarehouses] = useState<{ warehouse_id: string; warehouse_name: string }[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -104,8 +105,58 @@ export default function EditProductPage() {
           shoulderType:        p.shoulder_type ?? undefined,
           terrainType:         p.terrain_type ?? '',
           warrantyKm:          p.warranty_km ?? undefined,
-          // New variants & pricing start empty — existing ones are shown separately
-          variants: [],
+          // Populate variants[0] from the first existing SKU so Tyre Specs tab shows current data
+          variants: skus.length > 0 ? [{
+            sku:              skus[0].sku ?? '',
+            barcodeEan:       '',
+            tyreSizeDisplay:  skus[0].tyre_size_display ?? '',
+            width:            skus[0].width ?? undefined,
+            profile:          skus[0].profile ?? undefined,
+            rimSize:          skus[0].rim_size ?? 0,
+            specialSize:      '',
+            constructionType: undefined,
+            speedRating:      skus[0].speed_rating ?? '',
+            loadIndex:        skus[0].load_index ?? '',
+            loadSpeedRating:  '',
+            fuelRating:       '',
+            wetGrip:          '',
+            noiseDb:          '',
+            noiseClass:       '',
+            runflat:          false,
+            xlReinforced:     false,
+            ltSizing:         false,
+            plyRating:        '',
+            loadRange:        '',
+            sidewall:         undefined,
+            tubeType:         undefined,
+            manufacturerName: '',
+            countryOfOrigin:  p.default_country_of_origin ?? '',
+            factoryName:      '',
+            factoryCountry:   '',
+            sectionWidth:     undefined,
+            treadDepth:       undefined,
+            tyreWeight:       undefined,
+            overallDiameter:  undefined,
+            maxLoad:          '',
+            maxPressure:      '',
+            eMark:            '',
+            dotCode:          '',
+            utqg:             '',
+            variantImages:    [],
+            status:           (skus[0].status as 'active' | 'inactive' | 'discontinued') ?? 'active',
+            replacementProductId: '',
+          }] : [{
+            sku: '', barcodeEan: '', tyreSizeDisplay: '', width: undefined, profile: undefined,
+            rimSize: 0, specialSize: '', constructionType: undefined, speedRating: '', loadIndex: '',
+            loadSpeedRating: '', fuelRating: '', wetGrip: '', noiseDb: '', noiseClass: '',
+            runflat: false, xlReinforced: false, ltSizing: false, plyRating: '', loadRange: '',
+            sidewall: undefined, tubeType: undefined, manufacturerName: '',
+            countryOfOrigin: p.default_country_of_origin ?? '',
+            factoryName: '', factoryCountry: '', sectionWidth: undefined, treadDepth: undefined,
+            tyreWeight: undefined, overallDiameter: undefined, maxLoad: '', maxPressure: '',
+            eMark: '', dotCode: '', utqg: '', variantImages: [], status: 'active' as const,
+            replacementProductId: '',
+          }],
           pricing:  [],
         }
 
@@ -143,14 +194,14 @@ export default function EditProductPage() {
   }
 
   return (
-    <EditProductWizard
+    <EditProductForm
       patternId={id}
       initialData={initialData}
-      existingSkus={existingSkus}
       brands={meta.brands}
       collections={meta.collections}
       categories={meta.categories}
       warehouses={warehouses}
+      patterns={meta.patterns}
     />
   )
 }

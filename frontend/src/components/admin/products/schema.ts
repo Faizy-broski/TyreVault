@@ -114,8 +114,8 @@ export const createProductSchema = z.object({
   terrainType:        z.string().optional(),
   warrantyKm:         optNum,
 
-  // Tab 3: Variants
-  variants: z.array(variantSchema).min(1, 'Add at least one variant'),
+  // Tab 3: Variants (UI hidden — variants disabled; schema kept intact for future re-enable)
+  variants: z.array(variantSchema).default([]),
 
   // Tab 4: Pricing & Inventory (parallel array)
   pricing: z.array(pricingSchema).default([]),
