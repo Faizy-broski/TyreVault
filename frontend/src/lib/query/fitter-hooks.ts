@@ -11,10 +11,10 @@ async function getToken(): Promise<string> {
   return session?.access_token ?? ''
 }
 
-const JOBS_STALE     = 30_000        // 30 s — changes with every status update
+const JOBS_STALE     = 5 * 60_000   // 5 min — realtime subscription handles live updates
 const SETTINGS_STALE = 5 * 60_000   // 5 min — pricing / profile / services rarely change
 const SCHEDULE_STALE = 2 * 60_000   // 2 min — per-week calendar
-const EARNINGS_STALE = 30_000       // 30 s
+const EARNINGS_STALE = 5 * 60_000   // 5 min
 
 // ─── KPIs ────────────────────────────────────────────────────────────────────
 
@@ -44,7 +44,7 @@ export function useFitterJobDetail(jobId: string) {
   return useQuery({
     queryKey:  fitterKeys.jobDetail(jobId),
     queryFn:   async () => fetchBackendJson<FitmentJob>(`/api/fitter/portal/jobs/${jobId}`, await getToken()),
-    staleTime: 2 * 60_000,
+    staleTime: SETTINGS_STALE,
     enabled:   !!jobId,
   })
 }
@@ -93,7 +93,7 @@ export function useFitterEarningsSummary(opts?: { initialData?: EarningsSummary 
   return useQuery({
     queryKey:    fitterKeys.earningsSummary(),
     queryFn:     async () => fetchBackendJson<EarningsSummary>('/api/fitter/portal/earnings/summary', await getToken()),
-    staleTime:   60_000,
+    staleTime:   EARNINGS_STALE,
     initialData: opts?.initialData,
     initialDataUpdatedAt: opts?.initialData ? Date.now() : undefined,
   })

@@ -22,9 +22,14 @@ export const adminKeys = {
   productCollections: ()                      => ['admin', 'products', 'collections']      as const,
 
   // Fitment centres & fitters
+  fitmentCentres:     ()                          => ['admin', 'fitment-centres', 'list']         as const,
   centreList:         (p: Record<string, string>) => ['admin', 'fitment-centres', 'list', p]      as const,
   fitterApplications: (p: Record<string, string>) => ['admin', 'fitters', 'applications', p]     as const,
   fitterDetail:       (id: string)                => ['admin', 'fitters', 'detail', id]           as const,
+
+  // Brands / Patterns
+  brandList:     ()                           => ['admin', 'brands',    'list']           as const,
+  patternList:   ()                           => ['admin', 'patterns',  'list']           as const,
 
   // Suppliers
   supplierList:  (p: Record<string, string>)  => ['admin', 'suppliers', 'list', p]        as const,

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
+import { BoxSpinner } from '@/components/ui/table-loader'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { toastError, toastSuccess } from '@/lib/toast'
@@ -126,9 +127,7 @@ export default function PurchaseOrdersPage() {
 
       {/* Table */}
       {loading ? (
-        <div className="space-y-3">
-          {[1,2,3,4].map(i => <div key={i} className="h-14 bg-zinc-100 rounded-xl animate-pulse" />)}
-        </div>
+        <BoxSpinner />
       ) : (
         <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
           <table className="w-full text-sm">

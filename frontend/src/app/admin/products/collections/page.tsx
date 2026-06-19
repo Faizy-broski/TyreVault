@@ -1,77 +1,63 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useQueryClient } from '@tanstack/react-query'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Pencil, Trash2, Plus, X, Check } from 'lucide-react'
 import { toastSuccess, toastError } from '@/lib/toast'
+import { useAdminCollections, type AdminCollection } from '@/lib/query/hooks'
+import { adminKeys } from '@/lib/query/keys'
+import { TableBodySpinner } from '@/components/ui/table-loader'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
-
-type Collection = {
-  collection_id: string
-  collection_name: string
-  collection_slug: string
-  description: string | null
-  is_active: boolean
-  created_at: string
-}
 
 function slugify(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 }
 
+async function getToken() {
+  const { data: { session } } = await createClient().auth.getSession()
+  return session?.access_token ?? ''
+}
+
+function headers(tok: string) {
+  return { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' }
+}
+
 export default function CollectionsPage() {
-  const [collections, setCollections] = useState<Collection[]>([])
-  const [loading, setLoading]         = useState(true)
-  const [token, setToken]             = useState('')
+  const queryClient = useQueryClient()
+  const { data: collections = [], isPending: loading } = useAdminCollections()
 
-  const [creating, setCreating]       = useState(false)
-  const [newName, setNewName]         = useState('')
-  const [newSlug, setNewSlug]         = useState('')
-  const [newDesc, setNewDesc]         = useState('')
-  const [saving, setSaving]           = useState(false)
+  const [creating, setCreating]     = useState(false)
+  const [newName, setNewName]       = useState('')
+  const [newSlug, setNewSlug]       = useState('')
+  const [newDesc, setNewDesc]       = useState('')
+  const [saving, setSaving]         = useState(false)
 
-  const [editId, setEditId]           = useState<string | null>(null)
-  const [editName, setEditName]       = useState('')
-  const [editSlug, setEditSlug]       = useState('')
-  const [editDesc, setEditDesc]       = useState('')
-  const [editSaving, setEditSaving]   = useState(false)
+  const [editId, setEditId]         = useState<string | null>(null)
+  const [editName, setEditName]     = useState('')
+  const [editSlug, setEditSlug]     = useState('')
+  const [editDesc, setEditDesc]     = useState('')
+  const [editSaving, setEditSaving] = useState(false)
 
-  useEffect(() => { document.title = 'Collections | Tyre Vault' }, [])
-
-  useEffect(() => {
-    async function load() {
-      const { data: { session } } = await createClient().auth.getSession()
-      const tok = session?.access_token ?? ''
-      setToken(tok)
-      const res = await fetch(`${API}/api/admin/products/collections`, {
-        headers: { Authorization: `Bearer ${tok}` },
-      })
-      if (!res.ok) { toastError('Failed to load collections'); setLoading(false); return }
-      setCollections(await res.json())
-      setLoading(false)
-    }
-    load()
-  }, [])
-
-  const headers = (tok: string) => ({ Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' })
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: adminKeys.productCollections() })
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
     try {
+      const tok = await getToken()
       const res = await fetch(`${API}/api/admin/products/collections`, {
         method: 'POST',
-        headers: headers(token),
+        headers: headers(tok),
         body: JSON.stringify({ collection_name: newName, collection_slug: newSlug || slugify(newName), description: newDesc || null }),
       })
       if (!res.ok) throw new Error(await res.json().then((b: { error?: string }) => b.error ?? 'Failed'))
-      const created: Collection = await res.json()
-      setCollections(prev => [created, ...prev])
+      await invalidate()
       toastSuccess('Collection created')
       setCreating(false); setNewName(''); setNewSlug(''); setNewDesc('')
     } catch (err: unknown) {
@@ -82,16 +68,14 @@ export default function CollectionsPage() {
   async function handleEdit(id: string) {
     setEditSaving(true)
     try {
+      const tok = await getToken()
       const res = await fetch(`${API}/api/admin/products/collections/${id}`, {
         method: 'PATCH',
-        headers: headers(token),
+        headers: headers(tok),
         body: JSON.stringify({ collection_name: editName, collection_slug: editSlug, description: editDesc || null }),
       })
       if (!res.ok) throw new Error(await res.json().then((b: { error?: string }) => b.error ?? 'Failed'))
-      setCollections(prev => prev.map(c => c.collection_id === id
-        ? { ...c, collection_name: editName, collection_slug: editSlug, description: editDesc || null }
-        : c
-      ))
+      await invalidate()
       toastSuccess('Collection updated')
       setEditId(null)
     } catch (err: unknown) {
@@ -101,18 +85,19 @@ export default function CollectionsPage() {
 
   async function handleDelete(id: string, name: string) {
     try {
+      const tok = await getToken()
       const res = await fetch(`${API}/api/admin/products/collections/${id}`, {
-        method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
+        method: 'DELETE', headers: { Authorization: `Bearer ${tok}` },
       })
       if (!res.ok) throw new Error(await res.json().then((b: { error?: string }) => b.error ?? 'Failed'))
-      setCollections(prev => prev.filter(c => c.collection_id !== id))
+      await invalidate()
       toastSuccess(`Collection "${name}" deleted`)
     } catch (err: unknown) {
       toastError(err instanceof Error ? err.message : 'Failed to delete collection')
     }
   }
 
-  function startEdit(c: Collection) {
+  function startEdit(c: AdminCollection) {
     setEditId(c.collection_id); setEditName(c.collection_name)
     setEditSlug(c.collection_slug); setEditDesc(c.description ?? '')
   }
@@ -172,7 +157,7 @@ export default function CollectionsPage() {
               </tr>
             )}
             {loading ? (
-              <tr><td colSpan={5} className="px-5 py-8 text-center text-zinc-400">Loading…</td></tr>
+              <TableBodySpinner colSpan={5} />
             ) : collections.length === 0 && !creating ? (
               <tr><td colSpan={5} className="px-5 py-8 text-center text-zinc-400">No collections yet.</td></tr>
             ) : (
@@ -232,4 +217,3 @@ export default function CollectionsPage() {
     </div>
   )
 }
-

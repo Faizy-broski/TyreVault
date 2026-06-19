@@ -12,10 +12,10 @@ function makeQueryClient() {
     }),
     defaultOptions: {
       queries: {
-        staleTime:            30_000,      // data is fresh for 30 s
-        gcTime:               5 * 60_000,  // keep unused data in memory for 5 min
+        staleTime:            5 * 60_000,  // 5 min — data stays fresh across page navigations
+        gcTime:               10 * 60_000, // keep unused cache for 10 min
         retry:                1,
-        refetchOnWindowFocus: true,
+        refetchOnWindowFocus: false,       // tab switching shouldn't trigger refetch in admin
         refetchOnReconnect:   true,
       },
     },

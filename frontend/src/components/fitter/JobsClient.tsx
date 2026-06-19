@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Search, ClipboardList } from 'lucide-react'
 import { Button }   from '@/components/ui/button'
 import { Input }    from '@/components/ui/input'
-import { Skeleton } from '@/components/ui/skeleton'
+import { TableBodySpinner } from '@/components/ui/table-loader'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
@@ -26,22 +26,6 @@ const STATUS_FILTERS: { key: string; label: string }[] = [
   { key: 'rejected',    label: 'Rejected'    },
 ]
 
-function TableSkeleton() {
-  return Array.from({ length: 6 }).map((_, i) => (
-    <TableRow key={i}>
-      <TableCell><Skeleton className="h-3.5 w-20" /></TableCell>
-      <TableCell>
-        <Skeleton className="h-4 w-28 mb-1.5" />
-        <Skeleton className="h-3 w-20" />
-      </TableCell>
-      <TableCell><Skeleton className="h-3.5 w-24" /></TableCell>
-      <TableCell><Skeleton className="h-3.5 w-20" /></TableCell>
-      <TableCell><Skeleton className="h-3.5 w-24" /></TableCell>
-      <TableCell><Skeleton className="h-3.5 w-16" /></TableCell>
-      <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
-    </TableRow>
-  ))
-}
 
 function EmptyState({ search, hasFilter }: { search: string; hasFilter: boolean }) {
   const filtered = search || hasFilter
@@ -66,11 +50,11 @@ function EmptyState({ search, hasFilter }: { search: string; hasFilter: boolean 
   )
 }
 
-export default function JobsClient() {
+export default function JobsClient({ initialJobs }: { initialJobs?: FitmentJob[] }) {
   const [statusFilter, setStatusFilter] = useState('')
   const [search,       setSearch]       = useState('')
 
-  const { data: jobs = [], isPending: loading } = useFitterJobs()
+  const { data: jobs = [], isPending: loading } = useFitterJobs({ initialData: initialJobs })
 
   const filtered = jobs.filter(j => {
     const matchStatus = !statusFilter || j.job_status === statusFilter
@@ -137,7 +121,7 @@ export default function JobsClient() {
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableSkeleton />
+              <TableBodySpinner />
             ) : filtered.length === 0 ? (
               <EmptyState search={search} hasFilter={!!statusFilter} />
             ) : (
@@ -187,7 +171,7 @@ export default function JobsClient() {
 
         {!loading && filtered.length > 0 && (
           <div className="px-5 py-3 border-t border-zinc-200 bg-zinc-50/30 text-xs text-muted-foreground flex items-center justify-between">
-            <span>Showing {filtered.length} of {jobs.length} jobs</span>
+            <span>Showing {filtered.length} of {jobs.length} most recent jobs</span>
             {statusFilter && (
               <button
                 type="button"

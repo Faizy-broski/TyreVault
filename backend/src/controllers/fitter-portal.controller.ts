@@ -3,13 +3,22 @@ import * as S from '../services/fitter-portal.service'
 
 type P = Record<string, string>
 
+// In-process cache: maps userId → { centreId, expiry }
+// Eliminates the extra Supabase DB round-trip on every fitter API request.
+const centreCache = new Map<string, { id: string; exp: number }>()
+
 async function resolvecentreId(req: Request, res: Response): Promise<string | null> {
   const userId = (req as any).user?.id
   if (!userId) { res.status(401).json({ message: 'Unauthorized' }); return null }
 
+  const hit = centreCache.get(userId)
+  if (hit && hit.exp > Date.now()) return hit.id
+
   const { data, error } = await S.getCentreByUser(userId)
   if (error || !data) { res.status(404).json({ message: 'Fitment centre not found' }); return null }
-  return (data as any).fitment_centre_id
+  const id = (data as any).fitment_centre_id
+  centreCache.set(userId, { id, exp: Date.now() + 5 * 60_000 })
+  return id
 }
 
 export async function getCentre(req: Request, res: Response, next: NextFunction) {

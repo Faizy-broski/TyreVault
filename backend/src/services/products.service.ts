@@ -1054,6 +1054,7 @@ export async function listBrandsFull() {
     .from('brands')
     .select('brand_id, brand_name, brand_slug, brand_logo, brand_banner_image, brand_description, brand_short_description, country_of_brand, manufacturer_name, brand_positioning, warranty_info, seo_title, seo_description, is_active, show_on_website, channel_wholesale, channel_retail, channel_marketplaces, created_at, updated_at')
     .order('created_at', { ascending: false })
+    .limit(200)
   if (error) throw error
   return data ?? []
 }
@@ -1088,6 +1089,7 @@ export async function listPatterns(brandId?: string) {
     .from('patterns')
     .select(selectCols)
     .order('created_at', { ascending: false })
+    .limit(500)
   if (brandId) q = q.eq('brand_id', brandId)
   const { data, error } = await q
   if (error) throw error
@@ -1173,7 +1175,7 @@ export async function deletePattern(patternId: string) {
 
 export async function listCollections() {
   const { data } = await supabase
-    .from('collections').select('collection_id, collection_name, collection_slug, description, is_active, created_at').order('created_at', { ascending: false })
+    .from('collections').select('collection_id, collection_name, collection_slug, description, is_active, created_at').order('created_at', { ascending: false }).limit(200)
   return data ?? []
 }
 

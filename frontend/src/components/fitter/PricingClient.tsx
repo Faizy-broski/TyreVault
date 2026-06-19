@@ -5,7 +5,7 @@ import { Save, Trash2 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Button }  from '@/components/ui/button'
 import { Input }   from '@/components/ui/input'
-import { Skeleton } from '@/components/ui/skeleton'
+import { TableBodySpinner } from '@/components/ui/table-loader'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -39,17 +39,6 @@ function PriceInput({ value, onChange, placeholder = '0.00' }: {
   )
 }
 
-function TableSkeleton() {
-  return Array.from({ length: 4 }).map((_, i) => (
-    <TableRow key={i} className="border-zinc-50">
-      <TableCell className="py-2.5"><Skeleton className="h-4 w-16" /></TableCell>
-      {Array.from({ length: 4 }).map((__, j) => (
-        <TableCell key={j} className="py-2.5 px-2"><Skeleton className="h-8 w-full rounded-md" /></TableCell>
-      ))}
-      <TableCell className="py-2.5" />
-    </TableRow>
-  ))
-}
 
 function buildMatrix(rows: FitterPricingRow[]): PricingMatrix {
   const matrix = emptyPricingMatrix()
@@ -182,7 +171,7 @@ export default function PricingClient() {
                   </TableHeader>
                   <TableBody>
                     {loading ? (
-                      <TableSkeleton />
+                      <TableBodySpinner />
                     ) : (
                       RIM_RANGES.map((rim) => {
                         const cell = matrix[tyreType.key][rim.key]

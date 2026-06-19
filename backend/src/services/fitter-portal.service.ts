@@ -17,9 +17,13 @@ export async function getKPIs(centreId: string) {
   const today      = new Date().toISOString().split('T')[0]
   const weekStart  = getWeekStart(new Date())
   const weekEnd    = getWeekEnd(new Date())
-  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]
 
-  const [newToday, pending, scheduled, earningsRes, payoutsRes] = await Promise.all([
+  // Month start in Australia/Sydney timezone (UTC+10 standard, +11 AEDT)
+  // Use a fixed +10 offset to avoid cutting off beginning-of-month earnings
+  const nowAEST    = new Date(Date.now() + 10 * 60 * 60 * 1000)
+  const monthStart = `${nowAEST.getUTCFullYear()}-${String(nowAEST.getUTCMonth() + 1).padStart(2, '0')}-01`
+
+  const [newToday, pending, scheduled, earningsRpc] = await Promise.all([
     db.from('fitment_jobs')
       .select('job_id', { count: 'exact', head: true })
       .eq('fitment_centre_id', centreId)
@@ -39,31 +43,18 @@ export async function getKPIs(centreId: string) {
       .gte('scheduled_date', weekStart)
       .lte('scheduled_date', weekEnd),
 
-    db.from('fitter_earnings')
-      .select('amount, status')
-      .eq('fitment_centre_id', centreId)
-      .gte('created_at', `${monthStart}T00:00:00`),
-
-    db.from('fitter_earnings')
-      .select('amount')
-      .eq('fitment_centre_id', centreId)
-      .eq('status', 'pending'),
+    db.rpc('get_fitter_earnings_kpis', { p_centre_id: centreId, p_month_start: monthStart }),
   ])
 
-  const earnings = (earningsRes.data ?? []) as any[]
-  const payouts  = (payoutsRes.data ?? []) as any[]
-
-  const earningsThisMonth      = earnings.reduce((s: number, e: any) => s + (Number(e.amount) || 0), 0)
-  const completedJobsThisMonth = earnings.length
-  const pendingPayouts         = payouts.reduce((s: number, e: any) => s + (Number(e.amount) || 0), 0)
+  const kpis = earningsRpc.data as any
 
   return {
-    newJobsToday:           newToday.count ?? 0,
-    pendingJobs:            pending.count  ?? 0,
-    scheduledThisWeek:      scheduled.count ?? 0,
-    earningsThisMonth,
-    completedJobsThisMonth,
-    pendingPayouts,
+    newJobsToday:           newToday.count   ?? 0,
+    pendingJobs:            pending.count    ?? 0,
+    scheduledThisWeek:      scheduled.count  ?? 0,
+    earningsThisMonth:      Number(kpis?.earningsThisMonth      ?? 0),
+    completedJobsThisMonth: Number(kpis?.completedJobsThisMonth ?? 0),
+    pendingPayouts:         Number(kpis?.pendingPayouts         ?? 0),
   }
 }
 
@@ -75,6 +66,7 @@ export async function listJobs(centreId: string, status?: string) {
     .select('job_id, task_number, customer_name, customer_phone, scheduled_date, scheduled_time, tyre_pattern, tyre_size, quantity, vehicle_model, job_status, notes, earnings_amount, created_at')
     .eq('fitment_centre_id', centreId)
     .order('created_at', { ascending: false })
+    .limit(200)
 
   if (status) query = query.eq('job_status', status)
   return query

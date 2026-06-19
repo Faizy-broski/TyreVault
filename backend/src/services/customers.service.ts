@@ -5,21 +5,15 @@ const PAGE_SIZE = 20
 // ── Customers ──────────────────────────────────────────────────────────────
 
 export async function getCustomerStats() {
-  const [custRes, orderRes] = await Promise.all([
-    supabaseAdmin
-      .from('customers')
-      .select('profile_id', { count: 'exact' }),
-    supabaseAdmin
-      .from('orders')
-      .select('total_amount, order_id', { count: 'exact' }),
-  ])
-
-  const totalCustomers = custRes.count  ?? 0
-  const totalOrders    = orderRes.count ?? 0
-  const totalRevenue   = (orderRes.data ?? []).reduce((s, o: any) => s + (Number(o.total_amount) ?? 0), 0)
-  const avgOrderSize   = totalOrders > 0 ? totalRevenue / totalOrders : 0
-
-  return { totalCustomers, totalOrders, avgOrderSize, totalRevenue }
+  const { data, error } = await supabaseAdmin.rpc('get_customer_stats')
+  if (error) throw error
+  const d = data as any
+  return {
+    totalCustomers: Number(d?.totalCustomers ?? 0),
+    totalOrders:    Number(d?.totalOrders    ?? 0),
+    avgOrderSize:   Number(d?.avgOrderSize   ?? 0),
+    totalRevenue:   Number(d?.totalRevenue   ?? 0),
+  }
 }
 
 export async function listCustomers(opts: {
@@ -57,7 +51,7 @@ export async function listCustomers(opts: {
     .select('customer_id, total_amount, order_number, created_at')
     .in('customer_id', customerIds)
     .order('created_at', { ascending: false })
-    .limit(2000)
+    .limit(200)
 
   if (ordersError || !orderRows?.length) {
     return { data, error: ordersError, count }

@@ -5,6 +5,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
+import { BoxSpinner } from '@/components/ui/table-loader'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -127,9 +128,7 @@ export default function WheelsPage() {
 
       {/* Table */}
       {loading ? (
-        <div className="mt-6 space-y-2">
-          {[1,2,3,4,5].map(i => <div key={i} className="h-14 bg-zinc-100 rounded-lg animate-pulse" />)}
-        </div>
+        <BoxSpinner />
       ) : wheels.length === 0 ? (
         <div className="mt-12 text-center text-sm text-zinc-400">No wheels found.</div>
       ) : (

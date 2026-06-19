@@ -5,6 +5,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
+import { BoxSpinner } from '@/components/ui/table-loader'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react'
@@ -106,9 +107,7 @@ export default function VehiclesPage() {
 
       {/* Table */}
       {loading ? (
-        <div className="mt-6 space-y-2">
-          {[1,2,3,4,5].map(i => <div key={i} className="h-12 bg-zinc-100 rounded-lg animate-pulse" />)}
-        </div>
+        <BoxSpinner />
       ) : vehicles.length === 0 ? (
         <div className="mt-12 text-center text-sm text-zinc-400">No vehicles found.</div>
       ) : (

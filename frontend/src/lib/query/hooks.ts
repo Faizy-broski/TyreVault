@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { createClient } from '@/lib/supabase/client'
 import { fetchBackendJson } from '@/lib/backend-api'
 import { adminKeys } from './keys'
-import type { OrderListItem, CustomerListItem } from '@/types/admin.types'
+import type { OrderListItem, CustomerListItem, Brand, Supplier, AdminFitmentCentreSummary } from '@/types/admin.types'
 
 // Supabase caches the session in memory — calling this is essentially free after first auth.
 async function getToken(): Promise<string> {
@@ -24,11 +24,13 @@ export type OrderStats = {
   pendingPayment: number
 }
 
-export function useOrderStats() {
+export function useOrderStats(opts?: { initialData?: OrderStats }) {
   return useQuery({
-    queryKey: adminKeys.orderStats(),
-    queryFn:  async () => fetchBackendJson<OrderStats>('/api/admin/orders/stats', await getToken()),
-    staleTime: STATS_STALE,
+    queryKey:             adminKeys.orderStats(),
+    queryFn:              async () => fetchBackendJson<OrderStats>('/api/admin/orders/stats', await getToken()),
+    staleTime:            STATS_STALE,
+    initialData:          opts?.initialData,
+    initialDataUpdatedAt: opts?.initialData ? Date.now() : undefined,
   })
 }
 
@@ -75,16 +77,18 @@ export function useUpdateOrderStatus() {
   })
 }
 
-export function useOrderList(p: OrderListParams) {
+export function useOrderList(p: OrderListParams, opts?: { initialData?: OrderListResponse }) {
   const qs = new URLSearchParams({ page: String(p.page) })
   if (p.search)            qs.set('search',            p.search)
   if (p.paymentStatus)     qs.set('paymentStatus',     p.paymentStatus)
   if (p.fulfillmentStatus) qs.set('fulfillmentStatus', p.fulfillmentStatus)
 
   return useQuery({
-    queryKey:        adminKeys.orderList(Object.fromEntries(qs)),
-    queryFn:         async () => fetchBackendJson<OrderListResponse>(`/api/admin/orders?${qs}`, await getToken()),
-    placeholderData: keepPreviousData, // prevents blank flash when changing page/filters
+    queryKey:             adminKeys.orderList(Object.fromEntries(qs)),
+    queryFn:              async () => fetchBackendJson<OrderListResponse>(`/api/admin/orders?${qs}`, await getToken()),
+    placeholderData:      keepPreviousData,
+    initialData:          opts?.initialData,
+    initialDataUpdatedAt: opts?.initialData ? Date.now() : undefined,
   })
 }
 
@@ -97,11 +101,13 @@ export type CustomerStats = {
   totalRevenue:   number
 }
 
-export function useCustomerStats() {
+export function useCustomerStats(opts?: { initialData?: CustomerStats }) {
   return useQuery({
-    queryKey: adminKeys.customerStats(),
-    queryFn:  async () => fetchBackendJson<CustomerStats>('/api/admin/customers/stats', await getToken()),
-    staleTime: STATS_STALE,
+    queryKey:             adminKeys.customerStats(),
+    queryFn:              async () => fetchBackendJson<CustomerStats>('/api/admin/customers/stats', await getToken()),
+    staleTime:            STATS_STALE,
+    initialData:          opts?.initialData,
+    initialDataUpdatedAt: opts?.initialData ? Date.now() : undefined,
   })
 }
 
@@ -115,7 +121,7 @@ export type CustomerListParams = {
 
 export type CustomerListResponse = { customers: CustomerListItem[]; total: number }
 
-export function useCustomerList(p: CustomerListParams) {
+export function useCustomerList(p: CustomerListParams, opts?: { initialData?: CustomerListResponse }) {
   const qs = new URLSearchParams({ page: String(p.page) })
   if (p.search)       qs.set('search',       p.search)
   if (p.accountType)  qs.set('accountType',  p.accountType)
@@ -123,9 +129,11 @@ export function useCustomerList(p: CustomerListParams) {
   if (p.statusFilter) qs.set('status',       p.statusFilter)
 
   return useQuery({
-    queryKey:        adminKeys.customerList(Object.fromEntries(qs)),
-    queryFn:         async () => fetchBackendJson<CustomerListResponse>(`/api/admin/customers?${qs}`, await getToken()),
-    placeholderData: keepPreviousData,
+    queryKey:             adminKeys.customerList(Object.fromEntries(qs)),
+    queryFn:              async () => fetchBackendJson<CustomerListResponse>(`/api/admin/customers?${qs}`, await getToken()),
+    placeholderData:      keepPreviousData,
+    initialData:          opts?.initialData,
+    initialDataUpdatedAt: opts?.initialData ? Date.now() : undefined,
   })
 }
 
@@ -175,7 +183,7 @@ export type NormalisedProduct = {
 
 export type ProductListResponse = { data: NormalisedProduct[]; total: number }
 
-export function useProductList(p: ProductListParams) {
+export function useProductList(p: ProductListParams, opts?: { initialData?: ProductListResponse }) {
   const qs = new URLSearchParams({ page: String(p.page), sortBy: p.sortBy, sortOrder: p.sortOrder })
   if (p.search)    qs.set('search',    p.search)
   if (p.brandId)   qs.set('brandId',   p.brandId)
@@ -184,30 +192,17 @@ export function useProductList(p: ProductListParams) {
   if (p.stock)     qs.set('stock',     p.stock)
 
   return useQuery({
-    queryKey: adminKeys.productList(Object.fromEntries(qs)),
-    queryFn:  async () => {
+    queryKey:             adminKeys.productList(Object.fromEntries(qs)),
+    queryFn:              async () => {
       const raw = await fetchBackendJson<{ data: ProductRaw[]; total: number }>(
         `/api/admin/products?${qs}`,
         await getToken(),
       )
-      return {
-        total: raw.total,
-        data:  raw.data.map((item): NormalisedProduct => ({
-          id:             item.id,
-          name:           item.name,
-          brand:          item.brand?.brand_name          ?? '—',
-          brandId:        item.brand?.brand_id            ?? '',
-          collection:     item.collection?.collection_name ?? null,
-          variantCount:   item.variantCount,
-          activeVariants: item.activeVariantCount,
-          isActive:       item.isActive,
-          showOnWebsite:  item.showOnWebsite,
-          updatedAt:      item.updatedAt,
-          createdAt:      item.createdAt,
-        })),
-      }
+      return { total: raw.total, data: raw.data.map(normaliseProductRaw) }
     },
-    placeholderData: keepPreviousData,
+    placeholderData:      keepPreviousData,
+    initialData:          opts?.initialData,
+    initialDataUpdatedAt: opts?.initialData ? Date.now() : undefined,
   })
 }
 
@@ -221,18 +216,20 @@ export type CentreRow = {
   profiles?:     { email?: string } | null
 }
 
-export function useFitmentCentreList(page = 1) {
+export function useFitmentCentreList(page = 1, opts?: { initialData?: CentreRow[] }) {
   const qs = new URLSearchParams({ page: String(page) })
   return useQuery({
-    queryKey: adminKeys.centreList(Object.fromEntries(qs)),
-    queryFn:  async () => {
+    queryKey:             adminKeys.centreList(Object.fromEntries(qs)),
+    queryFn:              async () => {
       const res = await fetchBackendJson<{ data?: CentreRow[] } | CentreRow[]>(
         `/api/admin/fitment-centres?${qs}`,
         await getToken(),
       )
       return Array.isArray(res) ? res : (res.data ?? [])
     },
-    staleTime: 2 * 60_000,
+    staleTime:            2 * 60_000,
+    initialData:          opts?.initialData,
+    initialDataUpdatedAt: opts?.initialData ? Date.now() : undefined,
   })
 }
 
@@ -283,5 +280,70 @@ export function usePromotionDetail(id: string) {
     ),
     enabled: !!id,
     staleTime: 30_000,
+  })
+}
+
+// ─── Master-data hooks (brands, patterns, collections, suppliers) ─────────────
+// These datasets change only on deliberate admin action — 10 min staleTime means
+// navigating away and back never triggers a refetch.
+
+const MASTER_STALE = 10 * 60_000
+
+export type AdminPattern = {
+  pattern_id: string; brand_id: string; pattern_name: string; pattern_slug: string
+  application_type: string; season_type: string | null; terrain_type: string | null
+  is_active: boolean; show_on_website: boolean; main_image: string | null; created_at: string
+}
+
+export type AdminCollection = {
+  collection_id: string; collection_name: string; collection_slug: string
+  description: string | null; is_active: boolean; created_at: string
+}
+
+export function useAdminBrands() {
+  return useQuery({
+    queryKey: adminKeys.brandList(),
+    queryFn:  async () => fetchBackendJson<Brand[]>('/api/admin/products/brands', await getToken()),
+    staleTime: MASTER_STALE,
+  })
+}
+
+export function useAdminPatterns() {
+  return useQuery({
+    queryKey: adminKeys.patternList(),
+    queryFn:  async () => fetchBackendJson<AdminPattern[]>('/api/admin/products/patterns', await getToken()),
+    staleTime: MASTER_STALE,
+  })
+}
+
+export function useAdminCollections() {
+  return useQuery({
+    queryKey: adminKeys.productCollections(),
+    queryFn:  async () => fetchBackendJson<AdminCollection[]>('/api/admin/products/collections', await getToken()),
+    staleTime: MASTER_STALE,
+  })
+}
+
+export function useAdminFitmentCentres() {
+  return useQuery({
+    queryKey: adminKeys.fitmentCentres(),
+    queryFn:  async () => {
+      const res = await fetchBackendJson<{ data: AdminFitmentCentreSummary[]; total: number }>(
+        '/api/admin/fitment-centres?page=1&limit=20', await getToken()
+      )
+      return res
+    },
+    staleTime: 5 * 60_000,
+  })
+}
+
+export function useAdminSuppliers() {
+  return useQuery({
+    queryKey: adminKeys.supplierList({}),
+    queryFn:  async () => {
+      const data = await fetchBackendJson<Supplier[] | { data?: Supplier[] }>('/api/admin/suppliers', await getToken())
+      return Array.isArray(data) ? data : (data.data ?? [])
+    },
+    staleTime: 5 * 60_000,
   })
 }

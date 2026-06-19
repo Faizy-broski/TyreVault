@@ -182,9 +182,9 @@ export default function PatternForm({ brandId: initialBrandId, brandName: initia
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!brandId)                   { toastError('Please select a brand'); return }
-    if (!form.pattern_name.trim()) { toastError('Pattern name is required'); return }
-    if (!form.pattern_slug.trim()) { toastError('Slug is required'); return }
-    if (!form.application_type)    { toastError('Application type is required'); return }
+    if (!form.pattern_name.trim())       { toastError('Pattern name is required'); return }
+    if (!form.pattern_slug.trim())       { toastError('Slug is required'); return }
+    if (form.category_ids.length === 0)  { toastError('Please select a category'); return }
 
     setSaving(true)
     const { data: { session } } = await createClient().auth.getSession()
@@ -330,6 +330,7 @@ export default function PatternForm({ brandId: initialBrandId, brandName: initia
 
             {/* Categories */}
             <Card title="Categories" description="Assign this pattern to a product category.">
+              <label className={lbl}>Category <Req /></label>
               {catLoading ? (
                 <div className="h-[38px] rounded-lg bg-zinc-100 animate-pulse w-full" />
               ) : categories.length === 0 ? (
@@ -357,7 +358,7 @@ export default function PatternForm({ brandId: initialBrandId, brandName: initia
             <Card title="Specifications" description="Application, season, and tyre classification.">
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                 <div>
-                  <label className={lbl}>Application <Req /></label>
+                  <label className={lbl}>Application</label>
                   <CreatableCombobox
                     value={form.application_type}
                     onChange={v => set('application_type', v)}

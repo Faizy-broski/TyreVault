@@ -17,6 +17,7 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
+import { TableBodySpinner } from "@/components/ui/table-loader";
 import { toastError } from "@/lib/toast";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
@@ -179,19 +180,7 @@ export default function FitmentCentresClient({
           </TableHeader>
           <TableBody className="divide-y divide-zinc-200">
             {loading ? (
-              <>
-                {[1,2,3,4,5].map(i => (
-                  <TableRow key={i}>
-                    <TableCell><div className="h-4 w-36 bg-muted rounded animate-pulse" /></TableCell>
-                    <TableCell><div className="h-4 w-20 bg-muted rounded animate-pulse" /></TableCell>
-                    <TableCell><div className="h-4 w-24 bg-muted rounded animate-pulse" /></TableCell>
-                    <TableCell><div className="h-4 w-24 bg-muted rounded animate-pulse" /></TableCell>
-                    <TableCell><div className="h-5 w-16 bg-muted rounded-full animate-pulse" /></TableCell>
-                    <TableCell><div className="h-4 w-20 bg-muted rounded animate-pulse" /></TableCell>
-                    <TableCell className="px-5" />
-                  </TableRow>
-                ))}
-              </>
+              <TableBodySpinner colSpan={7} />
             ) : centres.length === 0 ? (
               <TableRow className="hover:bg-transparent">
                 <TableCell colSpan={7} className="px-5 py-16 text-center">

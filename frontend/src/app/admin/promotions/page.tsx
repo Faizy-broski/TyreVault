@@ -5,6 +5,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
+import { TableBodySpinner } from '@/components/ui/table-loader'
 import { usePromotionList, type PromotionRow } from '@/lib/query/hooks'
 import { createClient } from '@/lib/supabase/client'
 import { toastSuccess, toastError } from '@/lib/toast'
@@ -146,15 +147,7 @@ export default function AdminPromotionsPage() {
             </thead>
             <tbody className="divide-y divide-zinc-200">
               {loading ? (
-                [1,2,3,4,5].map(i => (
-                  <tr key={i}>
-                    {[12, 48, 20, 28, 16, 12, 16].map((w, j) => (
-                      <td key={j} className="px-4 py-3.5">
-                        <div className={`h-4 w-${w} bg-zinc-100 rounded animate-pulse`} />
-                      </td>
-                    ))}
-                  </tr>
-                ))
+                <TableBodySpinner />
               ) : promotions.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-12 text-center text-sm text-zinc-400">

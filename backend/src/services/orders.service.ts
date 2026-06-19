@@ -8,18 +8,15 @@ const PAGE_SIZE = 20
 // ── Stats ───────────────────────────────────────────────────────────────────
 
 export async function getOrderStats() {
-  const [totalRes, revenueRes, pendingRes] = await Promise.all([
-    db.from('orders').select('order_id', { count: 'exact', head: true }),
-    db.from('orders').select('total_amount').eq('payment_status', 'paid'),
-    db.from('orders').select('order_id', { count: 'exact', head: true }).eq('payment_status', 'unpaid'),
-  ])
-
-  const totalOrders     = totalRes.count ?? 0
-  const totalRevenue    = ((revenueRes.data ?? []) as any[]).reduce((s: number, o: any) => s + Number(o.total_amount ?? 0), 0)
-  const avgOrderSize    = totalOrders > 0 ? totalRevenue / totalOrders : 0
-  const pendingPayment  = pendingRes.count ?? 0
-
-  return { totalOrders, totalRevenue, avgOrderSize, pendingPayment }
+  const { data, error } = await db.rpc('get_order_stats')
+  if (error) throw error
+  const d = data as any
+  return {
+    totalOrders:    Number(d?.totalOrders   ?? 0),
+    totalRevenue:   Number(d?.totalRevenue  ?? 0),
+    avgOrderSize:   Number(d?.avgOrderSize  ?? 0),
+    pendingPayment: Number(d?.pendingPayment ?? 0),
+  }
 }
 
 // ── List ────────────────────────────────────────────────────────────────────

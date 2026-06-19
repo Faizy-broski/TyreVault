@@ -1,34 +1,21 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useQueryClient } from '@tanstack/react-query'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { Badge } from '@/components/ui/badge'
 import { toastError, toastSuccess } from '@/lib/toast'
 import { MoreHorizontal, Pencil, Trash2, Upload } from 'lucide-react'
-import type { Brand } from '@/types/admin.types'
+import { useAdminBrands, useAdminPatterns, type AdminPattern } from '@/lib/query/hooks'
+import { adminKeys } from '@/lib/query/keys'
+import { TableBodySpinner } from '@/components/ui/table-loader'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
-interface Pattern {
-  pattern_id:       string
-  brand_id:         string
-  pattern_name:     string
-  pattern_slug:     string
-  application_type: string
-  season_type:      string | null
-  terrain_type:     string | null
-  is_active:        boolean
-  show_on_website:  boolean
-  main_image:       string | null
-  created_at:       string
-}
-
-interface PatternWithBrand extends Pattern {
-  brand_name: string
-}
+type PatternWithBrand = AdminPattern & { brand_name: string }
 
 const APP_COLOURS: Record<string, string> = {
   passenger:   'bg-blue-50 text-blue-700',
@@ -40,18 +27,15 @@ const APP_COLOURS: Record<string, string> = {
   atv:         'bg-amber-50 text-amber-700',
 }
 
+async function getToken() {
+  const { data: { session } } = await createClient().auth.getSession()
+  return session?.access_token ?? ''
+}
 
-// ── Per-row actions dropdown ──────────────────────────────────────────────────
-function RowActions({
-  pattern,
-  onDelete,
-}: {
-  pattern: PatternWithBrand
-  onDelete: (p: PatternWithBrand) => void
-}) {
-  const router       = useRouter()
+function RowActions({ pattern, onDelete }: { pattern: PatternWithBrand; onDelete: (p: PatternWithBrand) => void }) {
+  const router      = useRouter()
   const [open, setOpen] = useState(false)
-  const ref          = useRef<HTMLDivElement>(null)
+  const ref         = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -95,27 +79,15 @@ function RowActions({
   )
 }
 
-// ── Delete confirmation dialog ────────────────────────────────────────────────
-function DeleteDialog({
-  pattern,
-  onClose,
-  onConfirm,
-  deleting,
-  skuError,
-}: {
-  pattern: PatternWithBrand
-  onClose: () => void
-  onConfirm: () => void
-  deleting: boolean
-  skuError: boolean
+function DeleteDialog({ pattern, onClose, onConfirm, deleting, skuError }: {
+  pattern: PatternWithBrand; onClose: () => void; onConfirm: () => void
+  deleting: boolean; skuError: boolean
 }) {
   const router = useRouter()
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-xl border border-zinc-200 p-6 w-full max-w-sm">
-
         {skuError ? (
           <>
             <div className="flex items-center justify-center w-12 h-12 rounded-full bg-amber-50 mx-auto mb-4">
@@ -124,21 +96,15 @@ function DeleteDialog({
             <h2 className="text-base font-semibold text-zinc-900 text-center">Cannot Delete</h2>
             <p className="text-sm text-zinc-500 text-center mt-1 mb-2">
               <span className="font-medium text-zinc-700">{pattern.pattern_name}</span> has SKUs linked to it.
-              You must remove all associated SKUs before this pattern can be deleted.
+              Remove all associated SKUs before deleting.
             </p>
             <div className="flex gap-3 mt-5">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 rounded-xl border border-zinc-200 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-50 transition-colors"
-              >
+              <button type="button" onClick={onClose}
+                className="flex-1 rounded-xl border border-zinc-200 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-50 transition-colors">
                 Cancel
               </button>
-              <button
-                type="button"
-                onClick={() => { onClose(); router.push(`/admin/products/brands/${pattern.brand_id}/patterns/${pattern.pattern_id}/edit`) }}
-                className="flex-1 rounded-xl bg-primary py-2 text-sm font-medium text-zinc-900 hover:bg-primary/90 transition-colors"
-              >
+              <button type="button" onClick={() => { onClose(); router.push(`/admin/products/brands/${pattern.brand_id}/patterns/${pattern.pattern_id}/edit`) }}
+                className="flex-1 rounded-xl bg-primary py-2 text-sm font-medium text-zinc-900 hover:bg-primary/90 transition-colors">
                 Edit Pattern
               </button>
             </div>
@@ -153,20 +119,12 @@ function DeleteDialog({
               Are you sure you want to delete <span className="font-medium text-zinc-700">{pattern.pattern_name}</span>? This cannot be undone.
             </p>
             <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={deleting}
-                className="flex-1 rounded-xl border border-zinc-200 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-50 transition-colors"
-              >
+              <button type="button" onClick={onClose} disabled={deleting}
+                className="flex-1 rounded-xl border border-zinc-200 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-50 transition-colors">
                 Cancel
               </button>
-              <button
-                type="button"
-                onClick={onConfirm}
-                disabled={deleting}
-                className="flex-1 rounded-xl bg-red-600 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60 transition-colors"
-              >
+              <button type="button" onClick={onConfirm} disabled={deleting}
+                className="flex-1 rounded-xl bg-red-600 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60 transition-colors">
                 {deleting ? 'Deleting…' : 'Delete'}
               </button>
             </div>
@@ -177,63 +135,40 @@ function DeleteDialog({
   )
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
 export default function PatternsPage() {
   const router       = useRouter()
   const searchParams = useSearchParams()
-  const [patterns, setPatterns]         = useState<PatternWithBrand[]>([])
-  const [brands, setBrands]             = useState<Brand[]>([])
-  const [loading, setLoading]           = useState(true)
-  const [filterBrand, setFilterBrand]   = useState(searchParams.get('brand') ?? '')
-  const [filterApp, setFilterApp]       = useState('')
-  const [search, setSearch]             = useState('')
-  const [toDelete, setToDelete]         = useState<PatternWithBrand | null>(null)
-  const [deleting, setDeleting]         = useState(false)
-  const [skuError, setSkuError]         = useState(false)
-  const [token, setToken]               = useState('')
+  const queryClient  = useQueryClient()
 
-  useEffect(() => { document.title = 'Patterns | Tyre Vault' }, [])
+  const { data: rawPatterns = [], isPending: patternsLoading } = useAdminPatterns()
+  const { data: brands = [],      isPending: brandsLoading  } = useAdminBrands()
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true)
-      try {
-        const { data: { session } } = await createClient().auth.getSession()
-        const tok = session?.access_token ?? ''
-        setToken(tok)
-        const headers = { Authorization: `Bearer ${tok}` }
+  const loading = patternsLoading || brandsLoading
 
-        // Two parallel calls instead of 1 + N (one per brand)
-        const [brandsRes, patternsRes] = await Promise.all([
-          fetch(`${API}/api/admin/products/brands`, { headers }),
-          fetch(`${API}/api/admin/products/patterns`, { headers }),
-        ])
-        if (!brandsRes.ok) throw new Error('Failed to load brands')
-        const allBrands: Brand[] = await brandsRes.json()
-        setBrands(allBrands)
+  const brandMap = useMemo(
+    () => Object.fromEntries(brands.map(b => [b.brand_id, b.brand_name])),
+    [brands],
+  )
+  const patterns: PatternWithBrand[] = useMemo(
+    () => rawPatterns.map(p => ({ ...p, brand_name: brandMap[p.brand_id] ?? '' })),
+    [rawPatterns, brandMap],
+  )
 
-        // Build brand name lookup for the join
-        const brandMap = Object.fromEntries(allBrands.map(b => [b.brand_id, b.brand_name]))
-        if (patternsRes.ok) {
-          const allPatterns: Pattern[] = await patternsRes.json()
-          setPatterns(allPatterns.map(p => ({ ...p, brand_name: brandMap[p.brand_id] ?? '' })))
-        }
-      } catch (err) {
-        toastError(err instanceof Error ? err.message : 'Failed to load patterns')
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
-  }, [])
+  const [filterBrand, setFilterBrand] = useState(searchParams.get('brand') ?? '')
+  const [filterApp,   setFilterApp]   = useState('')
+  const [search,      setSearch]      = useState('')
+  const [toDelete,    setToDelete]    = useState<PatternWithBrand | null>(null)
+  const [deleting,    setDeleting]    = useState(false)
+  const [skuError,    setSkuError]    = useState(false)
 
   async function handleDelete() {
     if (!toDelete) return
     setDeleting(true)
     try {
+      const tok = await getToken()
       const res = await fetch(
         `${API}/api/admin/products/brands/${toDelete.brand_id}/patterns/${toDelete.pattern_id}`,
-        { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
+        { method: 'DELETE', headers: { Authorization: `Bearer ${tok}` } },
       )
       if (!res.ok) {
         const b = await res.json().catch(() => ({})) as { error?: string }
@@ -244,7 +179,7 @@ export default function PatternsPage() {
         }
         throw new Error(raw || 'Failed to delete pattern')
       }
-      setPatterns(prev => prev.filter(p => p.pattern_id !== toDelete.pattern_id))
+      queryClient.invalidateQueries({ queryKey: adminKeys.patternList() })
       toastSuccess(`"${toDelete.pattern_name}" deleted`)
       setToDelete(null)
       setSkuError(false)
@@ -264,8 +199,7 @@ export default function PatternsPage() {
     return true
   })
 
-  const appTypes = [...new Set(patterns.map(p => p.application_type))].sort()
-
+  const appTypes = useMemo(() => [...new Set(patterns.map(p => p.application_type))].sort(), [patterns])
   const sel = 'rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700 focus:outline-none focus:ring-2 focus:ring-primary/30'
 
   return (
@@ -297,15 +231,9 @@ export default function PatternsPage() {
         </div>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-wrap gap-2">
-        <input
-          type="text"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search patterns…"
-          className={sel + ' w-48'}
-        />
+        <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Search patterns…" className={sel + ' w-48'} />
         <select value={filterBrand} onChange={e => setFilterBrand(e.target.value)} className={sel}>
           <option value="">All Brands</option>
           {brands.map(b => <option key={b.brand_id} value={b.brand_id}>{b.brand_name}</option>)}
@@ -317,17 +245,13 @@ export default function PatternsPage() {
           ))}
         </select>
         {(filterBrand || filterApp || search) && (
-          <button
-            type="button"
-            onClick={() => { setFilterBrand(''); setFilterApp(''); setSearch('') }}
-            className="text-xs text-zinc-400 hover:text-zinc-700 px-2"
-          >
+          <button type="button" onClick={() => { setFilterBrand(''); setFilterApp(''); setSearch('') }}
+            className="text-xs text-zinc-400 hover:text-zinc-700 px-2">
             Clear
           </button>
         )}
       </div>
 
-      {/* Table */}
       <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -344,16 +268,7 @@ export default function PatternsPage() {
           </thead>
           <tbody className="divide-y divide-zinc-200">
             {loading ? (
-              [1,2,3,4,5].map(i => (
-                <tr key={i}>
-                  {[1,2,3,4,5,6].map(j => (
-                    <td key={j} className="px-5 py-3">
-                      <div className="h-4 bg-zinc-100 rounded animate-pulse" style={{ width: `${50 + j * 15}px` }} />
-                    </td>
-                  ))}
-                  <td className="px-5 py-3" />
-                </tr>
-              ))
+              <TableBodySpinner />
             ) : displayed.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-5 py-12 text-center text-zinc-400">
@@ -362,8 +277,7 @@ export default function PatternsPage() {
               </tr>
             ) : (
               displayed.map(p => (
-                <tr
-                  key={p.pattern_id}
+                <tr key={p.pattern_id}
                   className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors cursor-pointer"
                   onClick={() => router.push(`/admin/products/brands/${p.brand_id}/patterns/${p.pattern_id}`)}
                 >
@@ -380,11 +294,8 @@ export default function PatternsPage() {
                     </div>
                   </td>
                   <td className="px-5 py-3">
-                    <Link
-                      href={`/admin/products/brands/${p.brand_id}`}
-                      onClick={e => e.stopPropagation()}
-                      className="text-xs text-primary hover:underline font-bold"
-                    >
+                    <Link href={`/admin/products/brands/${p.brand_id}`} onClick={e => e.stopPropagation()}
+                      className="text-xs text-primary hover:underline font-bold">
                       {p.brand_name}
                     </Link>
                   </td>
@@ -438,4 +349,3 @@ export default function PatternsPage() {
     </div>
   )
 }
-

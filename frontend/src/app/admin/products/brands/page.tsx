@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { useQueryClient } from '@tanstack/react-query'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -10,6 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Pencil, Trash2, Plus } from 'lucide-react'
 import { toastPromise, toastError } from '@/lib/toast'
 import type { Brand } from '@/types/admin.types'
+import { useAdminBrands } from '@/lib/query/hooks'
+import { adminKeys } from '@/lib/query/keys'
+import { TableBodySpinner } from '@/components/ui/table-loader'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -20,40 +24,23 @@ const POSITIONING_COLOURS: Record<string, string> = {
   commercial: 'bg-purple-50 text-purple-700',
 }
 
+async function getToken() {
+  const { data: { session } } = await createClient().auth.getSession()
+  return session?.access_token ?? ''
+}
+
 export default function BrandsPage() {
-  const [brands, setBrands]           = useState<Brand[]>([])
-  const [loading, setLoading]         = useState(true)
-  const [token, setToken]             = useState('')
+  const queryClient               = useQueryClient()
+  const { data: brands = [], isPending: loading } = useAdminBrands()
   const [deleteConfirm, setDeleteConfirm] = useState<Brand | null>(null)
   const [deleting, setDeleting]       = useState(false)
 
-  useEffect(() => { document.title = 'Brands | Tyre Vault' }, [])
-
-  useEffect(() => {
-    async function load() {
-      try {
-        const { data: { session } } = await createClient().auth.getSession()
-        const tok = session?.access_token ?? ''
-        setToken(tok)
-        const res = await fetch(`${API}/api/admin/products/brands`, {
-          headers: { Authorization: `Bearer ${tok}` },
-        })
-        if (!res.ok) throw new Error('Failed to load brands')
-        setBrands(await res.json())
-      } catch (err) {
-        toastError(err instanceof Error ? err.message : 'Failed to load brands')
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
-  }, [])
-
   async function handleDelete(brand: Brand) {
     setDeleting(true)
+    const tok = await getToken()
     const req = fetch(`${API}/api/admin/products/brands/${brand.brand_id}`, {
       method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${tok}` },
     }).then(async res => {
       if (!res.ok) throw new Error(await res.json().then((b: { error?: string }) => b.error ?? 'Failed'))
     })
@@ -64,10 +51,10 @@ export default function BrandsPage() {
         success: `"${brand.brand_name}" deleted`,
         error:   (err: unknown) => err instanceof Error ? err.message : 'Failed to delete',
       })
-      setBrands(prev => prev.filter(b => b.brand_id !== brand.brand_id))
+      queryClient.invalidateQueries({ queryKey: adminKeys.brandList() })
       setDeleteConfirm(null)
     } catch {
-      // error shown by toastPromise
+      // shown by toastPromise
     } finally {
       setDeleting(false)
     }
@@ -119,19 +106,7 @@ export default function BrandsPage() {
           </thead>
           <tbody className="divide-y divide-zinc-200">
             {loading ? (
-              <>
-                {[1,2,3,4].map(i => (
-                  <tr key={i}>
-                    <td className="px-5 py-3"><div className="flex items-center gap-3"><div className="h-8 w-8 rounded-lg bg-zinc-100 animate-pulse shrink-0" /><div className="h-4 w-28 bg-zinc-100 rounded animate-pulse" /></div></td>
-                    <td className="px-5 py-3"><div className="h-4 w-20 bg-zinc-100 rounded animate-pulse" /></td>
-                    <td className="px-5 py-3"><div className="h-5 w-16 bg-zinc-100 rounded-full animate-pulse" /></td>
-                    <td className="px-5 py-3"><div className="h-4 w-14 bg-zinc-100 rounded animate-pulse" /></td>
-                    <td className="px-5 py-3"><div className="h-5 w-10 bg-zinc-100 rounded-full animate-pulse" /></td>
-                    <td className="px-5 py-3"><div className="h-5 w-10 bg-zinc-100 rounded-full animate-pulse" /></td>
-                    <td className="px-5 py-3" />
-                  </tr>
-                ))}
-              </>
+              <TableBodySpinner />
             ) : brands.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-5 py-16 text-center text-zinc-400">
@@ -207,7 +182,6 @@ export default function BrandsPage() {
         </table>
       </div>
 
-      {/* Delete confirmation */}
       <Dialog open={Boolean(deleteConfirm)} onOpenChange={v => !v && setDeleteConfirm(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
@@ -228,4 +202,3 @@ export default function BrandsPage() {
     </div>
   )
 }
-

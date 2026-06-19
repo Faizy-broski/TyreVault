@@ -6,6 +6,7 @@ import { Button }   from '@/components/ui/button'
 import { Input }    from '@/components/ui/input'
 import { Badge }    from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { TableBodySpinner } from '@/components/ui/table-loader'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
@@ -30,16 +31,6 @@ function PayoutBadge({ status }: { status: 'paid' | 'pending' }) {
   )
 }
 
-function TableSkeleton() {
-  return Array.from({ length: 5 }).map((_, i) => (
-    <TableRow key={i}>
-      <TableCell><Skeleton className="h-3.5 w-20" /></TableCell>
-      <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-      <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-      <TableCell><Skeleton className="h-5 w-14 rounded-full" /></TableCell>
-    </TableRow>
-  ))
-}
 
 export default function EarningsClient({
   initialSummary,
@@ -184,7 +175,7 @@ export default function EarningsClient({
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableSkeleton />
+              <TableBodySpinner colSpan={4} />
             ) : earnings.length === 0 ? (
               <TableRow className="hover:bg-transparent border-0">
                 <TableCell colSpan={4} className="py-16 text-center">

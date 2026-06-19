@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { Supplier } from '@/types/admin.types'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
+import { TableBodySpinner } from '@/components/ui/table-loader'
 import { toastError, toastSuccess } from '@/lib/toast'
 import Papa from 'papaparse'
 import ColumnMapModal from './ColumnMapModal'
@@ -230,11 +231,7 @@ export default function SuppliersClient({ initialSuppliers, accessToken }: Props
             </thead>
             <tbody className="divide-y divide-zinc-200">
               {loading ? (
-                [1,2,3].map(i => (
-                  <tr key={i}>
-                    {[1,2,3,4,5,6].map(j => <td key={j} className="px-5 py-3"><div className="h-4 w-full bg-muted rounded animate-pulse" /></td>)}
-                  </tr>
-                ))
+                <TableBodySpinner />
               ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-5 py-16 text-center text-muted-foreground text-sm">No suppliers found</td>

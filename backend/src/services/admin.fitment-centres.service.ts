@@ -453,23 +453,16 @@ export async function updateComplianceDoc(
 // ── Purchase Stats ─────────────────────────────────────────────────────────
 
 export async function getCentreStats(id: string) {
-  const since = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString()
+  const yearStart = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
-  const { data } = await supabase
-    .from('fitter_earnings')
-    .select('amount, created_at')
-    .eq('fitment_centre_id', id)
-    .gte('created_at', since)
-    .order('created_at', { ascending: true })
-
-  const byMonth: Record<string, number> = {}
-  for (const row of data ?? []) {
-    const month = (row.created_at as string).slice(0, 7)
-    byMonth[month] = (byMonth[month] ?? 0) + (row.amount ?? 0)
-  }
+  const { data, error } = await supabase.rpc('get_centre_stats', {
+    p_centre_id: id,
+    p_year_start: yearStart,
+  })
+  if (error) throw error
 
   return {
-    purchase12Months: Object.entries(byMonth).map(([month, amount]) => ({ month, amount })),
+    purchase12Months: (data ?? []).map((row: any) => ({ month: row.month, amount: Number(row.earnings ?? 0) })),
     loginHistory:     [],
   }
 }

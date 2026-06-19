@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { RefreshCw, Search } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { RefreshCw, Search, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { toastError } from '@/lib/toast'
 import InventoryProductRow from './InventoryProductRow'
@@ -45,33 +45,35 @@ interface Props {
 }
 
 const STATUS_TABS: { key: StatusFilter; label: string }[] = [
-  { key: 'all',     label: 'All Products' },
-  { key: 'mapped',  label: 'Mapped' },
-  { key: 'pending', label: 'Pending Review' },
-  { key: 'unmapped', label: 'Not Mapped' },
+  { key: 'all',      label: 'All Products'   },
+  { key: 'mapped',   label: 'Mapped'         },
+  { key: 'pending',  label: 'Pending Review' },
+  { key: 'unmapped', label: 'Not Mapped'     },
 ]
 
+const PAGE_SIZE = 20
+
 export default function InventoryInterface({ suppliers, accessToken }: Props) {
-  const [rows, setRows]           = useState<ProductRow[]>([])
-  const [total, setTotal]         = useState(0)
-  const [page, setPage]           = useState(1)
-  const [loading, setLoading]     = useState(true)
-  const [status, setStatus]       = useState<StatusFilter>('all')
-  const [supplierId, setSupplierId] = useState<string>('')
-  const [q, setQ]                 = useState('')
+  const [rows, setRows]             = useState<ProductRow[]>([])
+  const [total, setTotal]           = useState(0)
+  const [page, setPage]             = useState(1)
+  // true only on first load (no data yet) — shows skeleton
+  const [initialising, setInitialising] = useState(true)
+  // true during any subsequent fetch — keeps old rows visible, dims + shows spinner
+  const [fetching, setFetching]     = useState(false)
+  const [status, setStatus]         = useState<StatusFilter>('all')
+  const [supplierId, setSupplierId] = useState('')
+  const [q, setQ]                   = useState('')
 
-  const PAGE_SIZE  = 20
-  const totalPages = Math.ceil(total / PAGE_SIZE)
+  const totalPages   = Math.ceil(total / PAGE_SIZE)
+  const searchMounted = useRef(false) // prevent double-fetch on mount from the q useEffect
 
-  const load = useCallback(async (p: number, stat: StatusFilter, supId: string, search: string) => {
-    setLoading(true)
+  const load = useCallback(async (
+    p: number, stat: StatusFilter, supId: string, search: string, isInitial = false,
+  ) => {
+    isInitial ? setInitialising(true) : setFetching(true)
     try {
-      const params = new URLSearchParams({
-        page:   String(p),
-        limit:  String(PAGE_SIZE),
-        status: stat,
-        q:      search,
-      })
+      const params = new URLSearchParams({ page: String(p), limit: String(PAGE_SIZE), status: stat, q: search })
       if (supId) params.set('supplier_id', supId)
 
       const res = await fetch(`${API}/api/admin/inventory?${params}`, {
@@ -85,18 +87,20 @@ export default function InventoryInterface({ suppliers, accessToken }: Props) {
     } catch (err) {
       toastError(err instanceof Error ? err.message : 'Failed to load inventory')
     } finally {
-      setLoading(false)
+      setInitialising(false)
+      setFetching(false)
     }
   }, [accessToken])
 
-  // Initial load
-  useEffect(() => { load(1, status, supplierId, q) }, [])
+  // Initial load only
+  useEffect(() => { load(1, 'all', '', '', true) }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Debounced search
+  // Debounced search — skip on first mount to avoid double-fetch
   useEffect(() => {
+    if (!searchMounted.current) { searchMounted.current = true; return }
     const t = setTimeout(() => load(1, status, supplierId, q), 350)
     return () => clearTimeout(t)
-  }, [q])
+  }, [q]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function changeStatus(s: StatusFilter) {
     setStatus(s)
@@ -113,7 +117,7 @@ export default function InventoryInterface({ suppliers, accessToken }: Props) {
     setRows(prev => prev.map(row => ({
       ...row,
       supplier_mappings: row.supplier_mappings.map(m =>
-        m.map_id === mapId ? { ...m, is_verified: true, status: 'mapped' as const } : m
+        m.map_id === mapId ? { ...m, is_verified: true, status: 'mapped' as const } : m,
       ),
     })))
   }
@@ -126,34 +130,43 @@ export default function InventoryInterface({ suppliers, accessToken }: Props) {
     })))
   }
 
+  const isLoading = initialising || fetching
+
   return (
     <div className="space-y-4">
-      {/* ── Toolbar ─────────────────────────────────────────────── */}
+      {/* ── Toolbar ──────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         {/* Status tabs */}
         <div className="flex gap-1 flex-wrap">
-          {STATUS_TABS.map(t => (
-            <button
-              key={t.key}
-              onClick={() => changeStatus(t.key)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                status === t.key
-                  ? 'bg-zinc-900 text-white'
-                  : 'bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-50'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+          {STATUS_TABS.map(t => {
+            const active = status === t.key
+            return (
+              <button
+                key={t.key}
+                onClick={() => changeStatus(t.key)}
+                disabled={isLoading && active}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  active
+                    ? 'bg-zinc-900 text-white'
+                    : 'bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-50'
+                }`}
+              >
+                {active && fetching
+                  ? <Loader2 className="w-3 h-3 animate-spin shrink-0" />
+                  : null}
+                {t.label}
+              </button>
+            )
+          })}
         </div>
 
         {/* Right: supplier filter + search + refresh */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Supplier filter */}
           <select
             value={supplierId}
             onChange={e => changeSupplier(e.target.value)}
-            className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={isLoading}
+            className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
           >
             <option value="">All Suppliers</option>
             {suppliers.map(s => (
@@ -161,7 +174,6 @@ export default function InventoryInterface({ suppliers, accessToken }: Props) {
             ))}
           </select>
 
-          {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
             <input
@@ -175,51 +187,57 @@ export default function InventoryInterface({ suppliers, accessToken }: Props) {
 
           <button
             onClick={() => load(page, status, supplierId, q)}
-            disabled={loading}
+            disabled={isLoading}
             className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50 disabled:opacity-50 transition-colors"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
         </div>
       </div>
 
-      {/* ── Product rows ─────────────────────────────────────────── */}
+      {/* ── Product rows ─────────────────────────────────────────────── */}
       <div className="space-y-2">
-        {loading ? (
+        {initialising ? (
+          // First load — show skeleton (no data yet)
           Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="h-16 bg-zinc-100 rounded-xl animate-pulse" />
           ))
-        ) : rows.length === 0 ? (
+        ) : rows.length === 0 && !fetching ? (
           <div className="rounded-xl border border-zinc-200 bg-white py-16 text-center">
             <p className="text-sm font-medium text-zinc-700">No products found</p>
             <p className="text-xs text-zinc-400 mt-1">
-              {status !== 'all'
-                ? 'Try switching to "All Products"'
-                : 'Add products to your catalogue first'}
+              {status !== 'all' ? 'Try switching to "All Products"' : 'Add products to your catalogue first'}
             </p>
           </div>
         ) : (
-          rows.map(row => (
-            <InventoryProductRow
-              key={row.product_id}
-              row={row}
-              accessToken={accessToken}
-              onApproved={onApproved}
-              onRemoved={onRemoved}
-            />
-          ))
+          // Keep previous rows visible while tab/filter switch is in-flight
+          <div className={`space-y-2 transition-opacity duration-150 ${fetching ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+            {rows.map(row => (
+              <InventoryProductRow
+                key={row.product_id}
+                row={row}
+                accessToken={accessToken}
+                onApproved={onApproved}
+                onRemoved={onRemoved}
+              />
+            ))}
+          </div>
         )}
       </div>
 
-      {/* ── Pagination ───────────────────────────────────────────── */}
-      {!loading && (
+      {/* ── Pagination ───────────────────────────────────────────────── */}
+      {!initialising && (
         <div className="flex items-center justify-between text-xs text-zinc-400">
-          <span>Showing {rows.length} of {total} products</span>
+          <span>
+            {fetching
+              ? <span className="flex items-center gap-1.5"><Loader2 className="w-3 h-3 animate-spin" /> Loading…</span>
+              : `Showing ${rows.length} of ${total} products`}
+          </span>
           {totalPages > 1 && (
             <div className="flex gap-1.5">
               <button
-                disabled={page <= 1}
+                disabled={page <= 1 || isLoading}
                 onClick={() => load(page - 1, status, supplierId, q)}
                 className="px-2.5 py-1 rounded-lg border border-zinc-200 disabled:opacity-40 hover:bg-zinc-50"
               >
@@ -227,7 +245,7 @@ export default function InventoryInterface({ suppliers, accessToken }: Props) {
               </button>
               <span className="px-2.5 py-1 text-zinc-500">{page} / {totalPages}</span>
               <button
-                disabled={page >= totalPages}
+                disabled={page >= totalPages || isLoading}
                 onClick={() => load(page + 1, status, supplierId, q)}
                 className="px-2.5 py-1 rounded-lg border border-zinc-200 disabled:opacity-40 hover:bg-zinc-50"
               >

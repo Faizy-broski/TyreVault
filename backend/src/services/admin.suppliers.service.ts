@@ -66,6 +66,7 @@ export async function listSuppliers() {
     .from('suppliers')
     .select('supplier_id, supplier_name, supplier_type, connection_type, contact_name, contact_email, contact_phone, state, country, payment_terms, stock_access_type, api_connected, is_active, created_at, updated_at')
     .order('supplier_name')
+    .limit(200)
 
   if (error) throw error
   return data ?? []

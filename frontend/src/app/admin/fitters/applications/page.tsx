@@ -1,10 +1,10 @@
-'use client'
-
-import { useEffect, useState } from 'react'
+import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/server'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
-import { toastError } from '@/lib/toast'
+
+export const dynamic = 'force-dynamic'
+export const metadata = { title: 'Fitter Applications — Admin' }
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -22,41 +22,47 @@ const STATUS_STYLES: Record<string, string> = {
   rejected: 'bg-red-100 text-red-800',
 }
 
-export default function FitterApplicationsPage() {
-  const [applications, setApplications] = useState<Application[]>([])
-  const [total, setTotal]               = useState(0)
-  const [loading, setLoading]           = useState(true)
+export default async function FitterApplicationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; status?: string }>
+}) {
+  const supabase = await createClient()
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) redirect('/login')
 
-  useEffect(() => { document.title = 'Fitter Applications | Tyre Vault' }, [])
+  const { page: pageStr = '1', status = '' } = await searchParams
+  const page = Math.max(1, Number(pageStr))
 
-  useEffect(() => {
-    let cancelled = false
-    async function load() {
-      try {
-        const { data: { session } } = await createClient().auth.getSession()
-        const tok = session?.access_token ?? ''
+  const headers = { Authorization: `Bearer ${session.access_token}` }
 
-        const res = await fetch(`${API}/api/fitter/applications`, {
-          headers: { Authorization: `Bearer ${tok}` },
-        })
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}))
-          throw new Error(body.error ?? `API returned ${res.status}`)
-        }
-        const json = await res.json()
-        if (!cancelled) {
-          setApplications(json.data ?? [])
-          setTotal(json.total ?? 0)
-        }
-      } catch (err) {
-        if (!cancelled) toastError(err instanceof Error ? err.message : 'Failed to load applications')
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
+  const qs = new URLSearchParams({ page: String(page) })
+  if (status) qs.set('status', status)
+
+  let applications: Application[] = []
+  let total = 0
+  try {
+    const res = await fetch(`${API}/api/fitter/applications?${qs}`, { headers, cache: 'no-store' })
+    if (res.ok) {
+      const json = await res.json()
+      applications = json.data ?? []
+      total        = json.total ?? 0
     }
-    load()
-    return () => { cancelled = true }
-  }, [])
+  } catch { /* backend not reachable in dev */ }
+
+  const LIMIT = 20
+  const totalPages  = Math.max(1, Math.ceil(total / LIMIT))
+
+  function buildHref(overrides: Record<string, string>) {
+    const p = new URLSearchParams()
+    if (status) p.set('status', status)
+    p.set('page', String(page))
+    Object.entries(overrides).forEach(([k, v]) => { if (v) p.set(k, v); else p.delete(k) })
+    return `/admin/fitters/applications?${p}`
+  }
+
+  const counts = { pending: 0, approved: 0, rejected: 0 }
+  for (const a of applications) if (a.status in counts) counts[a.status as keyof typeof counts]++
 
   return (
     <div className="p-4 sm:p-6">
@@ -82,71 +88,101 @@ export default function FitterApplicationsPage() {
         </div>
       </div>
 
-
       <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-sm">
         <div className="px-5 py-4 border-b border-zinc-100 flex flex-wrap items-center justify-between gap-2">
-          <span className="text-sm text-zinc-500">{total} application{total !== 1 ? 's' : ''} total</span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-zinc-500">{total} application{total !== 1 ? 's' : ''} total</span>
+            {/* Status filter links */}
+            <div className="flex gap-1">
+              {(['', 'pending', 'approved', 'rejected'] as const).map(s => (
+                <Link
+                  key={s || 'all'}
+                  href={buildHref({ status: s, page: '1' })}
+                  className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
+                    status === s
+                      ? 'bg-zinc-900 text-white'
+                      : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                  }`}
+                >
+                  {s || 'All'}
+                </Link>
+              ))}
+            </div>
+          </div>
           <div className="flex gap-2">
-            {['pending', 'approved', 'rejected'].map(s => (
+            {(['pending', 'approved', 'rejected'] as const).map(s => (
               <span key={s} className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[s]}`}>
-                {applications.filter(a => a.status === s).length} {s}
+                {counts[s]} {s}
               </span>
             ))}
           </div>
         </div>
 
-        {loading && (
-          <div className="space-y-2 p-4">
-            {[1,2,3].map(i => <div key={i} className="h-12 bg-zinc-100 rounded animate-pulse" />)}
-          </div>
-        )}
-
-        {!loading && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-130">
-              <thead>
-                <tr className="border-b border-zinc-200 bg-zinc-50">
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Email</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Submitted</th>
-                  <th className="px-6 py-3 w-20 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Actions</th>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-130">
+            <thead>
+              <tr className="border-b border-zinc-200 bg-zinc-50">
+                <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Email</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Submitted</th>
+                <th className="px-6 py-3 w-20 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-200">
+              {applications.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-zinc-400">No applications yet.</td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-200">
-                {applications.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-zinc-400">No applications yet.</td>
+              ) : (
+                applications.map(app => (
+                  <tr key={app.id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
+                    <td className="px-6 py-4 font-medium text-zinc-900">{app.full_name}</td>
+                    <td className="px-6 py-4 text-zinc-600">{app.email}</td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[app.status] ?? 'bg-zinc-100 text-zinc-700'}`}>
+                        {app.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-zinc-500">
+                      {new Date(app.submitted_at).toLocaleDateString('en-AU', {
+                        day: '2-digit', month: 'short', year: 'numeric',
+                      })}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <Link href={`/admin/fitters/applications/${app.id}`} className="text-xs font-medium text-primary hover:text-primary/80">
+                        Review →
+                      </Link>
+                    </td>
                   </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-5 py-3 border-t border-zinc-100 text-xs text-zinc-500">
+            <span>{total} total</span>
+            <div className="flex items-center gap-3">
+              <span>Page {page} of {totalPages}</span>
+              <div className="flex gap-1">
+                {page > 1 ? (
+                  <Link href={buildHref({ page: String(page - 1) })} className="rounded-lg border border-zinc-300 px-3 py-1.5 hover:bg-white transition-colors font-medium">Prev</Link>
                 ) : (
-                  applications.map(app => (
-                    <tr key={app.id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
-                      <td className="px-6 py-4 font-medium text-zinc-900">{app.full_name}</td>
-                      <td className="px-6 py-4 text-zinc-600">{app.email}</td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[app.status] ?? 'bg-zinc-100 text-zinc-700'}`}>
-                          {app.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-zinc-500">
-                        {new Date(app.submitted_at).toLocaleDateString('en-AU', {
-                          day: '2-digit', month: 'short', year: 'numeric',
-                        })}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <Link href={`/admin/fitters/applications/${app.id}`} className="text-xs font-medium text-primary hover:text-primary/80">
-                          Review →
-                        </Link>
-                      </td>
-                    </tr>
-                  ))
+                  <span className="cursor-not-allowed rounded-lg border border-zinc-200 px-3 py-1.5 text-zinc-300">Prev</span>
                 )}
-              </tbody>
-            </table>
+                {page < totalPages ? (
+                  <Link href={buildHref({ page: String(page + 1) })} className="rounded-lg border border-zinc-300 px-3 py-1.5 hover:bg-white transition-colors font-medium">Next</Link>
+                ) : (
+                  <span className="cursor-not-allowed rounded-lg border border-zinc-200 px-3 py-1.5 text-zinc-300">Next</span>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>
     </div>
   )
 }
-

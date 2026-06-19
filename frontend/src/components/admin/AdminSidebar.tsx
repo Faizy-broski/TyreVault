@@ -56,7 +56,7 @@ const nav = [
   { label: "Vehicles",        href: "/admin/vehicles",         icon: Car },
   { label: "Shipping Methods",href: "/admin/shipping-methods", icon: Ship },
   {
-    label: "Fitment Center", href: "/admin/fitters", icon: Wrench,
+    label: "Fitment Center", href: "/admin/fitters", icon: Wrench, noNav: true,
     children: [
       { label: "Applications",       href: "/admin/fitters/applications" },
       { label: "Registered Centres", href: "/admin/fitters/centres" },
@@ -135,6 +135,7 @@ export default function AdminSidebar({ userEmail, isOpen = false, onClose }: Pro
           const Icon        = item.icon;
           const hasChildren = Boolean(item.children?.length);
           const open        = Boolean(expanded[item.href]);
+          const noNav       = Boolean((item as { noNav?: boolean }).noNav);
 
           return (
             <div key={item.href}>
@@ -147,20 +148,31 @@ export default function AdminSidebar({ userEmail, isOpen = false, onClose }: Pro
                     : "text-zinc-300 hover:bg-zinc-800/70 hover:text-white",
                 )}
               >
-                <Link
-                  href={item.href}
-                  onClick={() => {
-                    onClose?.();
-                    if (hasChildren) setExpanded(prev => ({ ...prev, [item.href]: true }));
-                  }}
-                  className="flex items-center gap-3 flex-1 px-3 py-2.5 min-w-0"
-                >
-                  <Icon className={cn("w-4 h-4 shrink-0", active ? "text-primary" : "text-zinc-400 group-hover:text-white")} />
-                  <span className="truncate text-[13px]">{item.label}</span>
-                  {active && !hasChildren && (
-                    <span className="ml-auto w-1 h-4 rounded-full bg-primary shrink-0" />
-                  )}
-                </Link>
+                {noNav ? (
+                  <button
+                    type="button"
+                    onClick={() => toggle(item.href)}
+                    className="flex items-center gap-3 flex-1 px-3 py-2.5 min-w-0 text-left"
+                  >
+                    <Icon className={cn("w-4 h-4 shrink-0", active ? "text-primary" : "text-zinc-400 group-hover:text-white")} />
+                    <span className="truncate text-[13px]">{item.label}</span>
+                  </button>
+                ) : (
+                  <Link
+                    href={item.href}
+                    onClick={() => {
+                      onClose?.();
+                      if (hasChildren) setExpanded(prev => ({ ...prev, [item.href]: true }));
+                    }}
+                    className="flex items-center gap-3 flex-1 px-3 py-2.5 min-w-0"
+                  >
+                    <Icon className={cn("w-4 h-4 shrink-0", active ? "text-primary" : "text-zinc-400 group-hover:text-white")} />
+                    <span className="truncate text-[13px]">{item.label}</span>
+                    {active && !hasChildren && (
+                      <span className="ml-auto w-1 h-4 rounded-full bg-primary shrink-0" />
+                    )}
+                  </Link>
+                )}
 
                 {hasChildren && (
                   <button
