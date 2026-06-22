@@ -9,24 +9,6 @@ interface Props {
   params: Promise<{ slug: string }>
 }
 
-export async function generateStaticParams() {
-  const supabase = createAdminClient()
-  const { data } = await supabase
-    .from('skus')
-    .select('product_slug, patterns!inner( is_active, show_on_website, brands!inner( is_active, show_on_website ) )')
-    .eq('status', 'active')
-    .not('product_slug', 'is', null)
-
-  return (data ?? [])
-    .filter((r: any) =>
-      r.product_slug &&
-      r.patterns?.is_active &&
-      r.patterns?.show_on_website &&
-      r.patterns?.brands?.is_active &&
-      r.patterns?.brands?.show_on_website
-    )
-    .map((r: any) => ({ slug: r.product_slug as string }))
-}
 
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params
