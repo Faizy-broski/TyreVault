@@ -25,8 +25,14 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
       {
-        protocol: "https",
-        hostname: "images.unsplash.com",
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
+      // Tyres Addict CDN — product tyre images
+      {
+        protocol: 'https',
+        hostname: 'cdn.tyresaddict.com',
+        pathname: '/tyres/**',
       },
     ],
   },

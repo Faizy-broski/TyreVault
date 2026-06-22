@@ -3,7 +3,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
+import { useAdminCategories } from '@/lib/query/hooks'
+import { adminKeys } from '@/lib/query/keys'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -13,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Pencil, Trash2, Plus } from 'lucide-react'
 import { toastPromise, toastError } from '@/lib/toast'
 import { uploadProductImage } from '@/lib/upload-image'
+import { TableBodySpinner } from '@/components/ui/table-loader'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -388,8 +392,8 @@ function DeleteDialog({
 
 export default function CategoriesPage() {
   const router = useRouter()
-  const [categories, setCategories] = useState<Category[]>([])
-  const [loading, setLoading]       = useState(true)
+  const queryClient = useQueryClient()
+  const { data: categories = [], isPending: loading } = useAdminCategories()
   const [token, setToken]           = useState('')
   const [dialogForm, setDialogForm] = useState<(FormState & { category_id?: string }) | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -399,22 +403,12 @@ export default function CategoriesPage() {
   useEffect(() => { document.title = 'Categories | Tyre Vault' }, [])
 
   useEffect(() => {
-    async function load() {
-      try {
-        const { data: { session } } = await createClient().auth.getSession()
-        const tok = session?.access_token ?? ''
-        setToken(tok)
-        const res = await fetch(`${API}/api/admin/products/categories`, {
-          headers: { Authorization: `Bearer ${tok}` },
-        })
-        if (!res.ok) throw new Error('Failed to load categories')
-        setCategories(await res.json())
-      } catch (err) {
-        toastError(err instanceof Error ? err.message : 'Failed to load categories')
-      } finally { setLoading(false) }
-    }
-    load()
+    createClient().auth.getSession().then(({ data: { session } }) => {
+      setToken(session?.access_token ?? '')
+    })
   }, [])
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: adminKeys.productCategories() })
 
   function openCreate() {
     router.push('/admin/products/categories/new')
@@ -424,12 +418,8 @@ export default function CategoriesPage() {
     router.push(`/admin/products/categories/${c.category_id}/edit`)
   }
 
-  function handleSaved(saved: Category) {
-    setCategories(prev => {
-      const idx = prev.findIndex(c => c.category_id === saved.category_id)
-      if (idx === -1) return [...prev, saved]
-      const next = [...prev]; next[idx] = saved; return next
-    })
+  function handleSaved() {
+    invalidate()
   }
 
   const displayed = filterType
@@ -498,16 +488,7 @@ export default function CategoriesPage() {
           </thead>
           <tbody className="divide-y divide-zinc-200">
             {loading ? (
-              <>
-                {[1,2,3,4].map(i => (
-                  <tr key={i}>
-                    {[1,2,3,4,5].map(j => (
-                      <td key={j} className="px-5 py-3"><div className="h-4 bg-zinc-100 rounded animate-pulse" style={{ width: `${60 + j * 10}px` }} /></td>
-                    ))}
-                    <td className="px-5 py-3" />
-                  </tr>
-                ))}
-              </>
+              <TableBodySpinner colSpan={6} />
             ) : displayed.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-5 py-12 text-center text-zinc-400">
@@ -573,7 +554,7 @@ export default function CategoriesPage() {
       <DeleteDialog
         target={deleteTarget}
         token={token}
-        onDeleted={id => setCategories(prev => prev.filter(c => c.category_id !== id))}
+        onDeleted={() => invalidate()}
         onClose={() => setDeleteTarget(null)}
       />
     </div>

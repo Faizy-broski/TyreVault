@@ -28,8 +28,12 @@ export const adminKeys = {
   fitterDetail:       (id: string)                => ['admin', 'fitters', 'detail', id]           as const,
 
   // Brands / Patterns
-  brandList:     ()                           => ['admin', 'brands',    'list']           as const,
-  patternList:   ()                           => ['admin', 'patterns',  'list']           as const,
+  brandList:     (p?: Record<string, string>) => p ? ['admin', 'brands',   'list', p] as const : ['admin', 'brands',   'list'] as const,
+  patternList:   (p?: Record<string, string>) => p ? ['admin', 'patterns', 'list', p] as const : ['admin', 'patterns', 'list'] as const,
+  brandListAll:  ()                           => ['admin', 'brands', 'all']              as const,
+
+  // Warehouses
+  warehouseList: (showInactive: boolean)      => ['admin', 'warehouses', 'list', showInactive] as const,
 
   // Suppliers
   supplierList:  (p: Record<string, string>)  => ['admin', 'suppliers', 'list', p]        as const,

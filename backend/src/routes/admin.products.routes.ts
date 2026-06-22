@@ -27,6 +27,7 @@ router.patch('/attributes/:id', ctrl.patchAttribute)
 router.delete('/attributes/:id', ctrl.removeAttribute)
 
 // Brands CRUD
+router.get('/brands/all',   ctrl.getBrandsAll)   // flat list for dropdowns (no pagination)
 router.get('/brands',       ctrl.getBrands)
 router.post('/brands',      ctrl.postBrand)
 router.patch('/brands/:id', ctrl.patchBrand)

@@ -17,7 +17,7 @@ export default function NewPatternPage() {
     async function load() {
       try {
         const { data: { session } } = await createClient().auth.getSession()
-        const res = await fetch(`${API}/api/admin/products/brands`, {
+        const res = await fetch(`${API}/api/admin/products/brands/all`, {
           headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
         })
         if (!res.ok) return

@@ -17,6 +17,7 @@ const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 type Product = {
   id: string
   name: string
+  image: string | null
   brand: string
   brandId: string
   collection: string | null
@@ -305,8 +306,20 @@ export default function ProductsTable({
           <TableRow key={p.id}>
             <TableCell className="text-center text-xs text-zinc-400 font-mono">{i + 1}</TableCell>
             <TableCell>
-              <Link href={`/admin/products/${p.id}`} className="font-bold text-primary hover:underline">
-                {p.name}
+              <Link href={`/admin/products/${p.id}`} className="flex items-center gap-2.5 group">
+                {p.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={p.image}
+                    alt=""
+                    className="h-10 w-10 rounded-lg object-contain border border-zinc-200 bg-zinc-50 p-0.5 shrink-0"
+                  />
+                ) : (
+                  <div className="h-10 w-10 rounded-lg border border-zinc-200 bg-zinc-100 flex items-center justify-center shrink-0">
+                    <Package className="h-4 w-4 text-zinc-300" />
+                  </div>
+                )}
+                <span className="font-bold text-primary group-hover:underline">{p.name}</span>
               </Link>
             </TableCell>
             <TableCell className="text-muted-foreground">{p.brand}</TableCell>

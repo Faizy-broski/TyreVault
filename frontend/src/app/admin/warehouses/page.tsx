@@ -1,7 +1,10 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
+import { useAdminWarehouses } from '@/lib/query/hooks'
+import { adminKeys } from '@/lib/query/keys'
 import { createClient } from '@/lib/supabase/client'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { Badge } from '@/components/ui/badge'
@@ -10,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Pencil, Trash2, Plus } from 'lucide-react'
 import { toastSuccess, toastError } from '@/lib/toast'
 import type { Warehouse } from '@/types/admin.types'
+import { BoxSpinner } from '@/components/ui/table-loader'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -26,31 +30,12 @@ async function getToken() {
 
 export default function WarehousesPage() {
   const router = useRouter()
-  const [warehouses, setWarehouses]     = useState<Warehouse[]>([])
-  const [loading, setLoading]           = useState(true)
+  const queryClient = useQueryClient()
   const [showInactive, setShowInactive] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Warehouse | null>(null)
   const [deleting, setDeleting]         = useState(false)
 
-  useEffect(() => { document.title = 'Warehouses | Tyre Vault' }, [])
-
-  const fetchWarehouses = useCallback(async () => {
-    setLoading(true)
-    try {
-      const tok = await getToken()
-      const res = await fetch(`${API}/api/admin/orders/warehouses?all=${showInactive}`, {
-        headers: { Authorization: `Bearer ${tok}` },
-      })
-      if (!res.ok) throw new Error('Failed to load warehouses')
-      setWarehouses(await res.json())
-    } catch (err) {
-      toastError(err instanceof Error ? err.message : 'Failed to load')
-    } finally {
-      setLoading(false)
-    }
-  }, [showInactive])
-
-  useEffect(() => { fetchWarehouses() }, [fetchWarehouses])
+  const { data: warehouses = [], isPending: loading } = useAdminWarehouses(showInactive)
 
   async function handleDelete() {
     if (!deleteTarget) return
@@ -64,7 +49,7 @@ export default function WarehousesPage() {
       if (!res.ok) throw new Error('Delete failed')
       toastSuccess('Warehouse deleted')
       setDeleteTarget(null)
-      fetchWarehouses()
+      queryClient.invalidateQueries({ queryKey: adminKeys.warehouseList(showInactive) })
     } catch (err) {
       toastError(err instanceof Error ? err.message : 'Delete failed')
     } finally {
@@ -97,9 +82,7 @@ export default function WarehousesPage() {
       </div>
 
       {loading ? (
-        <div className="space-y-3">
-          {[1,2,3].map(i => <div key={i} className="h-16 bg-zinc-100 rounded-xl animate-pulse" />)}
-        </div>
+        <BoxSpinner />
       ) : (
         <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
           <table className="w-full text-sm">

@@ -64,7 +64,7 @@ export default function ViewPatternPage() {
         const headers = { Authorization: `Bearer ${token}` }
 
         const [brandsRes, patternRes] = await Promise.all([
-          fetch(`${API}/api/admin/products/brands`, { headers }),
+          fetch(`${API}/api/admin/products/brands/all`, { headers }),
           fetch(`${API}/api/admin/products/brands/${id}/patterns/${patternId}`, { headers }),
         ])
         if (!brandsRes.ok || !patternRes.ok) throw new Error('Failed to load')

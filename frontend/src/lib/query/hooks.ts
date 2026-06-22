@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { createClient } from '@/lib/supabase/client'
 import { fetchBackendJson } from '@/lib/backend-api'
 import { adminKeys } from './keys'
-import type { OrderListItem, CustomerListItem, Brand, Supplier, AdminFitmentCentreSummary } from '@/types/admin.types'
+import type { OrderListItem, CustomerListItem, Brand, Supplier, AdminFitmentCentreSummary, Category, Warehouse } from '@/types/admin.types'
 
 // Supabase caches the session in memory — calling this is essentially free after first auth.
 async function getToken(): Promise<string> {
@@ -162,19 +162,40 @@ export type ProductListParams = {
 }
 
 type ProductRaw = {
-  id: string; name: string
+  id: string; name: string; image: string | null
   brand:      { brand_id: string; brand_name: string } | null
   collection: { collection_name: string } | null
   variantCount:       number
   activeVariantCount: number
+  totalStock:         number
+  loadIndexes:        string[]
   isActive:      boolean
   showOnWebsite: boolean
   updatedAt: string
   createdAt: string
 }
 
+function normaliseProductRaw(item: ProductRaw): NormalisedProduct {
+  return {
+    id:             item.id,
+    name:           item.name,
+    image:          item.image ?? null,
+    brand:          item.brand?.brand_name           ?? '—',
+    brandId:        item.brand?.brand_id             ?? '',
+    collection:     item.collection?.collection_name ?? null,
+    variantCount:   item.variantCount,
+    activeVariants: item.activeVariantCount,
+    totalStock:     item.totalStock  ?? 0,
+    loadIndexes:    item.loadIndexes ?? [],
+    isActive:       item.isActive,
+    showOnWebsite:  item.showOnWebsite,
+    updatedAt:      item.updatedAt,
+    createdAt:      item.createdAt,
+  }
+}
+
 export type NormalisedProduct = {
-  id: string; name: string; brand: string; brandId: string
+  id: string; name: string; image: string | null; brand: string; brandId: string
   collection: string | null; variantCount: number; activeVariants: number
   totalStock: number
   loadIndexes: string[]
@@ -300,19 +321,42 @@ export type AdminCollection = {
   description: string | null; is_active: boolean; created_at: string
 }
 
-export function useAdminBrands() {
+export type PaginatedBrands   = { data: Brand[];         total: number; page: number; limit: number; totalPages: number }
+export type PaginatedPatterns = { data: AdminPattern[];   total: number; page: number; limit: number; totalPages: number }
+
+export function useAdminBrands(params: { page?: number; search?: string } = {}) {
+  const qs = new URLSearchParams()
+  if (params.page   && params.page > 1) qs.set('page',   String(params.page))
+  if (params.search)                    qs.set('search', params.search)
+  const qStr = qs.toString()
   return useQuery({
-    queryKey: adminKeys.brandList(),
-    queryFn:  async () => fetchBackendJson<Brand[]>('/api/admin/products/brands', await getToken()),
+    queryKey:        adminKeys.brandList(Object.fromEntries(qs)),
+    queryFn:         async () => fetchBackendJson<PaginatedBrands>(`/api/admin/products/brands${qStr ? `?${qStr}` : ''}`, await getToken()),
+    staleTime:       MASTER_STALE,
+    placeholderData: keepPreviousData,
+  })
+}
+
+export function useAdminBrandsAll() {
+  return useQuery({
+    queryKey: adminKeys.brandListAll(),
+    queryFn:  async () => fetchBackendJson<Brand[]>('/api/admin/products/brands/all', await getToken()),
     staleTime: MASTER_STALE,
   })
 }
 
-export function useAdminPatterns() {
+export function useAdminPatterns(params: { page?: number; search?: string; brandId?: string; appType?: string } = {}) {
+  const qs = new URLSearchParams()
+  if (params.page    && params.page > 1) qs.set('page',    String(params.page))
+  if (params.search)                     qs.set('search',  params.search)
+  if (params.brandId)                    qs.set('brandId', params.brandId)
+  if (params.appType)                    qs.set('appType', params.appType)
+  const qStr = qs.toString()
   return useQuery({
-    queryKey: adminKeys.patternList(),
-    queryFn:  async () => fetchBackendJson<AdminPattern[]>('/api/admin/products/patterns', await getToken()),
-    staleTime: MASTER_STALE,
+    queryKey:        adminKeys.patternList(Object.fromEntries(qs)),
+    queryFn:         async () => fetchBackendJson<PaginatedPatterns>(`/api/admin/products/patterns${qStr ? `?${qStr}` : ''}`, await getToken()),
+    staleTime:       MASTER_STALE,
+    placeholderData: keepPreviousData,
   })
 }
 
@@ -334,6 +378,22 @@ export function useAdminFitmentCentres() {
       return res
     },
     staleTime: 5 * 60_000,
+  })
+}
+
+export function useAdminCategories() {
+  return useQuery({
+    queryKey: adminKeys.productCategories(),
+    queryFn:  async () => fetchBackendJson<Category[]>('/api/admin/products/categories', await getToken()),
+    staleTime: MASTER_STALE,
+  })
+}
+
+export function useAdminWarehouses(showInactive = false) {
+  return useQuery({
+    queryKey: adminKeys.warehouseList(showInactive),
+    queryFn:  async () => fetchBackendJson<Warehouse[]>(`/api/admin/orders/warehouses?all=${showInactive}`, await getToken()),
+    staleTime: MASTER_STALE,
   })
 }
 

@@ -8,7 +8,7 @@ import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Pencil, Trash2, Plus } from 'lucide-react'
+import { Pencil, Trash2, Plus, ChevronLeft, ChevronRight } from 'lucide-react'
 import { toastPromise, toastError } from '@/lib/toast'
 import type { Brand } from '@/types/admin.types'
 import { useAdminBrands } from '@/lib/query/hooks'
@@ -30,10 +30,17 @@ async function getToken() {
 }
 
 export default function BrandsPage() {
-  const queryClient               = useQueryClient()
-  const { data: brands = [], isPending: loading } = useAdminBrands()
+  const queryClient                    = useQueryClient()
+  const [page, setPage]                = useState(1)
+  const [search, setSearch]            = useState('')
+  const [searchInput, setSearchInput]  = useState('')
   const [deleteConfirm, setDeleteConfirm] = useState<Brand | null>(null)
-  const [deleting, setDeleting]       = useState(false)
+  const [deleting, setDeleting]        = useState(false)
+
+  const { data: result, isPending: loading } = useAdminBrands({ page, search })
+  const brands     = result?.data     ?? []
+  const totalPages = result?.totalPages ?? 1
+  const total      = result?.total    ?? 0
 
   async function handleDelete(brand: Brand) {
     setDeleting(true)
@@ -52,6 +59,7 @@ export default function BrandsPage() {
         error:   (err: unknown) => err instanceof Error ? err.message : 'Failed to delete',
       })
       queryClient.invalidateQueries({ queryKey: adminKeys.brandList() })
+      queryClient.invalidateQueries({ queryKey: adminKeys.brandListAll() })
       setDeleteConfirm(null)
     } catch {
       // shown by toastPromise
@@ -90,6 +98,23 @@ export default function BrandsPage() {
           </Link>
         </div>
       </div>
+
+      {/* Search */}
+      <form onSubmit={e => { e.preventDefault(); setSearch(searchInput); setPage(1) }} className="flex gap-2">
+        <input
+          type="text"
+          value={searchInput}
+          onChange={e => setSearchInput(e.target.value)}
+          placeholder="Search brands…"
+          className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700 focus:outline-none focus:ring-2 focus:ring-primary/30 w-56"
+        />
+        <Button type="submit" variant="outline" size="sm">Search</Button>
+        {search && (
+          <Button type="button" variant="ghost" size="sm" onClick={() => { setSearch(''); setSearchInput(''); setPage(1) }}>
+            Clear
+          </Button>
+        )}
+      </form>
 
       <div className="bg-white rounded-2xl border border-zinc-200 overflow-x-auto shadow-sm">
         <table className="w-full text-sm">
@@ -180,6 +205,29 @@ export default function BrandsPage() {
             )}
           </tbody>
         </table>
+        {/* Pagination footer */}
+        {!loading && total > 0 && (
+          <div className="px-5 py-3 border-t border-zinc-100 flex items-center justify-between text-xs text-zinc-500">
+            <span>{total} brand{total !== 1 ? 's' : ''} total</span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline" size="icon-sm"
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page <= 1}
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </Button>
+              <span>Page {page} of {totalPages}</span>
+              <Button
+                variant="outline" size="icon-sm"
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       <Dialog open={Boolean(deleteConfirm)} onOpenChange={v => !v && setDeleteConfirm(null)}>

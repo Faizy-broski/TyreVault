@@ -74,7 +74,7 @@ export default function BrandDetailPage() {
       try {
         const { data: { session } } = await createClient().auth.getSession()
         const tok = session?.access_token ?? ''
-        const res = await fetch(`${API}/api/admin/products/brands`, {
+        const res = await fetch(`${API}/api/admin/products/brands/all`, {
           headers: { Authorization: `Bearer ${tok}` },
         })
         if (!res.ok) throw new Error('Failed to load brands')

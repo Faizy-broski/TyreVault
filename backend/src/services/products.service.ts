@@ -117,13 +117,14 @@ export async function listProducts(filters: ProductListFilters) {
     page = 1, limit = 20, sortBy = 'updated_at', sortOrder = 'desc',
   } = filters
 
-  // Fetch at pattern level — each pattern = one "product" in admin
+  // Step 1: Paginate patterns only — no SKU join keeps this fast on large datasets
   let query = supabase
     .from('patterns')
     .select(`
       pattern_id,
       pattern_name,
       pattern_slug,
+      main_image,
       is_active,
       show_on_website,
       on_sale,
@@ -131,11 +132,9 @@ export async function listProducts(filters: ProductListFilters) {
       updated_at,
       created_at,
       brands!inner ( brand_id, brand_name, brand_slug ),
-      collections ( collection_name ),
-      skus!inner ( product_id, status, total_available_stock, load_index )
+      collections ( collection_name )
     `, { count: 'exact' })
 
-  // brand_name and variant_count are computed/joined — sort client-side; fall back to updated_at
   const DB_SORT_COLUMNS = ['updated_at', 'created_at', 'pattern_name', 'show_on_website'] as const
   type DbSortCol = typeof DB_SORT_COLUMNS[number]
   const dbSortBy: DbSortCol = (DB_SORT_COLUMNS as readonly string[]).includes(sortBy ?? '')
@@ -143,7 +142,6 @@ export async function listProducts(filters: ProductListFilters) {
     : 'updated_at'
 
   query = query.order(dbSortBy, { ascending: sortOrder === 'asc' })
-
   query = query.range((page - 1) * limit, page * limit - 1)
 
   if (search)    query = query.ilike('pattern_name', `%${search}%`)
@@ -152,42 +150,66 @@ export async function listProducts(filters: ProductListFilters) {
   if (status === 'published') query = query.eq('show_on_website', true)
   if (status === 'draft')     query = query.eq('show_on_website', false)
 
-  const { data, error, count } = await query
-  // Apply stock filter client-side (SKU aggregation not filterable server-side with count)
-  const rawData = data ?? []
-  const filteredData = stock
-    ? rawData.filter(row => {
-        const skus = Array.isArray(row.skus) ? row.skus as { total_available_stock: number }[] : []
-        const totalStock = skus.reduce((s, sku) => s + (sku.total_available_stock ?? 0), 0)
-        if (stock === 'in_stock')  return totalStock > 0
-        if (stock === 'no_stock')  return totalStock === 0
-        return true
-      })
-    : rawData
+  const { data: patternRows, error, count } = await query
   if (error) throw error
 
+  const rows = patternRows ?? []
+
+  // Step 2: Fetch SKU aggregates only for the N patterns on this page
+  type SkuAgg = { count: number; activeCount: number; totalStock: number; loadIndexes: string[] }
+  const skuMap: Record<string, SkuAgg> = {}
+
+  if (rows.length > 0) {
+    const patternIds = rows.map(r => r.pattern_id)
+    const { data: skuRows, error: skuErr } = await supabase
+      .from('skus')
+      .select('pattern_id, status, total_available_stock, load_index')
+      .in('pattern_id', patternIds)
+    if (skuErr) throw skuErr
+
+    for (const sku of skuRows ?? []) {
+      const pid = sku.pattern_id as string
+      if (!skuMap[pid]) skuMap[pid] = { count: 0, activeCount: 0, totalStock: 0, loadIndexes: [] }
+      skuMap[pid].count++
+      if (sku.status === 'active') skuMap[pid].activeCount++
+      skuMap[pid].totalStock += (sku.total_available_stock as number) ?? 0
+      if (sku.load_index) skuMap[pid].loadIndexes.push(sku.load_index as string)
+    }
+    for (const pid of Object.keys(skuMap)) {
+      skuMap[pid].loadIndexes = [...new Set(skuMap[pid].loadIndexes)].sort()
+    }
+  }
+
+  // Apply stock filter against aggregated data
+  const filteredRows = stock
+    ? rows.filter(row => {
+        const totalStock = skuMap[row.pattern_id]?.totalStock ?? 0
+        if (stock === 'in_stock') return totalStock > 0
+        if (stock === 'no_stock') return totalStock === 0
+        return true
+      })
+    : rows
+
   return {
-    data: filteredData.map(row => ({
-      id: row.pattern_id,
-      name: row.pattern_name,
-      slug: row.pattern_slug,
-      brand: (row.brands as unknown as { brand_name: string; brand_slug: string } | null),
-      collection: (row.collections as unknown as { collection_name: string } | null),
-      variantCount: Array.isArray(row.skus) ? row.skus.length : 0,
-      activeVariantCount: Array.isArray(row.skus)
-        ? (row.skus as { status: string }[]).filter(s => s.status === 'active').length
-        : 0,
-      totalStock: Array.isArray(row.skus)
-        ? (row.skus as { total_available_stock: number }[]).reduce((s, sku) => s + (sku.total_available_stock ?? 0), 0)
-        : 0,
-      loadIndexes: Array.isArray(row.skus)
-        ? [...new Set((row.skus as { load_index: string | null }[]).map(s => s.load_index).filter(Boolean))].sort()
-        : [],
-      isActive: row.is_active,
-      showOnWebsite: row.show_on_website,
-      updatedAt: row.updated_at,
-      createdAt: row.created_at,
-    })),
+    data: filteredRows.map(row => {
+      const agg = skuMap[row.pattern_id] ?? { count: 0, activeCount: 0, totalStock: 0, loadIndexes: [] }
+      return {
+        id: row.pattern_id,
+        name: row.pattern_name,
+        slug: row.pattern_slug,
+        image: (row.main_image as string | null) ?? null,
+        brand: (row.brands as unknown as { brand_name: string; brand_slug: string } | null),
+        collection: (row.collections as unknown as { collection_name: string } | null),
+        variantCount:       agg.count,
+        activeVariantCount: agg.activeCount,
+        totalStock:         agg.totalStock,
+        loadIndexes:        agg.loadIndexes,
+        isActive:      row.is_active,
+        showOnWebsite: row.show_on_website,
+        updatedAt: row.updated_at,
+        createdAt: row.created_at,
+      }
+    }),
     total: count ?? 0,
     page,
     limit,
@@ -1049,12 +1071,28 @@ export async function createBrand(payload: BrandPayload) {
   return data
 }
 
-export async function listBrandsFull() {
+export async function listBrandsFull(params: { page: number; limit: number; search?: string }) {
+  const { page, limit, search } = params
+  const cols = 'brand_id, brand_name, brand_slug, brand_logo, brand_banner_image, brand_description, brand_short_description, country_of_brand, manufacturer_name, brand_positioning, warranty_info, seo_title, seo_description, is_active, show_on_website, channel_wholesale, channel_retail, channel_marketplaces, created_at, updated_at'
+  let q = supabase
+    .from('brands')
+    .select(cols, { count: 'exact' })
+    .order('brand_name', { ascending: true })
+    .range((page - 1) * limit, page * limit - 1)
+  if (search) q = q.ilike('brand_name', `%${search}%`)
+  const { data, count, error } = await q
+  if (error) throw error
+  const total = count ?? 0
+  return { data: data ?? [], total, page, limit, totalPages: Math.ceil(total / limit) }
+}
+
+export async function listBrandsAll() {
   const { data, error } = await supabase
     .from('brands')
-    .select('brand_id, brand_name, brand_slug, brand_logo, brand_banner_image, brand_description, brand_short_description, country_of_brand, manufacturer_name, brand_positioning, warranty_info, seo_title, seo_description, is_active, show_on_website, channel_wholesale, channel_retail, channel_marketplaces, created_at, updated_at')
-    .order('created_at', { ascending: false })
-    .limit(200)
+    .select('brand_id, brand_name, brand_slug')
+    .eq('is_active', true)
+    .order('brand_name', { ascending: true })
+    .limit(1000)
   if (error) throw error
   return data ?? []
 }
@@ -1083,17 +1121,21 @@ export async function deleteBrand(id: string) {
 
 // ── Patterns ──────────────────────────────────────────────────────────────────
 
-export async function listPatterns(brandId?: string) {
+export async function listPatterns(params: { page: number; limit: number; search?: string; brandId?: string; appType?: string }) {
+  const { page, limit, search, brandId, appType } = params
   const selectCols = 'pattern_id, brand_id, pattern_name, pattern_slug, application_type, season_type, terrain_type, is_active, show_on_website, main_image, created_at'
   let q = supabase
     .from('patterns')
-    .select(selectCols)
-    .order('created_at', { ascending: false })
-    .limit(500)
+    .select(selectCols, { count: 'exact' })
+    .order('pattern_name', { ascending: true })
+    .range((page - 1) * limit, page * limit - 1)
   if (brandId) q = q.eq('brand_id', brandId)
-  const { data, error } = await q
+  if (appType) q = q.eq('application_type', appType)
+  if (search)  q = q.ilike('pattern_name', `%${search}%`)
+  const { data, count, error } = await q
   if (error) throw error
-  return data ?? []
+  const total = count ?? 0
+  return { data: data ?? [], total, page, limit, totalPages: Math.ceil(total / limit) }
 }
 
 export async function getPattern(patternId: string) {

@@ -1,14 +1,17 @@
 /**
  * Onyx Tyres — Catalogue Seeder
  *
- * Seeds brands, patterns and SKUs from two reference CSV datasets.
- * Safe to re-run: all upserts use ON CONFLICT DO NOTHING on the natural key.
+ * Seeds brands, patterns, SKUs and generation lineage from three reference CSV datasets.
+ * Use --clear to wipe existing product data before importing.
  *
  * Usage:
  *   cd backend
  *   npx ts-node src/scripts/seed-catalogue.ts \
- *     --brands-csv "C:\path\to\csv.csv" \
- *     --skus-csv   "C:\path\to\csv_full.csv"
+ *     --brands-csv       "C:\path\to\csv.csv"             \
+ *     --skus-csv         "C:\path\to\csv_full.csv"         \
+ *     [--generations-csv "C:\path\to\csv_generations.csv"] \
+ *     [--clear]                                            \
+ *     [--limit 20]
  *
  * Required env vars (loaded from .env automatically):
  *   SUPABASE_URL
@@ -17,8 +20,9 @@
  * CSV format: semicolon-delimited, UTF-8, first row = headers.
  *
  * What gets seeded:
- *   csv.csv      (8 k rows)  → brands + patterns
- *   csv_full.csv (216 k rows) → skus  (no prices / no stock — those come from supplier feeds)
+ *   csv.csv             (8 k rows)   → brands + patterns (with CDN image URLs)
+ *   csv_full.csv        (216 k rows) → skus (with CDN variant_images; no prices / no stock)
+ *   csv_generations.csv (opt.)       → skus.replacement_product_id via size-matched lineage
  */
 
 import 'dotenv/config'
@@ -28,8 +32,12 @@ import { supabase } from '../services/supabase.service'
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const BATCH_SIZE = 500       // rows per Supabase upsert call
-const LOG_EVERY  = 20        // log progress every N batches
+const BATCH_SIZE      = 250        // rows per Supabase upsert call (kept modest to avoid payload limits)
+const LOG_EVERY       = 20         // log progress every N batches
+const INTER_BATCH_MS  = 80         // pause between SKU batches — avoids Supabase rate-limit
+const CDN_BASE        = 'https://cdn.tyresaddict.com/tyres/'
+
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 // ─── CLI ──────────────────────────────────────────────────────────────────────
 
@@ -49,6 +57,10 @@ function arg(name: string): string {
 function optArg(name: string, fallback: string): string {
   const i = process.argv.indexOf(`--${name}`)
   return (i !== -1 && process.argv[i + 1]) ? process.argv[i + 1]! : fallback
+}
+
+function hasFlag(name: string): boolean {
+  return process.argv.includes(`--${name}`)
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -95,6 +107,22 @@ function chunks<T>(arr: T[], size: number): T[][] {
   return out
 }
 
+// ─── Phase 0: Clear ───────────────────────────────────────────────────────────
+
+async function clearProductData(): Promise<void> {
+  // Single TRUNCATE ... CASCADE — Postgres resolves all FK dependencies automatically.
+  // Requires the clear_product_catalogue() RPC to be deployed (see migration
+  // supabase/migrations/20260622000000_clear_product_catalogue_fn.sql).
+  process.stdout.write('  Running TRUNCATE ... CASCADE via RPC... ')
+  const { error } = await supabase.rpc('clear_product_catalogue')
+  if (error) {
+    console.error(`\nFailed: ${error.message}`)
+    console.error('  Make sure migration 20260622000000_clear_product_catalogue_fn.sql is applied.')
+    process.exit(1)
+  }
+  process.stdout.write('done\n')
+}
+
 // ─── CSV row types ────────────────────────────────────────────────────────────
 
 interface BrandsCsvRow {
@@ -109,6 +137,12 @@ interface BrandsCsvRow {
   model_url:      string
   photo:          string
   description_en: string
+  [key: string]: string
+}
+
+interface GenCsvRow {
+  model_id:      string
+  model_prev_id: string
   [key: string]: string
 }
 
@@ -142,13 +176,13 @@ interface SkusCsvRow {
 
 async function seedBrands(rows: BrandsCsvRow[]): Promise<Map<string, string>> {
   // Deduplicate by vendor_name — first occurrence wins
-  const deduped = new Map<string, { brand_name: string; brand_slug: string; main_image: string | null }>()
+  const deduped = new Map<string, { brand_name: string; brand_slug: string }>()
 
   for (const row of rows) {
     const name = row.vendor_name?.trim()
     if (!name || deduped.has(name)) continue
     const slug = row.vendor_url?.trim() ? toSlug(row.vendor_url) : toSlug(name)
-    deduped.set(name, { brand_name: name, brand_slug: slug, main_image: null })
+    deduped.set(name, { brand_name: name, brand_slug: slug })
   }
 
   const toInsert = [...deduped.values()]
@@ -209,7 +243,7 @@ async function seedPatterns(
       pattern_name:              patternName,
       pattern_slug:              slug,
       pattern_short_description: row.description_en?.trim() || null,
-      main_image:                row.photo?.trim() || null,
+      main_image:                row.photo?.trim() ? `${CDN_BASE}${row.photo.trim()}` : null,
       application_type:          mapCarType(row.car_type),
       season_type:               mapSeason(row.season),
       is_active:                 true,
@@ -258,87 +292,99 @@ async function seedSkus(
   const rows    = limit ? allRows.slice(0, limit) : allRows
   console.log(`  ${allRows.length.toLocaleString()} rows parsed${limit ? `, using first ${rows.length}` : ''}`)
 
-  let inserted = 0, skipped = 0, errors = 0
-  const batches = chunks(rows, BATCH_SIZE)
+  // Pre-build all SKU records and deduplicate by product_slug (first real EAN wins).
+  // This prevents UNIQUE constraint errors from hitting the DB at all.
+  const slugSeen = new Map<string, Record<string, unknown>>()
+  let skipped = 0
 
-  for (let bi = 0; bi < batches.length; bi++) {
-    const toInsert: Record<string, unknown>[] = []
+  for (const row of rows) {
+    const brandName  = row.vendor_name?.trim()
+    const modelName  = row.model_name?.trim()
+    if (!brandName || !modelName) { skipped++; continue }
 
-    for (const row of batches[bi]!) {
-      const brandName  = row.vendor_name?.trim()
-      const modelName  = row.model_name?.trim()
-      if (!brandName || !modelName) { skipped++; continue }
+    const brandId = brandMap.get(brandName)
+    if (!brandId) { skipped++; continue }
 
-      const brandId = brandMap.get(brandName)
-      if (!brandId) { skipped++; continue }
+    const patternSlug = row.model_url?.trim() ? toSlug(row.model_url) : toSlug(modelName)
+    const patternId   = patternMap.get(`${brandId}:${patternSlug}`)
+    if (!patternId) { skipped++; continue }
 
-      const patternSlug = row.model_url?.trim() ? toSlug(row.model_url) : toSlug(modelName)
-      const patternId   = patternMap.get(`${brandId}:${patternSlug}`)
-      if (!patternId) { skipped++; continue }
+    const w = parseFloat(row.width)
+    const d = parseFloat(row.diameter)
+    if (!w || !d) { skipped++; continue }
 
-      const w = parseFloat(row.width)
-      const d = parseFloat(row.diameter)
-      if (!w || !d) { skipped++; continue }
+    const p  = parseFloat(row.profile) || null
+    const li = row.load_index?.trim()  || null
+    const sr = row.speed_index?.trim() || null
 
-      const p  = parseFloat(row.profile) || null   // profile 0 → null (e.g. 155R13)
-      const li = row.load_index?.trim()  || null
-      const sr = row.speed_index?.trim() || null
+    const sizePart    = p ? `${w}/${p}R${d}` : `${w}R${d}`
+    const sizeDisplay = li && sr ? `${sizePart} ${li}${sr}` : sizePart
 
-      // Tyre size display: "205/55R16 91Y" or "155R13 91N"
-      const sizePart    = p ? `${w}/${p}R${d}` : `${w}R${d}`
-      const sizeDisplay = li && sr ? `${sizePart} ${li}${sr}` : sizePart
+    const rawEan = row.ean?.trim()
+    const sku    = rawEan && rawEan !== '0'
+      ? rawEan
+      : `${toSlug(brandName)}-${toSlug(modelName)}-${w}-${p ?? 0}-r${d}-${li ?? 'xx'}${sr ?? 'xx'}`
 
-      // SKU: EAN when available; otherwise synthesised (stable across re-runs)
-      const rawEan = row.ean?.trim()
-      const sku    = rawEan && rawEan !== '0'
-        ? rawEan
-        : `${toSlug(brandName)}-${toSlug(modelName)}-${w}-${p ?? 0}-r${d}-${li ?? 'xx'}${sr ?? 'xx'}`
+    const productSlug = [
+      toSlug(brandName),
+      toSlug(modelName),
+      `${w}-${p ?? 0}r${d}`,
+      ((li ?? '') + (sr ?? '')).toLowerCase() || 'xx',
+    ].join('-').replace(/[^a-z0-9-]/g, '')
 
-      // product_slug: human-readable, unique per tyre variant
-      // Includes load+speed so 225/45R18 91Y ≠ 225/45R18 95W
-      const productSlug = [
-        toSlug(brandName),
-        toSlug(modelName),
-        `${w}-${p ?? 0}r${d}`,
-        ((li ?? '') + (sr ?? '')).toLowerCase() || 'xx',
-      ].join('-').replace(/[^a-z0-9-]/g, '')
-
-      toInsert.push({
-        brand_id:             brandId,
-        pattern_id:           patternId,
-        sku,
-        tyre_size_display:    sizeDisplay,
-        normalized_size_code: sizePart,
-        width:                w,
-        profile:              p,
-        rim_size:             d,
-        load_index:           li,
-        speed_rating:         sr,
-        runflat:              row.rof_flag === 'on',
-        xl_reinforced:        row.xl_flag  === 'on',
-        fuel_rating:          row.eu_label_fuel?.trim()  || null,
-        wet_grip:             row.eu_label_wet?.trim()   || null,
-        noise_db:             row.eu_label_noise?.trim() || null,
-        country_of_origin:    'Unknown',
-        status:               'active',
-        total_available_stock: 0,
-        product_slug:         productSlug,
-      })
+    const record = {
+      brand_id:              brandId,
+      pattern_id:            patternId,
+      sku,
+      tyre_size_display:     sizeDisplay,
+      normalized_size_code:  sizePart,
+      width:                 w,
+      profile:               p,
+      rim_size:              d,
+      load_index:            li,
+      speed_rating:          sr,
+      runflat:               row.rof_flag === 'on',
+      xl_reinforced:         row.xl_flag  === 'on',
+      fuel_rating:           row.eu_label_fuel?.trim()  || null,
+      wet_grip:              row.eu_label_wet?.trim()   || null,
+      noise_db:              row.eu_label_noise?.trim() || null,
+      country_of_origin:     'Unknown',
+      status:                'active',
+      total_available_stock: 0,
+      product_slug:          productSlug,
+      variant_images:        row.photo_name?.trim() ? [`${CDN_BASE}${row.photo_name.trim()}`] : [],
     }
 
-    if (toInsert.length === 0) { skipped += batches[bi]!.length; continue }
+    // Keep first occurrence per product_slug; prefer rows that have a real EAN
+    const existing = slugSeen.get(productSlug)
+    if (!existing) {
+      slugSeen.set(productSlug, record)
+    } else if (rawEan && rawEan !== '0' && !(existing.sku as string).match(/^\d+$/)) {
+      slugSeen.set(productSlug, record) // replace synthesised sku with real EAN
+    } else {
+      skipped++
+    }
+  }
 
-    // Primary attempt: bulk upsert
+  const uniqueRows = [...slugSeen.values()]
+  console.log(`  ${uniqueRows.length.toLocaleString()} unique SKUs after dedup (${skipped} duplicates removed)`)
+
+  let inserted = 0, errors = 0
+  const batches = chunks(uniqueRows, BATCH_SIZE)
+
+  for (let bi = 0; bi < batches.length; bi++) {
+    const toInsert = batches[bi]!
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (supabase as any).from('skus')
-      .upsert(toInsert, { onConflict: 'sku', ignoreDuplicates: true })
+      .upsert(toInsert, { onConflict: 'product_slug', ignoreDuplicates: true })
 
     if (error) {
-      // Fall back to row-by-row so one bad row doesn't drop the whole batch
+      // Fall back to row-by-row — isolates any remaining bad row
       for (const row of toInsert) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { error: rowErr } = await (supabase as any).from('skus')
-          .upsert([row], { onConflict: 'sku', ignoreDuplicates: true })
+          .upsert([row], { onConflict: 'product_slug', ignoreDuplicates: true })
         if (rowErr) errors++
         else inserted++
       }
@@ -353,10 +399,129 @@ async function seedSkus(
         `${inserted.toLocaleString()} inserted, ${skipped} skipped, ${errors} errors   `
       )
     }
+
+    // Gentle pause — keeps us well under Supabase's rate limit on any plan
+    await sleep(INTER_BATCH_MS)
   }
 
   process.stdout.write('\n')
   console.log(`  Done — ${inserted.toLocaleString()} inserted | ${skipped} skipped | ${errors} errors`)
+}
+
+// ─── Phase 4: Generations ─────────────────────────────────────────────────────
+//
+// Links old-generation SKUs to their successor via skus.replacement_product_id.
+// Matching is done by normalized size code derived from csv_full.csv rows so that
+// a 205/55R16 variant of model A points to the 205/55R16 variant of model B.
+
+async function seedGenerations(genCsvPath: string, skusCsvPath: string): Promise<void> {
+  console.log('  Parsing csv_generations.csv...')
+  const genRows = parseCsv<GenCsvRow>(genCsvPath)
+  console.log(`  ${genRows.length.toLocaleString()} generation pairs`)
+
+  // Build map: new_model_id → prev_model_id
+  const genMap = new Map<string, string>()
+  for (const r of genRows) {
+    if (r.model_id && r.model_prev_id) genMap.set(r.model_id.trim(), r.model_prev_id.trim())
+  }
+
+  console.log('  Parsing csv_full.csv for size → product_slug mapping...')
+  const skusRows = parseCsv<SkusCsvRow>(skusCsvPath)
+
+  // Build map: model_id → { sizeCode → product_slug }
+  const modelSizeToSlug = new Map<string, Map<string, string>>()
+  for (const row of skusRows) {
+    const modelId   = row.model_id?.trim()
+    const brandName = row.vendor_name?.trim()
+    const modelName = row.model_name?.trim()
+    if (!modelId || !brandName || !modelName) continue
+
+    const w  = parseFloat(row.width)
+    const d  = parseFloat(row.diameter)
+    if (!w || !d) continue
+    const p  = parseFloat(row.profile) || null
+    const li = row.load_index?.trim()  || null
+    const sr = row.speed_index?.trim() || null
+
+    const sizePart   = p ? `${w}/${p}R${d}` : `${w}R${d}`
+    const productSlug = [
+      toSlug(brandName),
+      toSlug(modelName),
+      `${w}-${p ?? 0}r${d}`,
+      ((li ?? '') + (sr ?? '')).toLowerCase() || 'xx',
+    ].join('-').replace(/[^a-z0-9-]/g, '')
+
+    if (!modelSizeToSlug.has(modelId)) modelSizeToSlug.set(modelId, new Map())
+    modelSizeToSlug.get(modelId)!.set(sizePart, productSlug)
+  }
+
+  // For each generation pair, match by size and update replacement_product_id
+  let linked = 0, skipped = 0
+  const updatePairs: Array<{ prevSlug: string; newSlug: string }> = []
+
+  for (const [newModelId, prevModelId] of genMap) {
+    const newSizes  = modelSizeToSlug.get(newModelId)
+    const prevSizes = modelSizeToSlug.get(prevModelId)
+    if (!newSizes || !prevSizes) { skipped++; continue }
+
+    for (const [sizeCode, newSlug] of newSizes) {
+      const prevSlug = prevSizes.get(sizeCode)
+      if (prevSlug) updatePairs.push({ prevSlug, newSlug })
+    }
+  }
+
+  console.log(`  ${updatePairs.length.toLocaleString()} size-matched pairs to link`)
+  if (updatePairs.length === 0) return
+
+  // ── Step 1: Fetch product_ids for all involved slugs ──────────────────────
+  // Batch size 50 — Supabase REST uses GET params; large .in() arrays exceed URL limits.
+  const allSlugs = [...new Set(updatePairs.flatMap(p => [p.prevSlug, p.newSlug]))]
+  const slugToId = new Map<string, string>()
+  console.log(`  Fetching product_ids for ${allSlugs.length.toLocaleString()} slugs...`)
+
+  for (const batch of chunks(allSlugs, 50)) {
+    const { data, error } = await supabase
+      .from('skus')
+      .select('product_id, product_slug')
+      .in('product_slug', batch)
+    if (error) { console.warn(`  [generations] fetch error: ${error.message}`); continue }
+    for (const row of (data ?? [])) slugToId.set(row.product_slug as string, row.product_id as string)
+    await sleep(50)
+  }
+
+  // ── Step 2: Resolve UUIDs and batch-update via RPC ────────────────────────
+  // link_replacement_products(prev_ids[], new_ids[]) does a single SQL UPDATE
+  // per batch — reduces ~6000 individual API calls to ~12 RPC calls.
+  const prevIds: string[] = []
+  const newIds:  string[] = []
+
+  for (const { prevSlug, newSlug } of updatePairs) {
+    const prevId = slugToId.get(prevSlug)
+    const newId  = slugToId.get(newSlug)
+    if (!prevId || !newId) { skipped++; continue }
+    prevIds.push(prevId)
+    newIds.push(newId)
+  }
+
+  console.log(`  Linking ${prevIds.length.toLocaleString()} pairs via RPC batches...`)
+  const RPC_BATCH = 500
+  for (let i = 0; i < prevIds.length; i += RPC_BATCH) {
+    const { error } = await supabase.rpc('link_replacement_products', {
+      prev_ids: prevIds.slice(i, i + RPC_BATCH),
+      new_ids:  newIds.slice(i, i + RPC_BATCH),
+    })
+    if (error) {
+      console.warn(`  [generations] RPC error at batch ${Math.floor(i / RPC_BATCH) + 1}: ${error.message}`)
+      skipped += Math.min(RPC_BATCH, prevIds.length - i)
+      continue
+    }
+    linked += Math.min(RPC_BATCH, prevIds.length - i)
+    process.stdout.write(`\r  linked ${linked.toLocaleString()} / ${prevIds.length.toLocaleString()}   `)
+    await sleep(80)
+  }
+
+  process.stdout.write('\n')
+  console.log(`  Done — ${linked.toLocaleString()} linked | ${skipped} skipped`)
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
@@ -364,9 +529,15 @@ async function seedSkus(
 async function main(): Promise<void> {
   const brandsCsvPath = arg('brands-csv')
   const skusCsvPath   = arg('skus-csv')
-  const limit         = parseInt(optArg('limit', '0'), 10) || 0  // 0 = no limit
+  const genCsvPath    = process.argv.includes('--generations-csv')
+    ? optArg('generations-csv', '')
+    : ''
+  const doClear = hasFlag('clear')
+  const limit   = parseInt(optArg('limit', '0'), 10) || 0  // 0 = no limit
 
-  for (const p of [brandsCsvPath, skusCsvPath]) {
+  const requiredFiles = [brandsCsvPath, skusCsvPath]
+  if (genCsvPath) requiredFiles.push(genCsvPath)
+  for (const p of requiredFiles) {
     if (!fs.existsSync(p)) {
       console.error(`File not found: ${p}`)
       process.exit(1)
@@ -387,15 +558,23 @@ async function main(): Promise<void> {
   console.log('\n╔══════════════════════════════════════════╗')
   console.log('║   Onyx Tyres — Catalogue Seeder          ║')
   console.log('╚══════════════════════════════════════════╝\n')
-  console.log(`brands CSV : ${brandsCsvPath}`)
-  console.log(`skus CSV   : ${skusCsvPath}`)
-  if (limit) console.log(`limit      : ${limit} patterns / ${limit} SKUs (test mode)`)
+  console.log(`brands CSV      : ${brandsCsvPath}`)
+  console.log(`skus CSV        : ${skusCsvPath}`)
+  if (genCsvPath) console.log(`generations CSV : ${genCsvPath}`)
+  if (limit)      console.log(`limit           : ${limit} patterns / ${limit} SKUs (test mode)`)
+  if (doClear)    console.log(`mode            : CLEAR then import`)
   console.log()
 
   console.time('Total elapsed')
 
+  // ── Phase 0: Clear ──────────────────────────────────────────────────────────
+  if (doClear) {
+    console.log('── Phase 0: Clear existing product data ──')
+    await clearProductData()
+  }
+
   // ── Phase 1: Brands ─────────────────────────────────────────────────────────
-  console.log('── Phase 1: Brands ──')
+  console.log('\n── Phase 1: Brands ──')
   const brandRows = parseCsv<BrandsCsvRow>(brandsCsvPath)
   console.log(`  ${brandRows.length.toLocaleString()} rows in brands CSV`)
   const brandMap = await seedBrands(brandRows)
@@ -407,6 +586,12 @@ async function main(): Promise<void> {
   // ── Phase 3: SKUs ────────────────────────────────────────────────────────────
   console.log('\n── Phase 3: SKUs ──')
   await seedSkus(skusCsvPath, brandMap, patternMap, limit)
+
+  // ── Phase 4: Generations ─────────────────────────────────────────────────────
+  if (genCsvPath) {
+    console.log('\n── Phase 4: Generations (replacement_product_id) ──')
+    await seedGenerations(genCsvPath, skusCsvPath)
+  }
 
   console.log('\n── Complete ──')
   console.timeEnd('Total elapsed')

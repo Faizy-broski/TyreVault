@@ -30,6 +30,7 @@ export default async function AdminProductsPage() {
       data:  raw.data.map((item: any) => ({
         id:             item.id,
         name:           item.name,
+        image:          item.image          ?? null,
         brand:          item.brand?.brand_name          ?? '—',
         brandId:        item.brand?.brand_id            ?? '',
         collection:     item.collection?.collection_name ?? null,

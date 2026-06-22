@@ -9,7 +9,7 @@ import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { Badge } from '@/components/ui/badge'
 import { toastError, toastSuccess } from '@/lib/toast'
 import { MoreHorizontal, Pencil, Trash2, Upload } from 'lucide-react'
-import { useAdminBrands, useAdminPatterns, type AdminPattern } from '@/lib/query/hooks'
+import { useAdminBrandsAll, useAdminPatterns, type AdminPattern } from '@/lib/query/hooks'
 import { adminKeys } from '@/lib/query/keys'
 import { TableBodySpinner } from '@/components/ui/table-loader'
 
@@ -140,10 +140,22 @@ export default function PatternsPage() {
   const searchParams = useSearchParams()
   const queryClient  = useQueryClient()
 
-  const { data: rawPatterns = [], isPending: patternsLoading } = useAdminPatterns()
-  const { data: brands = [],      isPending: brandsLoading  } = useAdminBrands()
+  const [page,        setPage]        = useState(1)
+  const [filterBrand, setFilterBrand] = useState(searchParams.get('brand') ?? '')
+  const [filterApp,   setFilterApp]   = useState('')
+  const [searchInput, setSearchInput] = useState('')
+  const [search,      setSearch]      = useState('')
+  const [toDelete,    setToDelete]    = useState<PatternWithBrand | null>(null)
+  const [deleting,    setDeleting]    = useState(false)
+  const [skuError,    setSkuError]    = useState(false)
 
-  const loading = patternsLoading || brandsLoading
+  const { data: result,  isPending: patternsLoading } = useAdminPatterns({ page, search, brandId: filterBrand || undefined, appType: filterApp || undefined })
+  const { data: brands = [], isPending: brandsLoading } = useAdminBrandsAll()
+
+  const loading    = patternsLoading || brandsLoading
+  const rawPatterns = result?.data       ?? []
+  const total       = result?.total      ?? 0
+  const totalPages  = result?.totalPages ?? 1
 
   const brandMap = useMemo(
     () => Object.fromEntries(brands.map(b => [b.brand_id, b.brand_name])),
@@ -153,13 +165,6 @@ export default function PatternsPage() {
     () => rawPatterns.map(p => ({ ...p, brand_name: brandMap[p.brand_id] ?? '' })),
     [rawPatterns, brandMap],
   )
-
-  const [filterBrand, setFilterBrand] = useState(searchParams.get('brand') ?? '')
-  const [filterApp,   setFilterApp]   = useState('')
-  const [search,      setSearch]      = useState('')
-  const [toDelete,    setToDelete]    = useState<PatternWithBrand | null>(null)
-  const [deleting,    setDeleting]    = useState(false)
-  const [skuError,    setSkuError]    = useState(false)
 
   async function handleDelete() {
     if (!toDelete) return
@@ -180,6 +185,7 @@ export default function PatternsPage() {
         throw new Error(raw || 'Failed to delete pattern')
       }
       queryClient.invalidateQueries({ queryKey: adminKeys.patternList() })
+      queryClient.invalidateQueries({ queryKey: adminKeys.brandListAll() })
       toastSuccess(`"${toDelete.pattern_name}" deleted`)
       setToDelete(null)
       setSkuError(false)
@@ -191,15 +197,9 @@ export default function PatternsPage() {
     }
   }
 
-  const displayed = patterns.filter(p => {
-    if (filterBrand && p.brand_id !== filterBrand) return false
-    if (filterApp   && p.application_type !== filterApp) return false
-    if (search && !p.pattern_name.toLowerCase().includes(search.toLowerCase()) &&
-                  !p.brand_name.toLowerCase().includes(search.toLowerCase())) return false
-    return true
-  })
-
-  const appTypes = useMemo(() => [...new Set(patterns.map(p => p.application_type))].sort(), [patterns])
+  // Patterns come pre-filtered from server; appTypes derived from current page for the dropdown
+  const displayed = patterns
+  const appTypes  = useMemo(() => ['PCR', '4x4', 'TBR'], [])
   const sel = 'rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700 focus:outline-none focus:ring-2 focus:ring-primary/30'
 
   return (
@@ -232,20 +232,23 @@ export default function PatternsPage() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Search patterns…" className={sel + ' w-48'} />
-        <select value={filterBrand} onChange={e => setFilterBrand(e.target.value)} className={sel}>
+        <form onSubmit={e => { e.preventDefault(); setSearch(searchInput); setPage(1) }} className="flex gap-2">
+          <input type="text" value={searchInput} onChange={e => setSearchInput(e.target.value)}
+            placeholder="Search patterns…" className={sel + ' w-48'} />
+          <button type="submit" className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors">Search</button>
+        </form>
+        <select value={filterBrand} onChange={e => { setFilterBrand(e.target.value); setPage(1) }} className={sel}>
           <option value="">All Brands</option>
           {brands.map(b => <option key={b.brand_id} value={b.brand_id}>{b.brand_name}</option>)}
         </select>
-        <select value={filterApp} onChange={e => setFilterApp(e.target.value)} className={sel}>
+        <select value={filterApp} onChange={e => { setFilterApp(e.target.value); setPage(1) }} className={sel}>
           <option value="">All Applications</option>
           {appTypes.map(a => (
-            <option key={a} value={a}>{a.charAt(0).toUpperCase() + a.slice(1)}</option>
+            <option key={a} value={a}>{a}</option>
           ))}
         </select>
         {(filterBrand || filterApp || search) && (
-          <button type="button" onClick={() => { setFilterBrand(''); setFilterApp(''); setSearch('') }}
+          <button type="button" onClick={() => { setFilterBrand(''); setFilterApp(''); setSearch(''); setSearchInput(''); setPage(1) }}
             className="text-xs text-zinc-400 hover:text-zinc-700 px-2">
             Clear
           </button>
@@ -329,10 +332,26 @@ export default function PatternsPage() {
           </tbody>
         </table>
 
-        {!loading && displayed.length > 0 && (
-          <div className="px-5 py-3 border-t border-zinc-100 text-xs text-zinc-400">
-            {displayed.length} pattern{displayed.length !== 1 ? 's' : ''}
-            {patterns.length !== displayed.length && ` (filtered from ${patterns.length})`}
+        {!loading && total > 0 && (
+          <div className="px-5 py-3 border-t border-zinc-100 flex items-center justify-between text-xs text-zinc-500">
+            <span>{total.toLocaleString()} pattern{total !== 1 ? 's' : ''} total</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="rounded-lg border border-zinc-200 bg-white px-2 py-1 text-zinc-500 hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                ← Prev
+              </button>
+              <span>Page {page} of {totalPages}</span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="rounded-lg border border-zinc-200 bg-white px-2 py-1 text-zinc-500 hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                Next →
+              </button>
+            </div>
           </div>
         )}
       </div>

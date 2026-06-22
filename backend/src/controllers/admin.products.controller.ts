@@ -197,13 +197,13 @@ export async function removeProductSupplierMapping(req: Request, res: Response, 
 
 export async function getFormMeta(req: Request, res: Response, next: NextFunction) {
   try {
-    const [brands, collections, categories, patterns] = await Promise.all([
+    const [brands, collections, categories, patternsResult] = await Promise.all([
       ProductsService.listBrands(),
       ProductsService.listCollections(),
       ProductsService.listCategories(),
-      ProductsService.listPatterns(),
+      ProductsService.listPatterns({ page: 1, limit: 200 }),
     ])
-    res.json({ brands, collections, categories, patterns })
+    res.json({ brands, collections, categories, patterns: patternsResult.data })
   } catch (err) { next(err) }
 }
 
@@ -233,8 +233,17 @@ export async function removeAttribute(req: Request, res: Response, next: NextFun
 
 // ── Brands ───────────────────────────────────────────────────────────────────
 
-export async function getBrands(_req: Request, res: Response, next: NextFunction) {
-  try { res.json(await ProductsService.listBrandsFull()) } catch (err) { next(err) }
+export async function getBrands(req: Request, res: Response, next: NextFunction) {
+  try {
+    const page   = req.query.page   ? Number(req.query.page)  : 1
+    const limit  = req.query.limit  ? Number(req.query.limit) : 50
+    const search = String(req.query.search ?? '')
+    res.json(await ProductsService.listBrandsFull({ page, limit, search: search || undefined }))
+  } catch (err) { next(err) }
+}
+
+export async function getBrandsAll(_req: Request, res: Response, next: NextFunction) {
+  try { res.json(await ProductsService.listBrandsAll()) } catch (err) { next(err) }
 }
 
 export async function postBrand(req: Request, res: Response, next: NextFunction) {
@@ -260,8 +269,17 @@ export async function removeBrand(req: Request, res: Response, next: NextFunctio
 
 export async function getPatterns(req: Request, res: Response, next: NextFunction) {
   try {
+    const page    = req.query.page    ? Number(req.query.page)   : 1
+    const limit   = req.query.limit   ? Number(req.query.limit)  : 50
+    const search  = String(req.query.search  ?? '')
     const brandId = (req.params as P).brandId || String(req.query.brandId ?? '')
-    res.json(await ProductsService.listPatterns(brandId || undefined))
+    const appType = String(req.query.appType ?? '')
+    res.json(await ProductsService.listPatterns({
+      page, limit,
+      search:  search  || undefined,
+      brandId: brandId || undefined,
+      appType: appType || undefined,
+    }))
   } catch (err) { next(err) }
 }
 
