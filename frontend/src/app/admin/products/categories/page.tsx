@@ -9,10 +9,13 @@ import { useAdminCategories } from '@/lib/query/hooks'
 import { adminKeys } from '@/lib/query/keys'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { Badge } from '@/components/ui/badge'
+import { BoolToggle } from '@/components/admin/BoolToggle'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Sheet } from '@/components/ui/sheet'
+import { CategoryAddSheet } from '@/components/admin/categories/CategoryAddSheet'
 import { Pencil, Trash2, Plus } from 'lucide-react'
 import { toastPromise, toastError } from '@/lib/toast'
 import { uploadProductImage } from '@/lib/upload-image'
@@ -399,6 +402,10 @@ export default function CategoriesPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null)
   const [filterType, setFilterType] = useState<CategoryType | ''>('')
+  const [addOpen, setAddOpen]       = useState(false)
+  const [editCat, setEditCat]       = useState<Category | null>(null)
+  const [editForm, setEditForm]     = useState({ category_name: '', category_slug: '', category_type: 'application', sort_order: '', is_active: true, hidden_from_website: false })
+  const [editSaving, setEditSaving] = useState(false)
 
   useEffect(() => { document.title = 'Categories | Tyre Vault' }, [])
 
@@ -411,11 +418,19 @@ export default function CategoriesPage() {
   const invalidate = () => queryClient.invalidateQueries({ queryKey: adminKeys.productCategories() })
 
   function openCreate() {
-    router.push('/admin/products/categories/new')
+    setAddOpen(true)
   }
 
   function openEdit(c: Category) {
-    router.push(`/admin/products/categories/${c.category_id}/edit`)
+    setEditCat(c)
+    setEditForm({
+      category_name:       c.category_name,
+      category_slug:       c.category_slug,
+      category_type:       c.category_type,
+      sort_order:          c.sort_order != null ? String(c.sort_order) : '',
+      is_active:           c.is_active,
+      hidden_from_website: c.hidden_from_website,
+    })
   }
 
   function handleSaved() {
@@ -449,7 +464,7 @@ export default function CategoriesPage() {
             </svg>
             Bulk Import
           </Link>
-          <Button onClick={() => router.push('/admin/products/categories/new')} className="flex items-center gap-1.5 text-sm shrink-0">
+          <Button onClick={() => setAddOpen(true)} className="flex items-center gap-1.5 text-sm shrink-0">
             <Plus className="w-4 h-4" /> New Category
           </Button>
         </div>
@@ -479,16 +494,15 @@ export default function CategoriesPage() {
           <thead>
             <tr className="border-b border-zinc-200 bg-primary/10">
               <th className="px-5 py-3 text-left text-xs font-bold text-zinc-800 uppercase tracking-wide">Name</th>
-              <th className="px-5 py-3 text-left text-xs font-bold text-zinc-800 uppercase tracking-wide">Slug</th>
               <th className="px-5 py-3 text-left text-xs font-bold text-zinc-800 uppercase tracking-wide">Type</th>
               <th className="px-5 py-3 text-left text-xs font-bold text-zinc-800 uppercase tracking-wide">Status</th>
               <th className="px-5 py-3 text-left text-xs font-bold text-zinc-800 uppercase tracking-wide">Visibility</th>
-              <th className="px-5 py-3 w-20" />
+              <th className="px-5 py-3 text-right text-xs font-bold text-zinc-800 uppercase tracking-wide">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-200">
             {loading ? (
-              <TableBodySpinner colSpan={6} />
+              <TableBodySpinner colSpan={5} />
             ) : displayed.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-5 py-12 text-center text-zinc-400">
@@ -514,25 +528,39 @@ export default function CategoriesPage() {
                     </Badge>
                   </td>
                   <td className="px-5 py-3">
-                    <Badge className={`text-xs rounded-full border-0 ${c.is_active ? 'bg-green-50 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
-                      {c.is_active ? 'Active' : 'Inactive'}
-                    </Badge>
+                    <BoolToggle initial={c.is_active} onToggle={async next => {
+                      const { data: { session } } = await createClient().auth.getSession()
+                      const res = await fetch(`${API}/api/admin/products/categories/${c.category_id}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token ?? ''}` },
+                        body: JSON.stringify({ is_active: next }),
+                      })
+                      if (!res.ok) throw new Error('Failed')
+                      invalidate()
+                    }} />
                   </td>
                   <td className="px-5 py-3">
-                    <Badge className={`text-xs rounded-full border-0 ${c.hidden_from_website ? 'bg-zinc-100 text-zinc-500' : 'bg-blue-50 text-blue-700'}`}>
-                      {c.hidden_from_website ? 'Hidden' : 'Visible'}
-                    </Badge>
+                    <BoolToggle initial={c.hidden_from_website} onToggle={async next => {
+                      const { data: { session } } = await createClient().auth.getSession()
+                      const res = await fetch(`${API}/api/admin/products/categories/${c.category_id}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token ?? ''}` },
+                        body: JSON.stringify({ hidden_from_website: next }),
+                      })
+                      if (!res.ok) throw new Error('Failed')
+                      invalidate()
+                    }} />
                   </td>
                   <td className="px-5 py-3">
-                    <div className="flex items-center gap-1">
-                      <Button type="button" variant="ghost" size="icon-sm" aria-label="Edit" onClick={() => openEdit(c)}
-                        className="text-zinc-400 hover:text-blue-600 hover:bg-blue-50">
-                        <Pencil className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button type="button" variant="ghost" size="icon-sm" aria-label="Delete" onClick={() => setDeleteTarget(c)}
-                        className="text-zinc-400 hover:text-red-600 hover:bg-red-50">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button type="button" onClick={() => openEdit(c)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-100 hover:border-blue-300 transition-colors shadow-sm">
+                        <Pencil className="w-3 h-3" /> Edit
+                      </button>
+                      <button type="button" onClick={() => setDeleteTarget(c)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 hover:border-red-300 transition-colors shadow-sm">
+                        <Trash2 className="w-3 h-3" /> Delete
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -557,6 +585,87 @@ export default function CategoriesPage() {
         onDeleted={() => invalidate()}
         onClose={() => setDeleteTarget(null)}
       />
+
+      <CategoryAddSheet
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onSaved={() => { setAddOpen(false); invalidate() }}
+      />
+
+      <Sheet
+        open={!!editCat}
+        onClose={() => setEditCat(null)}
+        title={editCat ? `Edit Category — ${editCat.category_name}` : 'Edit Category'}
+        footer={
+          <>
+            <button type="button" onClick={() => setEditCat(null)}
+              className="px-4 py-2 rounded-lg border border-zinc-200 text-sm font-medium text-zinc-600 hover:bg-zinc-50 transition-colors">
+              Cancel
+            </button>
+            <button type="button" disabled={editSaving} onClick={async () => {
+              if (!editCat || !editForm.category_name.trim()) return
+              setEditSaving(true)
+              try {
+                const { data: { session } } = await createClient().auth.getSession()
+                const res = await fetch(`${API}/api/admin/products/categories/${editCat.category_id}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token ?? ''}` },
+                  body: JSON.stringify({
+                    category_name:       editForm.category_name.trim(),
+                    category_slug:       editForm.category_slug.trim(),
+                    category_type:       editForm.category_type,
+                    sort_order:          editForm.sort_order !== '' ? Number(editForm.sort_order) : null,
+                    is_active:           editForm.is_active,
+                    hidden_from_website: editForm.hidden_from_website,
+                  }),
+                })
+                if (!res.ok) throw new Error('Failed')
+                invalidate()
+                setEditCat(null)
+              } catch { toastError('Failed to save category') }
+              finally { setEditSaving(false) }
+            }}
+              className="px-4 py-2 rounded-lg bg-primary text-sm font-semibold text-zinc-900 hover:bg-primary/90 disabled:opacity-50 transition-colors">
+              {editSaving ? 'Saving…' : 'Save'}
+            </button>
+          </>
+        }
+      >
+        <div>
+          <label className="block text-xs font-medium text-zinc-700 mb-1">Category Name <span className="text-red-500">*</span></label>
+          <input value={editForm.category_name} onChange={e => setEditForm(f => ({ ...f, category_name: e.target.value }))}
+            className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-zinc-700 mb-1">Slug</label>
+          <input value={editForm.category_slug} onChange={e => setEditForm(f => ({ ...f, category_slug: e.target.value }))}
+            className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white font-mono" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-zinc-700 mb-1">Type</label>
+          <select value={editForm.category_type} onChange={e => setEditForm(f => ({ ...f, category_type: e.target.value }))}
+            className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white">
+            {['season','application','performance','position','terrain'].map(t => (
+              <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-zinc-700 mb-1">Sort Order</label>
+          <input type="number" value={editForm.sort_order} onChange={e => setEditForm(f => ({ ...f, sort_order: e.target.value }))} min={0}
+            className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white" />
+        </div>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-zinc-700">Is Active</span>
+            <BoolToggle initial={editForm.is_active} onToggle={async next => setEditForm(f => ({ ...f, is_active: next }))} />
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-zinc-700">Hidden from Website</span>
+            <BoolToggle initial={editForm.hidden_from_website} onToggle={async next => setEditForm(f => ({ ...f, hidden_from_website: next }))} />
+          </div>
+        </div>
+      </Sheet>
     </div>
   )
 }

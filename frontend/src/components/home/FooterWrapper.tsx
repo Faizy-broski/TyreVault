@@ -1,0 +1,147 @@
+import { createClient } from '@/lib/supabase/server'
+import FooterSection, { type FooterTopSection } from './FooterSection'
+
+export default async function FooterWrapper() {
+  const supabase = await createClient()
+
+  const [brandsRes, patternsRes, sizesRes, makesRes, modelsRes] = await Promise.all([
+    supabase
+      .from('brands')
+      .select('brand_name, brand_slug')
+      .eq('is_active', true)
+      .eq('show_on_website', true)
+      .order('brand_name')
+      .limit(10),
+
+    supabase
+      .from('patterns')
+      .select('pattern_name, pattern_slug, brands!inner(brand_name, brand_slug)')
+      .eq('is_active', true)
+      .eq('show_on_website', true)
+      .limit(10),
+
+    supabase
+      .from('skus')
+      .select('tyre_size_display, width, profile, rim_size')
+      .eq('status', 'active')
+      .not('tyre_size_display', 'is', null)
+      .not('width', 'is', null)
+      .order('width')
+      .order('profile')
+      .order('rim_size')
+      .limit(100),
+
+    supabase
+      .from('vehicles')
+      .select('make')
+      .neq('make', '')
+      .order('make')
+      .limit(500),
+
+    supabase
+      .from('vehicles')
+      .select('make, model')
+      .neq('make', '')
+      .neq('model', '')
+      .order('make')
+      .order('model')
+      .limit(500),
+  ])
+
+  // ── Brands ───────────────────────────────────────────────────────────────
+  const brands: FooterTopSection = {
+    title:     'Top Tyre Brands',
+    moreLabel: '...more tyre brands',
+    moreHref:  '/tyres',
+    items: (brandsRes.data ?? []).map(b => ({
+      label: b.brand_name as string,
+      href:  `/tyres?brand=${encodeURIComponent((b.brand_slug ?? b.brand_name) as string)}`,
+    })),
+  }
+
+  // ── Patterns ─────────────────────────────────────────────────────────────
+  const patterns: FooterTopSection = {
+    title:     'Top Tyre Models',
+    moreLabel: '...more tyre models',
+    moreHref:  '/tyres',
+    items: (patternsRes.data ?? []).map(p => {
+      const brand = Array.isArray(p.brands) ? p.brands[0] : p.brands
+      const brandSlug   = (brand as { brand_slug: string } | null)?.brand_slug ?? ''
+      const patternSlug = p.pattern_slug ?? ''
+      return {
+        label: `${(brand as { brand_name: string } | null)?.brand_name ?? ''} ${p.pattern_name}`.trim(),
+        href:  brandSlug && patternSlug ? `/tyres/${brandSlug}/${patternSlug}` : '/tyres',
+      }
+    }),
+  }
+
+  // ── Sizes — deduplicate by display string ─────────────────────────────
+  const seenSizes = new Set<string>()
+  const sizeItems = (sizesRes.data ?? [])
+    .filter(s => {
+      if (!s.tyre_size_display || seenSizes.has(s.tyre_size_display)) return false
+      seenSizes.add(s.tyre_size_display)
+      return true
+    })
+    .slice(0, 10)
+    .map(s => ({
+      label: s.tyre_size_display as string,
+      href:  `/tyres?width=${s.width}&profile=${s.profile}&rim_size=${s.rim_size}`,
+    }))
+
+  const sizes: FooterTopSection = {
+    title:     'Top Tyre Sizes',
+    moreLabel: '...more tyre sizes',
+    moreHref:  '/tyres',
+    items: sizeItems,
+  }
+
+  // ── Vehicle makes — deduplicate ────────────────────────────────────────
+  const seenMakes = new Set<string>()
+  const makeItems = (makesRes.data ?? [])
+    .filter(v => {
+      if (!v.make || seenMakes.has(v.make)) return false
+      seenMakes.add(v.make)
+      return true
+    })
+    .slice(0, 10)
+    .map(v => ({
+      label: v.make as string,
+      href:  `/tyres?make=${encodeURIComponent(v.make as string)}`,
+    }))
+
+  const vehicleMakes: FooterTopSection = {
+    title:     'Top Vehicle Makers',
+    moreLabel: '...more vehicle makes',
+    moreHref:  '/tyres',
+    items: makeItems,
+  }
+
+  // ── Vehicle models — deduplicate ───────────────────────────────────────
+  const seenModels = new Set<string>()
+  const modelItems = (modelsRes.data ?? [])
+    .filter(v => {
+      const key = `${v.make}:${v.model}`
+      if (!v.make || !v.model || seenModels.has(key)) return false
+      seenModels.add(key)
+      return true
+    })
+    .slice(0, 10)
+    .map(v => ({
+      label: `${v.make} ${v.model}`,
+      href:  `/tyres?make=${encodeURIComponent(v.make as string)}&model=${encodeURIComponent(v.model as string)}`,
+    }))
+
+  const vehicleModels: FooterTopSection = {
+    title:     'Top Vehicle Models',
+    moreLabel: '...more vehicle models',
+    moreHref:  '/tyres',
+    items: modelItems,
+  }
+
+  return (
+    <FooterSection
+      topSections={[brands, patterns, sizes, vehicleMakes, vehicleModels]}
+    />
+  )
+}

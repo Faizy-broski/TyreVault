@@ -38,6 +38,7 @@ export default async function AdminProductsPage() {
         activeVariants: item.activeVariantCount,
         totalStock:     item.totalStock     ?? 0,
         loadIndexes:    item.loadIndexes    ?? [],
+        firstSku:       item.firstSku       ?? null,
         isActive:       item.isActive,
         showOnWebsite:  item.showOnWebsite,
         updatedAt:      item.updatedAt,

@@ -207,7 +207,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
             </h1>
             <p className="text-lg text-zinc-600 mt-0.5">{product.tyre_size_display}</p>
             {product.pattern_short_description && (
-              <p className="text-sm text-zinc-500 mt-2 leading-relaxed">{product.pattern_short_description}</p>
+              <p className="text-sm text-zinc-500 mt-2 leading-relaxed" dangerouslySetInnerHTML={{ __html: product.pattern_short_description }} />
             )}
           </div>
 
@@ -265,24 +265,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
 
           {/* Size selector */}
           {product.siblings.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2">All Sizes</p>
-              <div className="flex flex-wrap gap-2">
-                <span className="rounded-lg border-2 border-primary bg-primary px-3 py-1.5 text-xs font-bold text-zinc-900 shadow-sm">
-                  {product.tyre_size_display}
-                </span>
-                {product.siblings.map(s => (
-                  <Link
-                    key={s.product_id}
-                    href={s.product_slug ? `/tyres/${s.product_slug}` : '#'}
-                    className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-primary hover:bg-primary/10 transition-colors"
-                  >
-                    {s.tyre_size_display}
-                    {s.total_available_stock === 0 && <span className="ml-1 text-zinc-400">(OOS)</span>}
-                  </Link>
-                ))}
-              </div>
-            </div>
+            <SizeSelector current={product} siblings={product.siblings} />
           )}
         </div>
       </div>
@@ -307,6 +290,71 @@ export default function ProductDetailClient({ product }: { product: Product }) {
           <SpecRow label="E-Mark"             value={product.e_mark} />
           <SpecRow label="UTQG"               value={product.utqg} />
         </div>
+      </div>
+    </div>
+  )
+}
+
+function SizeSelector({ current, siblings }: { current: { tyre_size_display: string }; siblings: Sibling[] }) {
+  const [showOos, setShowOos] = useState(false)
+
+  const inStock = siblings.filter(s => s.total_available_stock > 0)
+  const oos     = siblings.filter(s => s.total_available_stock === 0)
+
+  const pill = (s: Sibling) => (
+    <Link
+      key={s.product_id}
+      href={s.product_slug ? `/tyres/${s.product_slug}` : '#'}
+      className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-primary hover:bg-primary/10 transition-colors whitespace-nowrap"
+    >
+      {s.tyre_size_display}
+    </Link>
+  )
+
+  return (
+    <div>
+      <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2">All Sizes</p>
+
+      <div className="flex flex-wrap gap-2">
+        {/* Current size — always first */}
+        <span className="rounded-lg border-2 border-primary bg-primary px-3 py-1.5 text-xs font-bold text-zinc-900 shadow-sm whitespace-nowrap">
+          {current.tyre_size_display}
+        </span>
+
+        {/* In-stock siblings */}
+        {inStock.map(pill)}
+
+        {/* OOS toggle */}
+        {oos.length > 0 && !showOos && (
+          <button
+            type="button"
+            onClick={() => setShowOos(true)}
+            className="rounded-lg border border-dashed border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:border-zinc-400 hover:text-zinc-600 transition-colors whitespace-nowrap"
+          >
+            +{oos.length} more (OOS)
+          </button>
+        )}
+
+        {/* OOS sizes revealed */}
+        {showOos && oos.map(s => (
+          <Link
+            key={s.product_id}
+            href={s.product_slug ? `/tyres/${s.product_slug}` : '#'}
+            className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:border-zinc-300 hover:text-zinc-600 transition-colors whitespace-nowrap"
+          >
+            {s.tyre_size_display}
+          </Link>
+        ))}
+
+        {showOos && (
+          <button
+            type="button"
+            onClick={() => setShowOos(false)}
+            className="rounded-lg border border-dashed border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:border-zinc-400 hover:text-zinc-600 transition-colors whitespace-nowrap"
+          >
+            Hide OOS
+          </button>
+        )}
       </div>
     </div>
   )

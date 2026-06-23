@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { Badge } from '@/components/ui/badge'
+import { BoolToggle } from '@/components/admin/BoolToggle'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -255,9 +256,16 @@ export default function CategoriesPage() {
                     <td className="px-4 py-3 text-zinc-500 text-xs">{parent?.category_name ?? '—'}</td>
                     <td className="px-4 py-3 text-zinc-500">{cat.sort_order ?? '—'}</td>
                     <td className="px-4 py-3">
-                      <Badge variant={cat.is_active ? 'default' : 'secondary'}>
-                        {cat.is_active ? 'Active' : 'Inactive'}
-                      </Badge>
+                      <BoolToggle initial={cat.is_active} onToggle={async next => {
+                        const tok = await getToken()
+                        const res = await fetch(`${API}/api/admin/products/categories/${cat.category_id}`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
+                          body: JSON.stringify({ is_active: next }),
+                        })
+                        if (!res.ok) throw new Error('Failed')
+                        fetchCategories()
+                      }} />
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2 justify-end">

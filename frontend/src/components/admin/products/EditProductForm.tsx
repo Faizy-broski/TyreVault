@@ -104,6 +104,12 @@ function calcMargin(price: number, cost: number): string {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+interface SkuCodeRow {
+  product_id: string; sku: string; tyre_size_display: string
+  width: number | null; profile: number | null; rim_size: number | null
+  load_index: string | null; speed_rating: string | null
+}
+
 interface Props {
   patternId:    string
   initialData:  EditProductFormValues
@@ -112,10 +118,13 @@ interface Props {
   categories:   { category_id: string; category_name: string; category_type: string }[]
   warehouses:   { warehouse_id: string; warehouse_name: string }[]
   patterns?:    { pattern_id: string; pattern_name: string; brand_id: string }[]
+  existingSkus?: SkuCodeRow[]
+  patternInfo?:  { name: string; brandName: string }
 }
 
 export default function EditProductForm({
   patternId, initialData, brands, collections, categories, warehouses, patterns = [],
+  existingSkus = [], patternInfo,
 }: Props) {
   const router      = useRouter()
   const [submitting, setSubmitting] = useState(false)
@@ -270,6 +279,8 @@ export default function EditProductForm({
         onCancel={() => router.push(`/admin/products/${patternId}`)}
         onSave={methods.handleSubmit(handleSave, handleInvalid)}
         productName={watchName}
+        existingSkus={existingSkus}
+        patternInfo={patternInfo}
       />
     </FormProvider>
   )
@@ -279,7 +290,7 @@ export default function EditProductForm({
 
 function FormBody({
   patternId, autoSlug, brands, patterns, categories, warehouses,
-  submitting, onCancel, onSave, productName,
+  submitting, onCancel, onSave, productName, existingSkus = [], patternInfo,
 }: {
   patternId:   string
   autoSlug:    string
@@ -291,6 +302,8 @@ function FormBody({
   onCancel:    () => void
   onSave:      () => void
   productName: string
+  existingSkus?: SkuCodeRow[]
+  patternInfo?:  { name: string; brandName: string }
 }) {
   const { register, watch, setValue, control, formState: { errors } } = useFormContext<EditProductFormValues>()
 
@@ -512,6 +525,71 @@ function FormBody({
               {errors.patternSlug && <p className="mt-1 text-xs text-red-600">{errors.patternSlug.message}</p>}
             </div>
           </div>
+
+          {/* SKU reference codes */}
+          {existingSkus.length > 0 && (
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {existingSkus.map(sku => {
+                const defaultHelper = [
+                  sku.width    != null ? Math.floor(sku.width)    : '',
+                  sku.profile  != null ? Math.floor(sku.profile)  : '',
+                  sku.rim_size != null ? Math.floor(sku.rim_size) : '',
+                ].join('')
+                const defaultSupplier = [
+                  patternInfo?.brandName,
+                  sku.tyre_size_display,
+                  patternInfo?.name,
+                  sku.load_index,
+                  sku.speed_rating?.toUpperCase(),
+                ].filter(Boolean).join(' ')
+
+                async function saveCode(field: 'helperCode' | 'supplierCode', value: string) {
+                  try {
+                    const { data: { session } } = await createClient().auth.getSession()
+                    const tok = session?.access_token ?? ''
+                    await fetch(`${API}/api/admin/products/${patternId}/variants/${sku.product_id}`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
+                      body: JSON.stringify({ [field]: value }),
+                    })
+                  } catch { /* silent */ }
+                }
+
+                return (
+                  <div key={sku.product_id} className="rounded-lg border border-zinc-100 bg-zinc-50/60 p-3 space-y-3">
+                    <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wide">{sku.tyre_size_display}</p>
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-500 mb-1">Item Code</label>
+                      <input
+                        readOnly
+                        disabled
+                        value={sku.sku}
+                        className="w-full rounded border border-zinc-200 bg-zinc-100 px-2.5 py-1.5 text-xs font-mono text-zinc-500 cursor-not-allowed"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-500 mb-1">Helper Code</label>
+                      <input
+                        key={`helper-${sku.product_id}`}
+                        defaultValue={(sku as any).helper_code ?? defaultHelper}
+                        onBlur={e => saveCode('helperCode', e.target.value)}
+                        className="w-full rounded border border-zinc-200 bg-white px-2.5 py-1.5 text-xs font-mono text-zinc-800 focus:outline-none focus:ring-1 focus:ring-primary/40"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-500 mb-1">Supplier Code</label>
+                      <input
+                        key={`supplier-${sku.product_id}`}
+                        defaultValue={(sku as any).supplier_code ?? defaultSupplier}
+                        onBlur={e => saveCode('supplierCode', e.target.value)}
+                        className="w-full rounded border border-zinc-200 bg-white px-2.5 py-1.5 text-xs text-zinc-800 focus:outline-none focus:ring-1 focus:ring-primary/40"
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
 
           {/* Short description */}
           <div className="mt-4">

@@ -4,11 +4,26 @@ import Link from "next/link";
 import { FaFacebookF, FaInstagram, FaLinkedinIn, FaPinterestP, FaTwitter, FaYoutube } from "react-icons/fa";
 import { motion } from "framer-motion";
 import { fadeUp, scaleIn, stagger, viewport } from "./motion-variants";
-import { topLinks, footerLinks } from "./data";
+import { footerLinks } from "./data";
+
+export interface FooterLinkItem {
+  label: string
+  href:  string
+}
+export interface FooterTopSection {
+  title:      string
+  items:      FooterLinkItem[]
+  moreLabel?: string
+  moreHref?:  string
+}
+
+interface Props {
+  topSections: FooterTopSection[]
+}
 
 const socialIcons = [FaFacebookF, FaInstagram, FaLinkedinIn, FaPinterestP, FaYoutube, FaTwitter];
 
-export default function FooterSection() {
+export default function FooterSection({ topSections }: Props) {
   return (
     <footer
       className="relative overflow-hidden text-white"
@@ -24,18 +39,25 @@ export default function FooterSection() {
 
       <div className="relative z-10 mx-auto max-w-[1400px] px-4 py-12 sm:px-6 sm:py-14 lg:px-10">
         <div className="rounded-[28px] border border-white/10 bg-white/[0.02] p-5 backdrop-blur-sm sm:p-8">
-          <div className="grid grid-cols-2 gap-6 sm:gap-8 md:grid-cols-3 xl:grid-cols-6">
-            {topLinks.map((section) => (
+          <div className="grid grid-cols-2 gap-6 sm:gap-8 md:grid-cols-3 xl:grid-cols-5">
+            {topSections.map((section) => (
               <div key={section.title}>
                 <h3 className="mb-5 text-lg font-bold text-white sm:text-xl">{section.title}</h3>
                 <ul className="space-y-2">
                   {section.items.map((item) => (
-                    <li key={item}>
-                      <Link href="#" className="inline-block text-sm text-white/70 transition-all duration-200 hover:translate-x-1 hover:text-primary sm:text-[15px]">
-                        {item}
+                    <li key={item.label}>
+                      <Link href={item.href} className="inline-block text-sm text-white/70 transition-all duration-200 hover:translate-x-1 hover:text-primary sm:text-[15px]">
+                        {item.label}
                       </Link>
                     </li>
                   ))}
+                  {section.moreLabel && section.moreHref && (
+                    <li>
+                      <Link href={section.moreHref} className="inline-block text-sm text-primary/70 transition-all duration-200 hover:translate-x-1 hover:text-primary sm:text-[15px]">
+                        {section.moreLabel}
+                      </Link>
+                    </li>
+                  )}
                 </ul>
               </div>
             ))}
@@ -81,12 +103,6 @@ export default function FooterSection() {
             </motion.div>
           ))}
         </motion.div>
-
-        <div className="mt-16 border-t border-white/10 pt-8 text-center">
-          <p className="text-sm text-white/45">
-            © 2026 Made with 🤍 TSN. The trademark tyre vault is registered with the US Patent and Trademark Office. All Rights Reserved.
-          </p>
-        </div>
       </div>
     </footer>
   );

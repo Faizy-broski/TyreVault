@@ -1,14 +1,20 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
+import { useQueryClient } from '@tanstack/react-query'
 import ProductsTable from '@/components/admin/products/ProductsTable'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { useProductList, useProductMeta, type ProductListResponse } from '@/lib/query/hooks'
+import { adminKeys } from '@/lib/query/keys'
+import { createClient } from '@/lib/supabase/client'
+import { toastPromise } from '@/lib/toast'
 import { BoxSpinner } from '@/components/ui/table-loader'
 
-const LIMIT = 20
+const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+
+const DEFAULT_LIMIT = 20
 
 const STOCK_FILTERS = [
   { value: '',         label: 'All Stock'    },
@@ -24,6 +30,10 @@ export default function ProductsClient({ initialProducts }: Props) {
   const searchParams = useSearchParams()
   const router       = useRouter()
   const pathname     = usePathname()
+  const queryClient  = useQueryClient()
+
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulkUpdating, setBulkUpdating] = useState(false)
 
   const search    = searchParams.get('search')    ?? ''
   const page      = Number(searchParams.get('page') ?? 1)
@@ -33,13 +43,14 @@ export default function ProductsClient({ initialProducts }: Props) {
   const patternId = searchParams.get('patternId') ?? ''
   const status    = searchParams.get('status')    ?? ''
   const stock     = searchParams.get('stock')     ?? ''
+  const limit     = Number(searchParams.get('limit') ?? DEFAULT_LIMIT)
 
-  const isDefaultView = page === 1 && !search && !brandId && !patternId && !status && !stock
+  const isDefaultView = page === 1 && limit === DEFAULT_LIMIT && !search && !brandId && !patternId && !status && !stock
     && sortBy === 'created_at' && sortOrder === 'desc'
 
   const metaQuery = useProductMeta()
   const listQuery = useProductList(
-    { search, page, sortBy, sortOrder, brandId, patternId, status, stock },
+    { search, page, limit, sortBy, sortOrder, brandId, patternId, status, stock },
     { initialData: isDefaultView ? initialProducts : undefined },
   )
 
@@ -53,13 +64,13 @@ export default function ProductsClient({ initialProducts }: Props) {
     ? allPatterns.filter((p: { brand_id: string }) => p.brand_id === brandId)
     : []
 
-  const totalPages = Math.ceil(count / LIMIT)
+  const totalPages = Math.ceil(count / limit)
 
   const buildHref = useCallback((extra: Record<string, string>) => {
-    const p = new URLSearchParams({ sortBy, sortOrder, search, page: String(page), brandId, patternId, status, stock })
+    const p = new URLSearchParams({ sortBy, sortOrder, search, page: String(page), limit: String(limit), brandId, patternId, status, stock })
     Object.entries(extra).forEach(([k, v]) => v ? p.set(k, v) : p.delete(k))
     return `${pathname}?${p}`
-  }, [sortBy, sortOrder, search, page, brandId, patternId, status, stock, pathname])
+  }, [sortBy, sortOrder, search, page, limit, brandId, patternId, status, stock, pathname])
 
   function handleSort(col: string) {
     if (col === sortBy) {
@@ -67,6 +78,49 @@ export default function ProductsClient({ initialProducts }: Props) {
     } else {
       const defaultOrder = ['pattern_name', 'brand_name', 'variant_count'].includes(col) ? 'asc' : 'desc'
       router.push(buildHref({ sortBy: col, sortOrder: defaultOrder, page: '1' }))
+    }
+  }
+
+  async function handleBulkUpdate(field: 'active' | 'publish', value: boolean) {
+    if (selected.size === 0) return
+    setBulkUpdating(true)
+    const { data: { session } } = await createClient().auth.getSession()
+    const tok = session?.access_token ?? ''
+    const ids = Array.from(selected)
+    
+    // Optimistic UI Update
+    queryClient.setQueriesData({ queryKey: ['admin', 'products', 'list'], exact: false }, (oldData: any) => {
+      if (!oldData || !oldData.data) return oldData
+      return {
+        ...oldData,
+        data: oldData.data.map((p: any) => 
+          selected.has(p.id) 
+            ? { ...p, [field === 'active' ? 'isActive' : 'showOnWebsite']: value } 
+            : p
+        )
+      }
+    })
+
+    const updatePromise = Promise.all(ids.map(pId => {
+      return fetch(`${API}/api/admin/products/${pId}/publish`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
+        body: JSON.stringify({ [field]: value }),
+      }).then(res => { if (!res.ok) throw new Error('Failed') })
+    }))
+
+    try {
+      await toastPromise(updatePromise, {
+        loading: `Updating ${ids.length} products...`,
+        success: `Updated ${ids.length} products successfully`,
+        error: 'Failed to update some products'
+      })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'products', 'list'], exact: false })
+    } catch (err: unknown) {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'products', 'list'], exact: false })
+    } finally {
+      setBulkUpdating(false)
+      setSelected(new Set())
     }
   }
 
@@ -177,16 +231,60 @@ export default function ProductsClient({ initialProducts }: Props) {
           </div>
         </div>
 
+        {/* Bulk Action Bar */}
+        {selected.size > 0 && (
+          <div className="animate-in fade-in zoom-in-95 duration-200 border-b border-zinc-200">
+            <div className="bg-zinc-900 text-white px-5 py-3 flex items-center justify-between">
+              <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center bg-primary text-primary-foreground text-sm font-bold w-8 h-8 rounded-full shadow-sm">
+                    {selected.size}
+                  </div>
+                  <span className="text-sm font-semibold tracking-wide">Selected</span>
+                </div>
+                
+                <div className="hidden sm:block w-px h-8 bg-zinc-700/60"></div>
+
+                <div className="flex items-center gap-4 sm:gap-6">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-zinc-400 font-medium uppercase tracking-wider">Active</span>
+                    <div className="flex rounded-lg bg-zinc-800/80 p-1 border border-zinc-700/50 shadow-inner">
+                      <button onClick={() => handleBulkUpdate('active', true)} disabled={bulkUpdating} className="px-4 py-1.5 text-xs font-semibold text-zinc-300 rounded-md hover:bg-emerald-500 hover:text-white hover:shadow-md disabled:opacity-50 transition-all">Yes</button>
+                      <button onClick={() => handleBulkUpdate('active', false)} disabled={bulkUpdating} className="px-4 py-1.5 text-xs font-semibold text-zinc-300 rounded-md hover:bg-rose-500 hover:text-white hover:shadow-md disabled:opacity-50 transition-all">No</button>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-zinc-400 font-medium uppercase tracking-wider">Website</span>
+                    <div className="flex rounded-lg bg-zinc-800/80 p-1 border border-zinc-700/50 shadow-inner">
+                      <button onClick={() => handleBulkUpdate('publish', true)} disabled={bulkUpdating} className="px-4 py-1.5 text-xs font-semibold text-zinc-300 rounded-md hover:bg-emerald-500 hover:text-white hover:shadow-md disabled:opacity-50 transition-all">Yes</button>
+                      <button onClick={() => handleBulkUpdate('publish', false)} disabled={bulkUpdating} className="px-4 py-1.5 text-xs font-semibold text-zinc-300 rounded-md hover:bg-rose-500 hover:text-white hover:shadow-md disabled:opacity-50 transition-all">No</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <button onClick={() => setSelected(new Set())} className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-full transition-colors ml-4 shrink-0" title="Clear selection">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <BoxSpinner minHeight={320} />
         ) : (
           <div className="overflow-x-auto">
             <ProductsTable
               products={products}
-              onPublishToggle={() => router.refresh()}
+              onPublishToggle={() => listQuery.refetch()}
               sortBy={sortBy}
               sortOrder={sortOrder}
               onSort={handleSort}
+              selected={selected}
+              onSelect={setSelected}
             />
           </div>
         )}
@@ -194,7 +292,23 @@ export default function ProductsClient({ initialProducts }: Props) {
         <div className="flex flex-col gap-2 px-4 py-3 border-t border-zinc-200 text-sm text-zinc-500 sm:flex-row sm:items-center sm:justify-between">
           {loading
             ? <div className="h-4 w-36 bg-zinc-100 rounded animate-pulse" />
-            : <span>{count === 0 ? '0 results' : `${(page - 1) * LIMIT + 1}–${Math.min(page * LIMIT, count)} of ${count} results`}</span>
+            : (
+              <div className="flex items-center gap-4">
+                <span>{count === 0 ? '0 results' : `${(page - 1) * limit + 1}–${Math.min(page * limit, count)} of ${count} results`}</span>
+                <div className="flex items-center gap-2">
+                  <span>Rows per page:</span>
+                  <select
+                    value={limit}
+                    onChange={e => router.push(buildHref({ limit: e.target.value, page: '1' }))}
+                    className="rounded border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-700 focus:outline-none focus:ring-1 focus:ring-primary/30 cursor-pointer"
+                  >
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              </div>
+            )
           }
           <div className="flex items-center gap-3">
             <span>{loading ? '…' : `Page ${page} of ${totalPages || 1}`}</span>

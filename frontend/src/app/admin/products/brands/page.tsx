@@ -7,9 +7,12 @@ import { useQueryClient } from '@tanstack/react-query'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { BoolToggle } from '@/components/admin/BoolToggle'
+import { BrandEditSheet } from '@/components/admin/brands/BrandEditSheet'
+import { BrandAddSheet } from '@/components/admin/brands/BrandAddSheet'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Pencil, Trash2, Plus, ChevronLeft, ChevronRight } from 'lucide-react'
-import { toastPromise, toastError } from '@/lib/toast'
+import { toastPromise, toastError, toastSuccess } from '@/lib/toast'
 import type { Brand } from '@/types/admin.types'
 import { useAdminBrands } from '@/lib/query/hooks'
 import { adminKeys } from '@/lib/query/keys'
@@ -32,12 +35,17 @@ async function getToken() {
 export default function BrandsPage() {
   const queryClient                    = useQueryClient()
   const [page, setPage]                = useState(1)
+  const [limit, setLimit]              = useState(50)
   const [search, setSearch]            = useState('')
   const [searchInput, setSearchInput]  = useState('')
   const [deleteConfirm, setDeleteConfirm] = useState<Brand | null>(null)
   const [deleting, setDeleting]        = useState(false)
+  const [editBrand, setEditBrand]      = useState<Brand | null>(null)
+  const [addOpen,   setAddOpen]        = useState(false)
+  const [selected,  setSelected]       = useState<Set<string>>(new Set())
+  const [bulkUpdating, setBulkUpdating] = useState(false)
 
-  const { data: result, isPending: loading } = useAdminBrands({ page, search })
+  const { data: result, isPending: loading } = useAdminBrands({ page, limit, search })
   const brands     = result?.data     ?? []
   const totalPages = result?.totalPages ?? 1
   const total      = result?.total    ?? 0
@@ -68,6 +76,46 @@ export default function BrandsPage() {
     }
   }
 
+  async function handleBulkUpdate(field: 'is_active' | 'show_on_website', value: boolean) {
+    if (selected.size === 0) return
+    setBulkUpdating(true)
+    const tok = await getToken()
+    const ids = Array.from(selected)
+    
+    // Optimistic UI Update
+    queryClient.setQueriesData({ queryKey: ['admin', 'brands', 'list'] }, (oldData: any) => {
+      if (!oldData || !oldData.data) return oldData
+      return {
+        ...oldData,
+        data: oldData.data.map((b: any) => 
+          selected.has(b.brand_id) ? { ...b, [field]: value } : b
+        )
+      }
+    })
+
+    const updatePromise = Promise.all(ids.map(id => fetch(`${API}/api/admin/products/brands/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
+      body: JSON.stringify({ [field]: value }),
+    }).then(res => { if (!res.ok) throw new Error('Failed') })))
+
+    try {
+      await toastPromise(updatePromise, {
+        loading: `Updating ${ids.length} brands...`,
+        success: `Updated ${ids.length} brands successfully`,
+        error: 'Failed to update some brands'
+      })
+      queryClient.invalidateQueries({ queryKey: adminKeys.brandList() })
+    } catch (err: unknown) {
+      // Revert will happen automatically on next fetch or we could manually revert,
+      // but invalidating is usually enough to repair state
+      queryClient.invalidateQueries({ queryKey: adminKeys.brandList() })
+    } finally {
+      setBulkUpdating(false)
+      setSelected(new Set()) // Clear selection after successful bulk action
+    }
+  }
+
   return (
     <div className="p-4 sm:p-6 space-y-5">
       <AdminBreadcrumb crumbs={[
@@ -90,12 +138,13 @@ export default function BrandsPage() {
             </svg>
             Bulk Import
           </Link>
-          <Link
-            href="/admin/products/brands/new"
+          <button
+            type="button"
+            onClick={() => setAddOpen(true)}
             className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition-colors shadow-sm"
           >
             <Plus className="w-4 h-4" /> New Brand
-          </Link>
+          </button>
         </div>
       </div>
 
@@ -116,17 +165,70 @@ export default function BrandsPage() {
         )}
       </form>
 
+      {/* Bulk Action Bar */}
+      {selected.size > 0 && (
+        <div className="animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-zinc-900 text-white rounded-2xl px-5 py-3 shadow-md flex items-center justify-between border border-zinc-800">
+            <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center bg-primary text-primary-foreground text-sm font-bold w-8 h-8 rounded-full shadow-sm">
+                  {selected.size}
+                </div>
+                <span className="text-sm font-semibold tracking-wide">Selected</span>
+              </div>
+              
+              <div className="hidden sm:block w-px h-8 bg-zinc-700/60"></div>
+
+              <div className="flex items-center gap-4 sm:gap-6">
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-zinc-400 font-medium uppercase tracking-wider">Active</span>
+                  <div className="flex rounded-lg bg-zinc-800/80 p-1 border border-zinc-700/50 shadow-inner">
+                    <button onClick={() => handleBulkUpdate('is_active', true)} disabled={bulkUpdating} className="px-4 py-1.5 text-xs font-semibold text-zinc-300 rounded-md hover:bg-emerald-500 hover:text-white hover:shadow-md disabled:opacity-50 transition-all">Yes</button>
+                    <button onClick={() => handleBulkUpdate('is_active', false)} disabled={bulkUpdating} className="px-4 py-1.5 text-xs font-semibold text-zinc-300 rounded-md hover:bg-rose-500 hover:text-white hover:shadow-md disabled:opacity-50 transition-all">No</button>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-zinc-400 font-medium uppercase tracking-wider">Website</span>
+                  <div className="flex rounded-lg bg-zinc-800/80 p-1 border border-zinc-700/50 shadow-inner">
+                    <button onClick={() => handleBulkUpdate('show_on_website', true)} disabled={bulkUpdating} className="px-4 py-1.5 text-xs font-semibold text-zinc-300 rounded-md hover:bg-emerald-500 hover:text-white hover:shadow-md disabled:opacity-50 transition-all">Yes</button>
+                    <button onClick={() => handleBulkUpdate('show_on_website', false)} disabled={bulkUpdating} className="px-4 py-1.5 text-xs font-semibold text-zinc-300 rounded-md hover:bg-rose-500 hover:text-white hover:shadow-md disabled:opacity-50 transition-all">No</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button onClick={() => setSelected(new Set())} className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-full transition-colors ml-4 shrink-0" title="Clear selection">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-2xl border border-zinc-200 overflow-x-auto shadow-sm">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-zinc-200 bg-zinc-50">
+              <th className="px-5 py-3 w-12 text-left">
+                <input 
+                  type="checkbox" 
+                  checked={brands.length > 0 && selected.size === brands.length}
+                  ref={el => { if (el) el.indeterminate = selected.size > 0 && selected.size < brands.length }}
+                  onChange={e => {
+                    if (e.target.checked) setSelected(new Set(brands.map(b => b.brand_id)))
+                    else setSelected(new Set())
+                  }}
+                  className="rounded border-zinc-300 text-primary focus:ring-primary h-4 w-4 transition-all"
+                />
+              </th>
               <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Brand</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Slug</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Positioning</th>
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tier</th>
               <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Country</th>
               <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Active</th>
-              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">On Site</th>
-              <th className="px-5 py-3 w-20" />
+              <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">On Website</th>
+              <th className="px-5 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide pr-8">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-200">
@@ -141,7 +243,20 @@ export default function BrandsPage() {
               </tr>
             ) : (
               brands.map(brand => (
-                <tr key={brand.brand_id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
+                <tr key={brand.brand_id} className={`odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors ${selected.has(brand.brand_id) ? '!bg-amber-50/30' : ''}`}>
+                  <td className="px-5 py-3">
+                    <input 
+                      type="checkbox" 
+                      checked={selected.has(brand.brand_id)}
+                      onChange={e => {
+                        const next = new Set(selected)
+                        if (e.target.checked) next.add(brand.brand_id)
+                        else next.delete(brand.brand_id)
+                        setSelected(next)
+                      }}
+                      className="rounded border-zinc-300 text-primary focus:ring-primary h-4 w-4 transition-all"
+                    />
+                  </td>
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
                       {brand.brand_logo ? (
@@ -162,7 +277,6 @@ export default function BrandsPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-5 py-3 font-mono text-xs text-zinc-500">{brand.brand_slug}</td>
                   <td className="px-5 py-3">
                     {brand.brand_positioning ? (
                       <Badge className={`text-xs rounded-full border-0 capitalize ${POSITIONING_COLOURS[brand.brand_positioning] ?? 'bg-zinc-100 text-zinc-600'}`}>
@@ -172,32 +286,47 @@ export default function BrandsPage() {
                   </td>
                   <td className="px-5 py-3 text-zinc-600 text-xs">{brand.country_of_brand ?? '—'}</td>
                   <td className="px-5 py-3">
-                    <Badge className={`text-xs rounded-full border-0 ${brand.is_active ? 'bg-green-50 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
-                      {brand.is_active ? 'Yes' : 'No'}
-                    </Badge>
+                    <BoolToggle initial={brand.is_active} onToggle={async next => {
+                      const tok = await getToken()
+                      const res = await fetch(`${API}/api/admin/products/brands/${brand.brand_id}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
+                        body: JSON.stringify({ is_active: next }),
+                      })
+                      if (!res.ok) throw new Error('Failed')
+                      queryClient.invalidateQueries({ queryKey: adminKeys.brandList() })
+                    }} />
                   </td>
                   <td className="px-5 py-3">
-                    <Badge className={`text-xs rounded-full border-0 ${brand.show_on_website ? 'bg-green-50 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
-                      {brand.show_on_website ? 'Yes' : 'No'}
-                    </Badge>
+                    <BoolToggle initial={brand.show_on_website} onToggle={async next => {
+                      const tok = await getToken()
+                      const res = await fetch(`${API}/api/admin/products/brands/${brand.brand_id}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
+                        body: JSON.stringify({ show_on_website: next }),
+                      })
+                      if (!res.ok) throw new Error('Failed')
+                      queryClient.invalidateQueries({ queryKey: adminKeys.brandList() })
+                    }} />
                   </td>
                   <td className="px-5 py-3">
-                    <div className="flex items-center gap-1">
-                      <Link
-                        href={`/admin/products/brands/${brand.brand_id}/edit`}
-                        className="inline-flex items-center justify-center w-7 h-7 rounded-md text-zinc-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setEditBrand(brand)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-100 hover:border-blue-300 transition-colors shadow-sm"
                         aria-label="Edit brand"
                       >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </Link>
-                      <Button
-                        type="button" variant="ghost" size="icon-sm"
-                        aria-label="Delete brand"
+                        <Pencil className="w-3 h-3" /> Edit
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => setDeleteConfirm(brand)}
-                        className="text-zinc-400 hover:text-red-600 hover:bg-red-50"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 hover:border-red-300 transition-colors shadow-sm"
+                        aria-label="Delete brand"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
+                        <Trash2 className="w-3 h-3" /> Delete
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -208,7 +337,24 @@ export default function BrandsPage() {
         {/* Pagination footer */}
         {!loading && total > 0 && (
           <div className="px-5 py-3 border-t border-zinc-100 flex items-center justify-between text-xs text-zinc-500">
-            <span>{total} brand{total !== 1 ? 's' : ''} total</span>
+            <div className="flex items-center gap-4">
+              <span>{total} brand{total !== 1 ? 's' : ''} total</span>
+              <div className="flex items-center gap-2">
+                <span>Rows per page:</span>
+                <select
+                  value={limit}
+                  onChange={e => {
+                    setLimit(Number(e.target.value))
+                    setPage(1)
+                  }}
+                  className="rounded border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-700 focus:outline-none focus:ring-1 focus:ring-primary/30"
+                >
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+            </div>
             <div className="flex items-center gap-2">
               <Button
                 variant="outline" size="icon-sm"
@@ -247,6 +393,27 @@ export default function BrandsPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <BrandAddSheet
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onSaved={() => {
+          setAddOpen(false)
+          queryClient.invalidateQueries({ queryKey: adminKeys.brandList() })
+          queryClient.invalidateQueries({ queryKey: adminKeys.brandListAll() })
+        }}
+      />
+
+      <BrandEditSheet
+        brand={editBrand}
+        open={!!editBrand}
+        onClose={() => setEditBrand(null)}
+        onSaved={() => {
+          setEditBrand(null)
+          queryClient.invalidateQueries({ queryKey: adminKeys.brandList() })
+          queryClient.invalidateQueries({ queryKey: adminKeys.brandListAll() })
+        }}
+      />
     </div>
   )
 }

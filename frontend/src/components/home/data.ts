@@ -68,13 +68,42 @@ export const reviews = [
   { name: "Phillip T.", initial: "P", review: "Great platform and smooth checkout process." },
 ];
 
-export const topLinks = [
-  { title: "Top Tyre Brands", items: ["Winrun", "Pirelli", "Kumho", "Bridgestone", "Michelin", "Hankook", "BF goodrich", "Continental", "Dunlop", "Goodyear", "...more tyre brands"] },
-  { title: "Top Tyre Models", items: ["Winrun R330", "Kinforest KF 550", "Pirelli Scorpion Verde AS", "Bridgestone Potenza Adrenalin RE003", "Michelin Pilot Sport 5", "BFGoodrich All Terrain TA KO2 RWL", "Hankook Ventus S1 EVO3 K127", "Continental Contimaxcontact MC6", "Goodyear Assurance TripleMax 2", "Dunlop Sp Sport Fm800"] },
-  { title: "Top Tyre Sizes", items: ["205/55R16", "215/60R16", "235/45R17", "245/70R16", "265/65R17", "265/70R16", "265/70R17", "265/75R16", "285/70R17", "285/75R16", "...more tyre sizes"] },
-  { title: "Top Vehicle Makers", items: ["BMW", "Ford", "Toyota", "Mercedes Benz", "Mitsubishi", "Hyundai", "Subaru", "Audi", "Holden", "Kia", "...more vehicle makes"] },
-  { title: "Top Vehicle Models", items: ["Ford Falcon", "Honda Civic", "Holden Commodore", "Hyundai I30", "Audi A6", "Mercedes Benz C200", "BMW 318I", "Volkswagen Golf", "Mitsubishi Lancer", "Subaru Forester"] },
-  { title: "Top fitting locations", items: ["Sydney", "Melbourne", "Brisbane", "Perth", "Adelaide", "NSW", "VIC", "QLD", "ACT", "SA", "...more fitting locations"] },
+// Static fallback for pages that cannot use the async FooterWrapper (e.g. client-only pages)
+export const staticFooterSections = [
+  {
+    title: 'Top Tyre Brands',
+    moreLabel: '...more tyre brands', moreHref: '/tyres',
+    items: ['Winrun','Pirelli','Kumho','Bridgestone','Michelin','Hankook','BF Goodrich','Continental','Dunlop','Goodyear']
+      .map(b => ({ label: b, href: `/tyres?brand=${encodeURIComponent(b.toLowerCase())}` })),
+  },
+  {
+    title: 'Top Tyre Models',
+    moreLabel: '...more tyre models', moreHref: '/tyres',
+    items: ['Winrun R330','Kinforest KF 550','Pirelli Scorpion Verde AS','Bridgestone Potenza RE003','Michelin Pilot Sport 5','BFGoodrich All Terrain KO2','Hankook Ventus S1 EVO3','Continental Contimaxcontact MC6','Goodyear Assurance TripleMax 2','Dunlop SP Sport FM800']
+      .map(m => ({ label: m, href: '/tyres' })),
+  },
+  {
+    title: 'Top Tyre Sizes',
+    moreLabel: '...more tyre sizes', moreHref: '/tyres',
+    items: [
+      { w: 205, p: 55, r: 16 }, { w: 215, p: 60, r: 16 }, { w: 235, p: 45, r: 17 },
+      { w: 245, p: 70, r: 16 }, { w: 265, p: 65, r: 17 }, { w: 265, p: 70, r: 16 },
+      { w: 265, p: 70, r: 17 }, { w: 265, p: 75, r: 16 }, { w: 285, p: 70, r: 17 },
+      { w: 285, p: 75, r: 16 },
+    ].map(s => ({ label: `${s.w}/${s.p}R${s.r}`, href: `/tyres?width=${s.w}&profile=${s.p}&rim_size=${s.r}` })),
+  },
+  {
+    title: 'Top Vehicle Makers',
+    moreLabel: '...more vehicle makes', moreHref: '/tyres',
+    items: ['BMW','Ford','Toyota','Mercedes-Benz','Mitsubishi','Hyundai','Subaru','Audi','Holden','Kia']
+      .map(m => ({ label: m, href: `/tyres?make=${encodeURIComponent(m)}` })),
+  },
+  {
+    title: 'Top Vehicle Models',
+    moreLabel: '...more vehicle models', moreHref: '/tyres',
+    items: [['Ford','Falcon'],['Honda','Civic'],['Holden','Commodore'],['Hyundai','i30'],['Audi','A6'],['Mercedes-Benz','C200'],['BMW','318i'],['Volkswagen','Golf'],['Mitsubishi','Lancer'],['Subaru','Forester']]
+      .map(([make, model]) => ({ label: `${make} ${model}`, href: `/tyres?make=${encodeURIComponent(make)}&model=${encodeURIComponent(model)}` })),
+  },
 ];
 
 export const footerLinks = [

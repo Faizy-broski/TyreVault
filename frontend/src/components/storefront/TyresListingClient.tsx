@@ -193,7 +193,8 @@ export default function TyresListingClient({ initialResult, initialFacets, initi
   const [searchInput, setSearchInput] = useState(initialParams.q)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [showMobileFilters, setShowMobileFilters] = useState(false)
-  const searchRef = useRef<HTMLDivElement>(null)
+  const searchRef  = useRef<HTMLDivElement>(null)
+  const resultsRef = useRef<HTMLDivElement>(null)
 
   const { addItem } = useCartStore()
 
@@ -214,7 +215,7 @@ export default function TyresListingClient({ initialResult, initialFacets, initi
   }
 
   function updateFilter<K extends keyof InitialParams>(key: K, value: InitialParams[K]) {
-    const next = { ...filters, [key]: value, page: 1 } as InitialParams
+    const next = { ...filters, [key]: value, ...(key !== 'page' && { page: 1 }) } as InitialParams
     setFilters(next)
     navigate(next)
   }
@@ -305,18 +306,18 @@ export default function TyresListingClient({ initialResult, initialFacets, initi
 
       {(facets?.brands?.length ?? 0) > 0 && (
         <FilterSection title="Brand">
-          <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1 scrollbar-none">
-            {facets!.brands.map(b => (
-              <label key={b.brand_id} className="flex items-center gap-2.5 cursor-pointer group/check py-0.5">
-                <input
-                  type="checkbox"
-                  checked={filters.brand_id === b.brand_id}
-                  onChange={() => updateFilter('brand_id', filters.brand_id === b.brand_id ? undefined : b.brand_id)}
-                  className="w-3.5 h-3.5 rounded accent-yellow-400"
-                />
-                <span className="text-sm text-zinc-600 group-hover/check:text-zinc-900 transition-colors">{b.brand_name}</span>
-              </label>
-            ))}
+          <div className="relative">
+            <select
+              value={filters.brand_id ?? ''}
+              onChange={e => updateFilter('brand_id', e.target.value || undefined)}
+              className="w-full appearance-none rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-700 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary bg-white pr-8 cursor-pointer transition-colors"
+            >
+              <option value="">Any Brand</option>
+              {facets!.brands.map(b => (
+                <option key={b.brand_id} value={b.brand_id}>{b.brand_name}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
           </div>
         </FilterSection>
       )}
@@ -451,30 +452,11 @@ export default function TyresListingClient({ initialResult, initialFacets, initi
           </aside>
 
           {/* Results area */}
-          <div className="flex-1 min-w-0">
+          <div ref={resultsRef} className="flex-1 min-w-0">
             {initialError && (
               <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 mb-4 text-sm text-red-700 flex items-center gap-2">
                 <SlidersHorizontal className="w-4 h-4 shrink-0" />
                 Search unavailable: {initialError}
-              </div>
-            )}
-
-            {/* Loading skeletons */}
-            {pending && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className="flex rounded-2xl border border-zinc-100 bg-white shadow-md overflow-hidden animate-pulse h-44">
-                    <div className="w-[42%] bg-zinc-100 shrink-0" />
-                    <div className="flex-1 p-3.5 flex flex-col gap-2">
-                      <div className="h-2 bg-zinc-100 rounded-full w-20" />
-                      <div className="h-3.5 bg-zinc-100 rounded-full w-full" />
-                      <div className="h-3 bg-zinc-100 rounded-full w-2/3" />
-                      <div className="mt-auto h-6 bg-zinc-100 rounded-full w-1/2" />
-                      <div className="h-8 bg-zinc-100 rounded-lg w-full" />
-                      <div className="h-7 bg-zinc-100 rounded-lg w-full" />
-                    </div>
-                  </div>
-                ))}
               </div>
             )}
 
@@ -497,9 +479,22 @@ export default function TyresListingClient({ initialResult, initialFacets, initi
             )}
 
             {/* Results grid */}
-            {!pending && result && result.data.length > 0 && (
-              <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {result && result.data.length > 0 && (
+              <div className="relative">
+                {/* Spinner overlay while transitioning */}
+                {pending && (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-zinc-50/70 backdrop-blur-[2px]">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="relative w-12 h-12">
+                        <div className="absolute inset-0 rounded-full border-4 border-zinc-200" />
+                        <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-primary animate-spin" />
+                      </div>
+                      <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Loading</span>
+                    </div>
+                  </div>
+                )}
+
+                <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 transition-opacity duration-200 ${pending ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}>
                   {result.data.map(hit => (
                     <TyreCard key={hit.product_id} hit={hit} onAddToCart={handleAddToCart} />
                   ))}
@@ -509,8 +504,11 @@ export default function TyresListingClient({ initialResult, initialFacets, initi
                   <div className="flex items-center justify-center gap-3 mt-10">
                     <button
                       type="button"
-                      disabled={currentPage <= 1}
-                      onClick={() => updateFilter('page', currentPage - 1)}
+                      disabled={currentPage <= 1 || pending}
+                      onClick={() => {
+                        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                        updateFilter('page', currentPage - 1)
+                      }}
                       className="rounded-xl border border-zinc-300 bg-white px-5 py-2.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
                     >
                       ← Previous
@@ -520,15 +518,18 @@ export default function TyresListingClient({ initialResult, initialFacets, initi
                     </span>
                     <button
                       type="button"
-                      disabled={currentPage >= totalPages}
-                      onClick={() => updateFilter('page', currentPage + 1)}
+                      disabled={currentPage >= totalPages || pending}
+                      onClick={() => {
+                        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                        updateFilter('page', currentPage + 1)
+                      }}
                       className="rounded-xl border border-zinc-300 bg-white px-5 py-2.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
                     >
                       Next →
                     </button>
                   </div>
                 )}
-              </>
+              </div>
             )}
           </div>
         </div>

@@ -32,6 +32,24 @@ export type InventoryProductRow = {
   supplier_mappings:  SupplierMappingEntry[]
 }
 
+/** Normalize a tyre-size search term and return all useful variants to OR together.
+ *  Handles: "195/65R15", "195 65R15", "195-65R15", "19565R15", "100100R18" etc.
+ */
+function buildSizeVariants(raw: string): string[] {
+  const up       = raw.trim().toUpperCase()
+  const noSpaces = up.replace(/\s+/g, '')
+  const noDash   = noSpaces.replace(/-/g, '/')     // 195-65R15  → 195/65R15
+  const noSlash  = noSpaces.replace(/\//g, '')     // 195/65R15  → 19565R15
+
+  const variants = new Set<string>([up, noSpaces, noDash, noSlash])
+
+  // Smart slash insertion: "19565R15" or "100100R18" — match W(3 digits) + A(2-3 digits) + R + rim
+  const m = noSlash.match(/^(\d{3})(\d{2,3})(R\d{2,3})$/)
+  if (m) variants.add(`${m[1]}/${m[2]}${m[3]}`)
+
+  return [...variants].filter(Boolean)
+}
+
 export async function getInventoryMappings({
   page       = 1,
   limit      = 20,
@@ -89,7 +107,16 @@ export async function getInventoryMappings({
     const bIds = b?.map(x => x.brand_id) || []
     const pIds = p?.map(x => x.pattern_id) || []
 
-    const orParts = [`tyre_size_display.ilike.%${search}%`, `sku.ilike.%${search}%`]
+    // Build normalized size variants to handle "195 65R15", "195-65R15", "19565R15" etc.
+    const sizeVariants = buildSizeVariants(search)
+
+    // All conditions go into a single .or() so they're OR-ed (chaining .or() calls ANDs them).
+    // Strip parens from size strings to avoid breaking PostgREST filter grammar.
+    const orParts: string[] = []
+    for (const v of sizeVariants) {
+      const safe = v.replace(/[(),]/g, '') // strip chars that break PostgREST or() grammar
+      orParts.push(`tyre_size_display.ilike.%${safe}%`, `sku.ilike.%${safe}%`)
+    }
     if (bIds.length > 0) orParts.push(`brand_id.in.(${bIds.join(',')})`)
     if (pIds.length > 0) orParts.push(`pattern_id.in.(${pIds.join(',')})`)
 

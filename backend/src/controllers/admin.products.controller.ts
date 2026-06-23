@@ -54,7 +54,11 @@ export async function updateProduct(req: Request, res: Response, next: NextFunct
 
 export async function publishProduct(req: Request, res: Response, next: NextFunction) {
   try {
-    await ProductsService.publishProduct(String((req.params as P).id), req.body.publish === true)
+    await ProductsService.publishProduct(
+      String((req.params as P).id),
+      req.body.publish !== undefined ? req.body.publish === true : undefined,
+      req.body.active  !== undefined ? req.body.active  === true : undefined,
+    )
     res.json({ success: true })
   } catch (err) { next(err) }
 }

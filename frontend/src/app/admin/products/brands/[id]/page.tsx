@@ -78,7 +78,8 @@ export default function BrandDetailPage() {
           headers: { Authorization: `Bearer ${tok}` },
         })
         if (!res.ok) throw new Error('Failed to load brands')
-        const brands: Brand[] = await res.json()
+        const json = await res.json()
+        const brands: Brand[] = Array.isArray(json) ? json : (json.data ?? json.brands ?? [])
         const b = brands.find(x => x.brand_id === id)
         if (!b) throw new Error('Brand not found')
         setBrand(b)
@@ -100,7 +101,8 @@ export default function BrandDetailPage() {
           headers: { Authorization: `Bearer ${tok}` },
         })
         if (!res.ok) throw new Error('Failed to load patterns')
-        setPatterns(await res.json())
+        const json = await res.json()
+        setPatterns(Array.isArray(json) ? json : (json.data ?? json.patterns ?? []))
       } catch {
         // non-fatal — panel shows empty state
       } finally {

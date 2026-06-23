@@ -178,6 +178,48 @@ export default function ProductDetailPage() {
             </div>
           </div>
 
+          {/* SKU Codes */}
+          {skus.length > 0 && (
+            <Section title={`SKU Codes (${skus.length} size${skus.length !== 1 ? 's' : ''})`}>
+              <div className="overflow-x-auto -mx-1">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-zinc-100">
+                      <th className="pb-2 text-left font-semibold text-zinc-400 uppercase tracking-wide pr-4">Size</th>
+                      <th className="pb-2 text-left font-semibold text-zinc-400 uppercase tracking-wide pr-4">Item Code</th>
+                      <th className="pb-2 text-left font-semibold text-zinc-400 uppercase tracking-wide pr-4">Helper Code</th>
+                      <th className="pb-2 text-left font-semibold text-zinc-400 uppercase tracking-wide">Supplier Code</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-50">
+                    {skus.map(sku => {
+                      const helperCode = [
+                        sku.width   != null ? Math.floor(sku.width)    : '',
+                        sku.profile != null ? Math.floor(sku.profile)  : '',
+                        sku.rim_size != null ? Math.floor(sku.rim_size) : '',
+                      ].join('')
+                      const supplierCode = [
+                        pattern.brands?.brand_name,
+                        sku.tyre_size_display,
+                        pattern.pattern_name,
+                        sku.load_index,
+                        sku.speed_rating?.toUpperCase(),
+                      ].filter(Boolean).join(' ')
+                      return (
+                        <tr key={sku.product_id} className="hover:bg-zinc-50/60">
+                          <td className="py-2 pr-4 font-medium text-zinc-700 whitespace-nowrap">{sku.tyre_size_display}</td>
+                          <td className="py-2 pr-4 font-mono text-primary whitespace-nowrap">{sku.sku}</td>
+                          <td className="py-2 pr-4 font-mono text-zinc-500 whitespace-nowrap">{helperCode || '—'}</td>
+                          <td className="py-2 text-zinc-500">{supplierCode || '—'}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </Section>
+          )}
+
           {/* Descriptions — only shown if at least one field has content */}
           {(pattern.pattern_short_description || pattern.pattern_description || pattern.tyre_overview || pattern.features || pattern.warranty_information) && (
             <Section title="Descriptions">

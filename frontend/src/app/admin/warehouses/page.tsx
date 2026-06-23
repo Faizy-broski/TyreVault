@@ -8,6 +8,9 @@ import { adminKeys } from '@/lib/query/keys'
 import { createClient } from '@/lib/supabase/client'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { Badge } from '@/components/ui/badge'
+import { BoolToggle } from '@/components/admin/BoolToggle'
+import { Sheet } from '@/components/ui/sheet'
+import { WarehouseAddSheet } from '@/components/admin/warehouses/WarehouseAddSheet'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Pencil, Trash2, Plus } from 'lucide-react'
@@ -32,8 +35,12 @@ export default function WarehousesPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const [showInactive, setShowInactive] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState<Warehouse | null>(null)
-  const [deleting, setDeleting]         = useState(false)
+  const [deleteTarget, setDeleteTarget]   = useState<Warehouse | null>(null)
+  const [deleting, setDeleting]           = useState(false)
+  const [addOpen,       setAddOpen]       = useState(false)
+  const [editWarehouse, setEditWarehouse] = useState<Warehouse | null>(null)
+  const [wForm, setWForm]                 = useState({ warehouse_name: '', warehouse_type: 'own' as 'own'|'supplier'|'3pl', state: '', contact_name: '', contact_phone: '', is_active: true, is_own_warehouse: false, is_supplier_warehouse: false })
+  const [wSaving, setWSaving]             = useState(false)
 
   const { data: warehouses = [], isPending: loading } = useAdminWarehouses(showInactive)
 
@@ -75,7 +82,7 @@ export default function WarehousesPage() {
             />
             Show inactive
           </label>
-          <Button onClick={() => router.push('/admin/warehouses/new')} className="flex items-center gap-1.5">
+          <Button onClick={() => setAddOpen(true)} className="flex items-center gap-1.5">
             <Plus className="w-4 h-4" /> Add Warehouse
           </Button>
         </div>
@@ -94,7 +101,7 @@ export default function WarehousesPage() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contact</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Flags</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
-                <th className="px-4 py-3 w-20" />
+                <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200">
@@ -124,27 +131,32 @@ export default function WarehousesPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <Badge variant={w.is_active ? 'default' : 'secondary'}>
-                      {w.is_active ? 'Active' : 'Inactive'}
-                    </Badge>
+                    <BoolToggle initial={w.is_active} onToggle={async next => {
+                      const tok = await getToken()
+                      const res = await fetch(`${API}/api/admin/orders/warehouses/${w.warehouse_id}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
+                        body: JSON.stringify({ is_active: next }),
+                      })
+                      if (!res.ok) throw new Error('Failed')
+                      queryClient.invalidateQueries({ queryKey: adminKeys.warehouseList(showInactive) })
+                    }} />
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-2 justify-end">
+                    <div className="flex items-center justify-end gap-1.5">
                       <button
                         type="button"
-                        onClick={() => router.push(`/admin/warehouses/${w.warehouse_id}/edit`)}
-                        className="text-zinc-400 hover:text-blue-600 transition-colors"
-                        aria-label="Edit"
+                        onClick={() => { setEditWarehouse(w); setWForm({ warehouse_name: w.warehouse_name, warehouse_type: w.warehouse_type, state: w.state, contact_name: w.contact_name ?? '', contact_phone: w.contact_phone ?? '', is_active: w.is_active, is_own_warehouse: w.is_own_warehouse, is_supplier_warehouse: w.is_supplier_warehouse }) }}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-100 hover:border-blue-300 transition-colors shadow-sm"
                       >
-                        <Pencil className="w-4 h-4" />
+                        <Pencil className="w-3 h-3" /> Edit
                       </button>
                       <button
                         type="button"
                         onClick={() => setDeleteTarget(w)}
-                        className="text-zinc-400 hover:text-red-600 transition-colors"
-                        aria-label="Delete"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 hover:border-red-300 transition-colors shadow-sm"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3 h-3" /> Delete
                       </button>
                     </div>
                   </td>
@@ -172,6 +184,96 @@ export default function WarehousesPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <WarehouseAddSheet
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onSaved={() => {
+          setAddOpen(false)
+          queryClient.invalidateQueries({ queryKey: adminKeys.warehouseList(showInactive) })
+        }}
+      />
+
+      <Sheet
+        open={!!editWarehouse}
+        onClose={() => setEditWarehouse(null)}
+        title={editWarehouse ? `Edit Warehouse — ${editWarehouse.warehouse_name}` : 'Edit Warehouse'}
+        footer={
+          <>
+            <button type="button" onClick={() => setEditWarehouse(null)}
+              className="px-4 py-2 rounded-lg border border-zinc-200 text-sm font-medium text-zinc-600 hover:bg-zinc-50 transition-colors">
+              Cancel
+            </button>
+            <button type="button" disabled={wSaving} onClick={async () => {
+              if (!editWarehouse || !wForm.warehouse_name.trim()) return
+              setWSaving(true)
+              try {
+                const tok = await getToken()
+                const res = await fetch(`${API}/api/admin/orders/warehouses/${editWarehouse.warehouse_id}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
+                  body: JSON.stringify({ ...wForm, contact_name: wForm.contact_name || null, contact_phone: wForm.contact_phone || null }),
+                })
+                if (!res.ok) throw new Error('Failed')
+                queryClient.invalidateQueries({ queryKey: adminKeys.warehouseList(showInactive) })
+                setEditWarehouse(null)
+              } catch { toastError('Failed to save warehouse') }
+              finally { setWSaving(false) }
+            }}
+              className="px-4 py-2 rounded-lg bg-primary text-sm font-semibold text-zinc-900 hover:bg-primary/90 disabled:opacity-50 transition-colors">
+              {wSaving ? 'Saving…' : 'Save'}
+            </button>
+          </>
+        }
+      >
+        <div>
+          <label className="block text-xs font-medium text-zinc-700 mb-1">Warehouse Name <span className="text-red-500">*</span></label>
+          <input value={wForm.warehouse_name} onChange={e => setWForm(f => ({ ...f, warehouse_name: e.target.value }))}
+            className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-zinc-700 mb-1">Type</label>
+          <select value={wForm.warehouse_type} onChange={e => setWForm(f => ({ ...f, warehouse_type: e.target.value as 'own'|'supplier'|'3pl' }))}
+            className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white">
+            <option value="own">Own</option>
+            <option value="supplier">Supplier</option>
+            <option value="3pl">3PL</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-zinc-700 mb-1">State</label>
+          <select value={wForm.state} onChange={e => setWForm(f => ({ ...f, state: e.target.value }))}
+            className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white">
+            {['ACT','NSW','NT','QLD','SA','TAS','VIC','WA'].map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-zinc-700 mb-1">Contact Name</label>
+            <input value={wForm.contact_name} onChange={e => setWForm(f => ({ ...f, contact_name: e.target.value }))}
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-zinc-700 mb-1">Contact Phone</label>
+            <input value={wForm.contact_phone} onChange={e => setWForm(f => ({ ...f, contact_phone: e.target.value }))}
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white" />
+          </div>
+        </div>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-zinc-700">Is Active</span>
+            <BoolToggle initial={wForm.is_active} onToggle={async next => setWForm(f => ({ ...f, is_active: next }))} />
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-zinc-700">Own Warehouse</span>
+            <BoolToggle initial={wForm.is_own_warehouse} onToggle={async next => setWForm(f => ({ ...f, is_own_warehouse: next }))} />
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-zinc-700">Supplier Warehouse</span>
+            <BoolToggle initial={wForm.is_supplier_warehouse} onToggle={async next => setWForm(f => ({ ...f, is_supplier_warehouse: next }))} />
+          </div>
+        </div>
+      </Sheet>
     </div>
   )
 }

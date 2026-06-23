@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { useQueryClient } from '@tanstack/react-query'
-import { MoreVertical, Eye, Plus, Trash2, Package, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
+import { Plus, Trash2, Package, ChevronUp, ChevronDown, ChevronsUpDown, Pencil } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle, DialogClose } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import {
@@ -13,6 +13,35 @@ import { createClient } from '@/lib/supabase/client'
 import { toastSuccess, toastError } from '@/lib/toast'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+
+function LoadIndexCell({ values }: { values: string[] }) {
+  const [expanded, setExpanded] = useState(false)
+  const preview = values.slice(0, 4)
+  const rest = values.slice(4)
+  return (
+    <span className="text-xs text-zinc-700">
+      {(expanded ? values : preview).join(' · ')}
+      {rest.length > 0 && !expanded && (
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="ml-1 text-primary hover:underline font-medium"
+        >
+          +{rest.length}
+        </button>
+      )}
+      {expanded && (
+        <button
+          type="button"
+          onClick={() => setExpanded(false)}
+          className="ml-1 text-zinc-400 hover:underline"
+        >
+          less
+        </button>
+      )}
+    </span>
+  )
+}
 
 type Product = {
   id: string
@@ -25,61 +54,56 @@ type Product = {
   activeVariants: number
   totalStock: number
   loadIndexes: string[]
+  firstSku: string | null
   isActive: boolean
   showOnWebsite: boolean
   updatedAt: string
   createdAt: string
 }
 
-// ── Inline publish toggle ──────────────────────────────────────────────────
+// ── Inline bool toggle (Yes / No) ─────────────────────────────────────────
 
-function InlinePublishToggle({ productId, initial, onToggled }: {
+function BoolToggle({ productId, initial, field, onToggled }: {
   productId: string
   initial: boolean
+  field: 'publish' | 'active'
   onToggled: () => void
 }) {
-  const [published, setPublished] = useState(initial)
+  const [value, setValue] = useState(initial)
   const [busy, setBusy] = useState(false)
 
-  async function toggle(e: React.MouseEvent) {
-    e.preventDefault()
-    e.stopPropagation()
-    const next = !published
-    setPublished(next)
+  async function set(next: boolean) {
+    if (next === value || busy) return
+    setValue(next)
     setBusy(true)
     try {
       const { data: { session } } = await createClient().auth.getSession()
       const res = await fetch(`${API}/api/admin/products/${productId}/publish`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token ?? ''}` },
-        body: JSON.stringify({ publish: next }),
+        body: JSON.stringify(field === 'publish' ? { publish: next } : { active: next }),
       })
       if (!res.ok) throw new Error('Failed')
-      toastSuccess(next ? 'Product published' : 'Product unpublished')
       onToggled()
     } catch {
-      setPublished(!next)
-      toastError(next ? 'Failed to publish product' : 'Failed to unpublish product')
+      setValue(!next)
+      toastError('Update failed')
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <Button
-      type="button"
-      onClick={toggle}
-      disabled={busy}
-      title={published ? 'Click to unpublish' : 'Click to publish'}
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 h-auto text-xs font-medium transition-colors disabled:opacity-50 ${
-        published
-          ? 'bg-green-50 text-green-700 hover:bg-green-100'
-          : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
-      }`}
-    >
-      <span className={`w-1.5 h-1.5 rounded-full ${published ? 'bg-green-500' : 'bg-zinc-400'}`} />
-      {published ? 'Published' : 'Draft'}
-    </Button>
+    <div className={`inline-flex rounded-lg border border-zinc-200 overflow-hidden text-xs font-semibold ${busy ? 'opacity-50 pointer-events-none' : ''}`}>
+      <button type="button" onClick={() => set(true)}
+        className={`px-3 py-1 transition-colors ${value ? 'bg-green-500 text-white' : 'bg-white text-zinc-400 hover:bg-zinc-50'}`}>
+        Yes
+      </button>
+      <button type="button" onClick={() => set(false)}
+        className={`px-3 py-1 transition-colors border-l border-zinc-200 ${!value ? 'bg-red-500 text-white' : 'bg-white text-zinc-400 hover:bg-zinc-50'}`}>
+        No
+      </button>
+    </div>
   )
 }
 
@@ -87,18 +111,8 @@ function InlinePublishToggle({ productId, initial, onToggled }: {
 
 function ProductRowMenu({ product }: { product: Product }) {
   const queryClient = useQueryClient()
-  const [open, setOpen]         = useState(false)
-  const [showDel, setShowDel]   = useState(false)
+  const [showDel, setShowDel] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    function h(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', h)
-    return () => document.removeEventListener('mousedown', h)
-  }, [])
 
   async function handleDelete() {
     setDeleting(true)
@@ -124,54 +138,21 @@ function ProductRowMenu({ product }: { product: Product }) {
 
   return (
     <>
-      <div ref={ref} className="relative inline-block">
-      
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Product actions"
-          onClick={() => setOpen(o => !o)}
+      <div className="flex items-center justify-end gap-1.5">
+        <Link
+          href={`/admin/products/${product.id}/edit`}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-100 hover:border-blue-300 transition-colors shadow-sm"
+          onClick={e => e.stopPropagation()}
         >
-          <MoreVertical className="w-4 h-4" />
-        </Button>
-        {open && (
-          <div className="absolute right-0 top-full mt-1 z-50 w-44 rounded-lg border border-zinc-200 bg-white shadow-lg py-1">
-            <Link
-              href={`/admin/products/${product.id}`}
-              className="flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
-              onClick={() => setOpen(false)}
-            >
-              <Eye className="w-3.5 h-3.5 text-zinc-400" />
-              View details
-            </Link>
-            <Link
-              href={`/admin/products/${product.id}/edit`}
-              className="flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors"
-              onClick={() => setOpen(false)}
-            >
-              <svg className="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
-              </svg>
-              Edit product
-            </Link>
-            {/* VARIANTS DISABLED — Add variant menu item hidden
-            <Link href={`/admin/products/${product.id}/variants/new`} ...>
-              Add variant
-            </Link>
-            */}
-            <div className="border-t border-zinc-100 my-1" />
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => { setOpen(false); setShowDel(true) }}
-              className="w-full flex items-center gap-2 px-3 py-2 h-auto justify-start text-sm text-red-600 hover:bg-red-50 rounded-none"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              Delete product
-            </Button>
-          </div>
-        )}
+          <Pencil className="w-3 h-3" /> Edit
+        </Link>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setShowDel(true) }}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 hover:border-red-300 transition-colors shadow-sm"
+        >
+          <Trash2 className="w-3 h-3" /> Delete
+        </button>
       </div>
 
       <Dialog open={showDel} onOpenChange={o => { if (!o) setShowDel(false) }}>
@@ -203,13 +184,13 @@ function ProductRowMenu({ product }: { product: Product }) {
 
 function relativeDate(iso: string) {
   const diff = Date.now() - new Date(iso).getTime()
-  const mins  = Math.floor(diff / 60000)
+  const mins = Math.floor(diff / 60000)
   const hours = Math.floor(diff / 3600000)
-  const days  = Math.floor(diff / 86400000)
-  if (mins  < 1)   return 'just now'
-  if (mins  < 60)  return `${mins}m ago`
-  if (hours < 24)  return `${hours}h ago`
-  if (days  < 30)  return `${days}d ago`
+  const days = Math.floor(diff / 86400000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  if (hours < 24) return `${hours}h ago`
+  if (days < 30) return `${days}d ago`
   return new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit' })
 }
 
@@ -250,12 +231,16 @@ export default function ProductsTable({
   sortBy,
   sortOrder,
   onSort,
+  selected,
+  onSelect,
 }: {
   products: Product[]
   onPublishToggle: () => void
   sortBy: string
   sortOrder: 'asc' | 'desc'
   onSort: (col: string) => void
+  selected?: Set<string>
+  onSelect?: (s: Set<string>) => void
 }) {
   const displayed = (() => {
     // if (sortBy === 'variant_count') { ... } // VARIANTS DISABLED
@@ -286,25 +271,58 @@ export default function ProductsTable({
   }
 
   return (
-    <Table className="w-full text-sm min-w-160">
+    <Table className="w-full text-sm">
       <TableHeader>
         <TableRow className="border-b border-zinc-200 bg-primary/10 hover:bg-primary/10 odd:bg-primary/10 even:bg-primary/10">
-          <TableHead className="w-12 text-center">#</TableHead>
-          <SortHead col="pattern_name" label="Name"     currentSort={sortBy} currentOrder={sortOrder} onSort={onSort} />
-          <SortHead col="brand_name"   label="Brand"    currentSort={sortBy} currentOrder={sortOrder} onSort={onSort} />
-          {/* <TableHead>Collection</TableHead> */}
-          {/* <SortHead col="variant_count" label="Variants" ... /> */}{/* VARIANTS DISABLED */}
-          <TableHead>Load Index</TableHead>
-          <TableHead>Stock</TableHead>
-          <SortHead col="show_on_website" label="Status" currentSort={sortBy} currentOrder={sortOrder} onSort={onSort} />
-          <SortHead col="updated_at"   label="Updated"  currentSort={sortBy} currentOrder={sortOrder} onSort={onSort} />
-          <TableHead className="w-10"><span className="sr-only">Actions</span></TableHead>
+          <TableHead className="w-10 px-5 py-3">
+            {selected && onSelect && (
+              <input
+                type="checkbox"
+                checked={displayed.length > 0 && selected.size === displayed.length}
+                ref={el => { if (el) el.indeterminate = selected.size > 0 && selected.size < displayed.length }}
+                onChange={e => {
+                  if (e.target.checked) onSelect(new Set(displayed.map(p => p.id)))
+                  else onSelect(new Set())
+                }}
+                className="rounded border-zinc-300 text-primary focus:ring-primary h-4 w-4 transition-all"
+              />
+            )}
+          </TableHead>
+          <TableHead className="w-44">SKU</TableHead>
+          <SortHead col="pattern_name" label="Name" currentSort={sortBy} currentOrder={sortOrder} onSort={onSort} />
+          <SortHead col="brand_name" label="Brand" currentSort={sortBy} currentOrder={sortOrder} onSort={onSort} />
+          <TableHead className="w-16 text-center">Sizes</TableHead>
+          <TableHead className="w-36">Load Index</TableHead>
+          <TableHead className="w-24">Stock</TableHead>
+          <TableHead className="w-20">Active</TableHead>
+          <SortHead col="show_on_website" label="Website" currentSort={sortBy} currentOrder={sortOrder} onSort={onSort} />
+          <TableHead className="w-20 text-right">Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody className="divide-y divide-zinc-200">
         {displayed.map((p, i) => (
-          <TableRow key={p.id}>
-            <TableCell className="text-center text-xs text-zinc-400 font-mono">{i + 1}</TableCell>
+          <TableRow key={p.id} className={selected?.has(p.id) ? '!bg-amber-50/30' : ''}>
+            <TableCell className="px-5 py-3">
+              {selected && onSelect && (
+                <input
+                  type="checkbox"
+                  checked={selected.has(p.id)}
+                  onChange={e => {
+                    const next = new Set(selected)
+                    if (e.target.checked) next.add(p.id)
+                    else next.delete(p.id)
+                    onSelect(next)
+                  }}
+                  className="rounded border-zinc-300 text-primary focus:ring-primary h-4 w-4 transition-all"
+                />
+              )}
+            </TableCell>
+            <TableCell className="w-44">
+              {p.firstSku
+                ? <span className="text-xs font-mono font-medium text-zinc-700 whitespace-nowrap">{p.firstSku}</span>
+                : <span className="text-xs text-zinc-400">—</span>
+              }
+            </TableCell>
             <TableCell>
               <Link href={`/admin/products/${p.id}`} className="flex items-center gap-2.5 group">
                 {p.image ? (
@@ -322,37 +340,30 @@ export default function ProductsTable({
                 <span className="font-bold text-primary group-hover:underline">{p.name}</span>
               </Link>
             </TableCell>
-            <TableCell className="text-muted-foreground">{p.brand}</TableCell>
-            {/* <TableCell className="text-muted-foreground">{p.collection ?? '—'}</TableCell> */}
-            {/* VARIANTS DISABLED — variant count cell hidden
-            <TableCell>
-              <span className="font-medium text-foreground">{p.variantCount}</span>
-              {p.activeVariants < p.variantCount && (
-                <span className="ml-1 text-xs text-muted-foreground">({p.activeVariants} active)</span>
-              )}
-            </TableCell>
-            */}
-            <TableCell>
-              {(p.loadIndexes ?? []).length > 0
-                ? <span className="text-xs font-medium text-zinc-700">{(p.loadIndexes ?? []).join(' · ')}</span>
+            <TableCell className="text-muted-foreground text-sm whitespace-nowrap">{p.brand}</TableCell>
+            <TableCell className="w-16 text-center">
+              {p.variantCount > 0
+                ? <span className="inline-flex items-center justify-center rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">{p.variantCount}</span>
                 : <span className="text-xs text-zinc-400">—</span>
               }
             </TableCell>
-            <TableCell>
+            <TableCell className="w-36">
+              {(p.loadIndexes ?? []).length > 0
+                ? <LoadIndexCell values={p.loadIndexes} />
+                : <span className="text-xs text-zinc-400">—</span>
+              }
+            </TableCell>
+            <TableCell className="w-24">
               {p.totalStock > 0
                 ? <span className="text-xs font-semibold text-green-700">{p.totalStock} units</span>
                 : <span className="text-xs text-zinc-400">No stock</span>
               }
             </TableCell>
-            <TableCell>
-              <InlinePublishToggle
-                productId={p.id}
-                initial={p.showOnWebsite}
-                onToggled={onPublishToggle}
-              />
+            <TableCell className="w-20">
+              <BoolToggle productId={p.id} initial={p.isActive} field="active" onToggled={onPublishToggle} />
             </TableCell>
-            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-              {relativeDate(p.updatedAt)}
+            <TableCell>
+              <BoolToggle productId={p.id} initial={p.showOnWebsite} field="publish" onToggled={onPublishToggle} />
             </TableCell>
             <TableCell className="text-right">
               <ProductRowMenu product={p} />

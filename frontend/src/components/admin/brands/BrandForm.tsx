@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { toastPromise, toastError } from '@/lib/toast'
 import { uploadProductImage } from '@/lib/upload-image'
@@ -53,11 +52,13 @@ function slugify(s: string) {
 }
 
 interface Props {
-  brandId?: string
-  initial: BrandFormState
+  brandId?:   string
+  initial:    BrandFormState
+  onSuccess?: () => void
+  onCancel?:  () => void
 }
 
-export default function BrandForm({ brandId, initial }: Props) {
+export default function BrandForm({ brandId, initial, onSuccess, onCancel }: Props) {
   const router = useRouter()
   const [form, setForm]           = useState<BrandFormState>(initial)
   const [saving, setSaving]       = useState(false)
@@ -133,7 +134,7 @@ export default function BrandForm({ brandId, initial }: Props) {
         success: isEdit ? 'Brand updated'  : 'Brand created',
         error:   (err: unknown) => err instanceof Error ? err.message : 'Failed to save brand',
       })
-      router.push('/admin/products/brands')
+      if (onSuccess) onSuccess(); else router.push('/admin/products/brands')
     } catch {
       // error shown by toastPromise
     } finally {
@@ -144,21 +145,25 @@ export default function BrandForm({ brandId, initial }: Props) {
   const inp = 'w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-colors'
   const lbl = 'block text-xs font-semibold text-zinc-600 mb-1.5'
 
+  const inSheet = Boolean(onSuccess ?? onCancel)
+
   return (
-    <div className="p-4 sm:p-6 max-w-4xl">
-      <div className="mb-6">
-        <AdminBreadcrumb crumbs={[
-          { label: 'Products',  href: '/admin/products' },
-          { label: 'Brands',    href: '/admin/products/brands' },
-          { label: isEdit ? 'Edit Brand' : 'New Brand' },
-        ]} />
-        <div className="mt-4">
-          <h1 className="text-2xl font-bold text-zinc-900">{isEdit ? 'Edit Brand' : 'New Brand'}</h1>
-          <p className="text-sm text-zinc-500 mt-1">
-            {isEdit ? 'Update brand identity, media, and SEO settings.' : 'Add a new tyre brand to the catalogue.'}
-          </p>
+    <div className={inSheet ? '' : 'p-4 sm:p-6 max-w-4xl'}>
+      {!inSheet && (
+        <div className="mb-6">
+          <AdminBreadcrumb crumbs={[
+            { label: 'Products',  href: '/admin/products' },
+            { label: 'Brands',    href: '/admin/products/brands' },
+            { label: isEdit ? 'Edit Brand' : 'New Brand' },
+          ]} />
+          <div className="mt-4">
+            <h1 className="text-2xl font-bold text-zinc-900">{isEdit ? 'Edit Brand' : 'New Brand'}</h1>
+            <p className="text-sm text-zinc-500 mt-1">
+              {isEdit ? 'Update brand identity, media, and SEO settings.' : 'Add a new tyre brand to the catalogue.'}
+            </p>
+          </div>
         </div>
-      </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
 
@@ -336,7 +341,7 @@ export default function BrandForm({ brandId, initial }: Props) {
 
         {/* ── Actions ──────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between gap-4 pb-8">
-          <button type="button" onClick={() => router.back()}
+          <button type="button" onClick={() => onCancel ? onCancel() : router.back()}
             className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-5 py-2.5 text-sm font-medium text-zinc-600 hover:border-zinc-300 hover:text-zinc-900 transition-colors">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />

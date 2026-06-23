@@ -22,6 +22,11 @@ interface ExistingSku {
   tyre_size_display: string
   status: string
   total_available_stock: number
+  width: number | null
+  profile: number | null
+  rim_size: number | null
+  load_index: string | null
+  speed_rating: string | null
 }
 
 export default function EditProductPage() {
@@ -29,6 +34,7 @@ export default function EditProductPage() {
 
   const [initialData, setInitialData] = useState<EditProductFormValues | null>(null)
   const [existingSkus, setExistingSkus] = useState<ExistingSku[]>([])
+  const [patternInfo, setPatternInfo] = useState<{ name: string; brandName: string } | null>(null)
   const [meta, setMeta]   = useState<Meta>({ brands: [], collections: [], categories: [], patterns: [] })
   const [warehouses, setWarehouses] = useState<{ warehouse_id: string; warehouse_name: string }[]>([])
   const [loading, setLoading] = useState(true)
@@ -66,12 +72,17 @@ export default function EditProductPage() {
           : []
 
         const p = productJson.pattern
-        const skus: ExistingSku[] = (productJson.skus ?? []).map((s: ExistingSku) => ({
+        const skus: ExistingSku[] = (productJson.skus ?? []).map((s: any) => ({
           product_id:            s.product_id,
           sku:                   s.sku,
           tyre_size_display:     s.tyre_size_display,
           status:                s.status,
           total_available_stock: s.total_available_stock ?? 0,
+          width:                 s.width ?? null,
+          profile:               s.profile ?? null,
+          rim_size:              s.rim_size ?? null,
+          load_index:            s.load_index ?? null,
+          speed_rating:          s.speed_rating ?? null,
         }))
 
         // Map API pattern → form values
@@ -163,6 +174,7 @@ export default function EditProductPage() {
         if (!cancelled) {
           setInitialData(formValues)
           setExistingSkus(skus)
+          setPatternInfo({ name: p.pattern_name ?? '', brandName: p.brands?.brand_name ?? '' })
           setMeta(metaJson)
           setWarehouses(Array.isArray(whJson) ? whJson : [])
         }
@@ -202,6 +214,8 @@ export default function EditProductPage() {
       categories={meta.categories}
       warehouses={warehouses}
       patterns={meta.patterns}
+      existingSkus={existingSkus}
+      patternInfo={patternInfo ?? undefined}
     />
   )
 }

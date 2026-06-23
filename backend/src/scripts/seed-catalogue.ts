@@ -87,6 +87,32 @@ function mapSeason(s: string): 'summer' | 'winter' | 'all_season' | null {
   return null
 }
 
+function mapAutoClass(autoClass: string): string | null {
+  const lc = (autoClass ?? '').toLowerCase().trim()
+  if (!lc) return null
+  // Stored as-is — performance_category is TEXT so the raw segment value is useful
+  return lc
+}
+
+function mapTruckAxle(axle: string): string | null {
+  switch ((axle ?? '').toLowerCase().trim()) {
+    case 'steer': case 'front': return 'steer'
+    case 'drive': case 'rear':  return 'drive'
+    case 'trailer':             return 'trailer'
+    case 'all_position': case 'all': return 'all_position'
+    default: return null
+  }
+}
+
+function buildTags(row: BrandsCsvRow): string[] | null {
+  const tags: string[] = []
+  const truthy = (v: string) => ['yes', 'on', '1', 'true', 'green'].includes((v ?? '').toLowerCase().trim())
+  if (truthy(row.stud))  tags.push('studded')
+  if (truthy(row.green)) tags.push('eco')
+  if (truthy(row.oe))    tags.push('oe')
+  return tags.length > 0 ? tags : null
+}
+
 function parseCsv<T extends Record<string, string>>(filePath: string): T[] {
   const content = fs.readFileSync(filePath, 'utf8')
   const result  = Papa.parse<T>(content, {
@@ -133,6 +159,12 @@ interface BrandsCsvRow {
   year:           string
   season:         string
   car_type:       string
+  auto_class:     string   // vehicle segment: mid_family, suv, sport, luxury, economy …
+  moto_type:      string   // motorcycle sub-type: cruiser | motocross | scooter | sport … | 'no'
+  truck_axle:     string   // steer | drive | trailer | '' | 'no'
+  stud:           string   // studded capability: 'yes' | '' | 'no'
+  green:          string   // eco flag: 'green' | '' | 'yes'
+  oe:             string   // original equipment flag: 'yes' | '' | 'no'
   vendor_url:     string
   model_url:      string
   photo:          string
@@ -218,6 +250,9 @@ interface PatternInsert {
   main_image:                string | null
   application_type:          'PCR' | '4x4' | 'TBR'
   season_type:               'summer' | 'winter' | 'all_season' | null
+  performance_category:      string | null
+  position_category:         string | null
+  tags:                      string[] | null
   is_active:                 boolean
   show_on_website:           boolean
 }
@@ -227,16 +262,23 @@ async function seedPatterns(
   brandMap: Map<string, string>,
   limit:    number,
 ): Promise<Map<string, string>> {
-  const deduped = new Map<string, PatternInsert>()
+  const deduped   = new Map<string, PatternInsert>()
+  const slugTaken = new Set<string>() // tracks brand_id:slug combos already claimed
 
   for (const row of rows) {
     const brandId     = brandMap.get(row.vendor_name?.trim())
     const patternName = row.model_name?.trim()
     if (!brandId || !patternName) continue
 
-    const slug = row.model_url?.trim() ? toSlug(row.model_url) : toSlug(patternName)
-    const key  = `${brandId}:${slug}`
+    // Dedup key: vendor_id:model_id is always unique per model
+    const key = `${row.vendor_id}:${row.model_id}`
     if (deduped.has(key)) continue
+
+    // If two models share the same brand+slug, suffix the second with model_id
+    const baseSlug     = row.model_url?.trim() ? toSlug(row.model_url) : toSlug(patternName)
+    const brandSlugKey = `${brandId}:${baseSlug}`
+    const slug         = slugTaken.has(brandSlugKey) ? `${baseSlug}-${row.model_id}` : baseSlug
+    slugTaken.add(brandSlugKey)
 
     deduped.set(key, {
       brand_id:                  brandId,
@@ -246,6 +288,9 @@ async function seedPatterns(
       main_image:                row.photo?.trim() ? `${CDN_BASE}${row.photo.trim()}` : null,
       application_type:          mapCarType(row.car_type),
       season_type:               mapSeason(row.season),
+      performance_category:      mapAutoClass(row.auto_class),
+      position_category:         mapTruckAxle(row.truck_axle),
+      tags:                      buildTags(row),
       is_active:                 true,
       show_on_website:           true,
     })
@@ -306,7 +351,9 @@ async function seedSkus(
     if (!brandId) { skipped++; continue }
 
     const patternSlug = row.model_url?.trim() ? toSlug(row.model_url) : toSlug(modelName)
+    // Fall back to model_id-suffixed slug for the 5 known collision cases
     const patternId   = patternMap.get(`${brandId}:${patternSlug}`)
+                     ?? patternMap.get(`${brandId}:${patternSlug}-${row.model_id}`)
     if (!patternId) { skipped++; continue }
 
     const w = parseFloat(row.width)
@@ -332,19 +379,24 @@ async function seedSkus(
       ((li ?? '') + (sr ?? '')).toLowerCase() || 'xx',
     ].join('-').replace(/[^a-z0-9-]/g, '')
 
+    const rawEanVal = rawEan && rawEan !== '0' ? rawEan : null
+
     const record = {
       brand_id:              brandId,
       pattern_id:            patternId,
       sku,
+      barcode_ean:           rawEanVal,
       tyre_size_display:     sizeDisplay,
       normalized_size_code:  sizePart,
       width:                 w,
       profile:               p,
       rim_size:              d,
+      construction_type:     'R',
       load_index:            li,
       speed_rating:          sr,
       runflat:               row.rof_flag === 'on',
       xl_reinforced:         row.xl_flag  === 'on',
+      load_range:            row.c_flag   === 'on' ? 'C' : null,
       fuel_rating:           row.eu_label_fuel?.trim()  || null,
       wet_grip:              row.eu_label_wet?.trim()   || null,
       noise_db:              row.eu_label_noise?.trim() || null,
@@ -452,7 +504,10 @@ async function seedGenerations(genCsvPath: string, skusCsvPath: string): Promise
     ].join('-').replace(/[^a-z0-9-]/g, '')
 
     if (!modelSizeToSlug.has(modelId)) modelSizeToSlug.set(modelId, new Map())
-    modelSizeToSlug.get(modelId)!.set(sizePart, productSlug)
+    // First occurrence wins — mirrors the dedup logic in seedSkus so slugs stay in sync
+    if (!modelSizeToSlug.get(modelId)!.has(sizePart)) {
+      modelSizeToSlug.get(modelId)!.set(sizePart, productSlug)
+    }
   }
 
   // For each generation pair, match by size and update replacement_product_id
@@ -503,6 +558,7 @@ async function seedGenerations(genCsvPath: string, skusCsvPath: string): Promise
     newIds.push(newId)
   }
 
+  console.log(`  Slugs resolved in DB: ${slugToId.size.toLocaleString()} / ${allSlugs.length.toLocaleString()}`)
   console.log(`  Linking ${prevIds.length.toLocaleString()} pairs via RPC batches...`)
   const RPC_BATCH = 500
   for (let i = 0; i < prevIds.length; i += RPC_BATCH) {

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import StorefrontShell from '@/components/storefront/StorefrontShell'
-import FooterSection from '@/components/home/FooterSection'
+import FooterSection from '@/components/home/FooterWrapper'
 import CartDrawer from '@/components/storefront/CartDrawer'
 import { Toaster } from '@/components/ui/sonner'
 import { ReactQueryProvider } from '@/lib/query/client'
