@@ -50,9 +50,10 @@ const EMPTY_ORDER_STATS: OrderStats = { totalOrders: 0, totalRevenue: 0, avgOrde
 type Props = {
   initialOrderStats?: OrderStats
   initialOrders?:     OrderListResponse
+  userName?:          string
 }
 
-export default function DashboardClient({ initialOrderStats, initialOrders }: Props) {
+export default function DashboardClient({ initialOrderStats, initialOrders, userName }: Props) {
   const orderStatsQ = useOrderStats({ initialData: initialOrderStats })
   const ordersQ     = useOrderList(
     { page: 1, search: '', paymentStatus: '', fulfillmentStatus: '' },
@@ -107,7 +108,9 @@ export default function DashboardClient({ initialOrderStats, initialOrders }: Pr
             <Sparkles className="w-4 h-4 text-zinc-900" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-zinc-900 leading-tight">Dashboard</h1>
+            <h1 className="text-xl font-bold text-zinc-900 leading-tight">
+              {userName ? `Welcome back, ${userName}` : 'Dashboard'}
+            </h1>
             <p className="text-xs text-zinc-500">Here&apos;s what&apos;s happening today.</p>
           </div>
         </div>

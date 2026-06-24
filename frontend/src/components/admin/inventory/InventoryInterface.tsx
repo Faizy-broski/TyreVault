@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { RefreshCw, Search, Loader2 } from 'lucide-react'
+import { RefreshCw, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { toastError } from '@/lib/toast'
+import { BoxSpinner, Spinner } from '@/components/ui/table-loader'
 import InventoryProductRow from './InventoryProductRow'
 import type { Supplier } from '@/types/admin.types'
 
@@ -152,7 +153,7 @@ export default function InventoryInterface({ suppliers, accessToken }: Props) {
                 }`}
               >
                 {active && fetching
-                  ? <Loader2 className="w-3 h-3 animate-spin shrink-0" />
+                  ? <Spinner className="w-3 h-3 shrink-0" />
                   : null}
                 {t.label}
               </button>
@@ -199,10 +200,7 @@ export default function InventoryInterface({ suppliers, accessToken }: Props) {
       {/* ── Product rows ─────────────────────────────────────────────── */}
       <div className="space-y-2">
         {initialising ? (
-          // First load — show skeleton (no data yet)
-          Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-16 bg-zinc-100 rounded-xl animate-pulse" />
-          ))
+          <BoxSpinner minHeight={400} />
         ) : rows.length === 0 && !fetching ? (
           <div className="rounded-xl border border-zinc-200 bg-white py-16 text-center">
             <p className="text-sm font-medium text-zinc-700">No products found</p>
@@ -211,17 +209,23 @@ export default function InventoryInterface({ suppliers, accessToken }: Props) {
             </p>
           </div>
         ) : (
-          // Keep previous rows visible while tab/filter switch is in-flight
-          <div className={`space-y-2 transition-opacity duration-150 ${fetching ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
-            {rows.map(row => (
-              <InventoryProductRow
-                key={row.product_id}
-                row={row}
-                accessToken={accessToken}
-                onApproved={onApproved}
-                onRemoved={onRemoved}
-              />
-            ))}
+          <div className="relative">
+            {fetching && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 rounded-xl">
+                <Spinner className="w-8 h-8" />
+              </div>
+            )}
+            <div className={`space-y-2 transition-opacity duration-150 ${fetching ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+              {rows.map(row => (
+                <InventoryProductRow
+                  key={row.product_id}
+                  row={row}
+                  accessToken={accessToken}
+                  onApproved={onApproved}
+                  onRemoved={onRemoved}
+                />
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -231,7 +235,7 @@ export default function InventoryInterface({ suppliers, accessToken }: Props) {
         <div className="flex items-center justify-between text-xs text-zinc-400">
           <span>
             {fetching
-              ? <span className="flex items-center gap-1.5"><Loader2 className="w-3 h-3 animate-spin" /> Loading…</span>
+              ? <span className="flex items-center gap-1.5"><Spinner className="w-3.5 h-3.5" /> Loading…</span>
               : `Showing ${rows.length} of ${total} products`}
           </span>
           {totalPages > 1 && (

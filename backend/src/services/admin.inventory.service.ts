@@ -133,7 +133,7 @@ export async function getInventoryMappings({
 
   const productIds = skus.map(s => s.product_id)
 
-  // ── Step 3: Supplier mappings for this page of products (RIGHT side) ──────
+  // ── Steps 3‑5: Run in parallel — all take the same productIds, no inter-dependency ──
   let mapsQ = supabase
     .from('supplier_product_map')
     .select(`
@@ -155,10 +155,6 @@ export async function getInventoryMappings({
 
   if (supplierId) mapsQ = mapsQ.eq('supplier_id', supplierId)
 
-  const { data: maps, error: mapsErr } = await mapsQ
-  if (mapsErr) throw new Error(`inventory maps: ${mapsErr.message}`)
-
-  // ── Step 4: Synced stock ──────────────────────────────────────────────────
   let stockQ = supabase
     .from('supplier_product_stock')
     .select('supplier_id, product_id, available_stock, supplier_price, stock_last_updated')
@@ -166,13 +162,20 @@ export async function getInventoryMappings({
 
   if (supplierId) stockQ = stockQ.eq('supplier_id', supplierId)
 
-  const { data: stocks } = await stockQ
+  const [
+    { data: maps,      error: mapsErr },
+    { data: stocks                    },
+    { data: ownStocks                 },
+  ] = await Promise.all([
+    mapsQ,
+    stockQ,
+    supabase
+      .from('product_stock')
+      .select('product_id, available_stock')
+      .in('product_id', productIds),
+  ])
 
-  // ── Step 5: Own warehouse stock ───────────────────────────────────────────
-  const { data: ownStocks } = await supabase
-    .from('product_stock')
-    .select('product_id, available_stock')
-    .in('product_id', productIds)
+  if (mapsErr) throw new Error(`inventory maps: ${mapsErr.message}`)
 
   // ── Step 6: Build lookups ─────────────────────────────────────────────────
   const mapsByProduct = new Map<string, typeof maps>()
