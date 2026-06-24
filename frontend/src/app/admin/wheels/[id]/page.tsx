@@ -15,7 +15,7 @@ import { Pencil, Trash2, Plus, Save } from 'lucide-react'
 import { toastSuccess, toastError } from '@/lib/toast'
 import type { AdminWheelDetail, AdminWheelVariant, WheelBrand, WheelStyleCategory } from '@/types/admin.types'
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 const STYLE_CATEGORY_OPTIONS: { value: WheelStyleCategory; label: string }[] = [
   { value: '4x4',        label: '4x4 / Off-Road' },

@@ -11,7 +11,7 @@ import { toastPromise, toastError } from '@/lib/toast'
 import { uploadProductImage } from '@/lib/upload-image'
 import { CreatableCombobox } from '@/components/ui/CreatableCombobox'
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 const CATEGORY_TYPES = ['season', 'application', 'performance', 'position', 'terrain'] as const
 type CategoryType = typeof CATEGORY_TYPES[number]

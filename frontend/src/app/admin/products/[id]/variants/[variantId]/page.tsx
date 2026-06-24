@@ -12,7 +12,7 @@ import StockTab from '@/components/admin/products/StockTab'
 import InternalStockSection from '@/components/admin/products/InternalStockSection'
 import SupplierMappingSection from '@/components/admin/products/SupplierMappingSection'
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 export default function VariantDetailPage() {
   const { id, variantId } = useParams<{ id: string; variantId: string }>()

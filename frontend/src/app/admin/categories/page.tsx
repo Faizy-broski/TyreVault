@@ -16,7 +16,7 @@ import { toastSuccess, toastError } from '@/lib/toast'
 import type { Category } from '@/types/admin.types'
 import { uploadProductImage } from '@/lib/upload-image'
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 const CATEGORY_TYPES = [
   { value: 'season',      label: 'Season' },

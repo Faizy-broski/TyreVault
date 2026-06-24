@@ -18,7 +18,7 @@ import type {
 import type { FitterPricingRow } from '@/types/fitter.types'
 import { toastError } from '@/lib/toast'
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 async function apiFetch<T>(path: string, token: string): Promise<T> {
   const res = await fetch(`${API}${path}`, { headers: { Authorization: `Bearer ${token}` } })

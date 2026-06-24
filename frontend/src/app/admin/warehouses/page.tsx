@@ -18,7 +18,7 @@ import { toastSuccess, toastError } from '@/lib/toast'
 import type { Warehouse } from '@/types/admin.types'
 import { BoxSpinner } from '@/components/ui/table-loader'
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 const TYPE_COLOURS: Record<string, string> = {
   own:      'bg-green-50 text-green-700',

@@ -1139,7 +1139,7 @@ export async function deleteBrand(id: string) {
 
 export async function listPatterns(params: { page: number; limit: number; search?: string; brandId?: string; appType?: string }) {
   const { page, limit, search, brandId, appType } = params
-  const selectCols = 'pattern_id, brand_id, pattern_name, pattern_slug, application_type, season_type, terrain_type, is_active, show_on_website, main_image, created_at'
+  const selectCols = 'pattern_id, brand_id, pattern_name, pattern_slug, application_type, season_type, terrain_type, is_active, show_on_website, created_at'
   let q = supabase
     .from('patterns')
     .select(selectCols, { count: 'exact' })

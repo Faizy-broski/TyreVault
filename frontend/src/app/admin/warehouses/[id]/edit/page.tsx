@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { toastError, toastSuccess } from '@/lib/toast'
 import type { Warehouse, WarehouseType } from '@/types/admin.types'
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 const WAREHOUSE_TYPES: { value: WarehouseType; label: string }[] = [
   { value: 'own',      label: 'Own' },

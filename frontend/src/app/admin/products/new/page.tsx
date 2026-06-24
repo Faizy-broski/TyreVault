@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import CreateProductForm from '@/components/admin/products/CreateProductForm'
 import { toastError } from '@/lib/toast'
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 type Meta = {
   brands:      { brand_id: string; brand_name: string }[]

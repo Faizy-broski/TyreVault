@@ -8,7 +8,7 @@ import MappingInterface from '@/components/admin/suppliers/MappingInterface'
 import type { Supplier } from '@/types/admin.types'
 import { toastError } from '@/lib/toast'
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 export default function MappingPage() {
   const { id } = useParams<{ id: string }>()

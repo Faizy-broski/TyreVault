@@ -13,7 +13,7 @@ import { Plus, ChevronLeft, ChevronRight } from 'lucide-react'
 import { toastError } from '@/lib/toast'
 import type { AdminWheel, WheelBrand, WheelStyleCategory } from '@/types/admin.types'
 
-const API   = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API   = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 const LIMIT = 20
 
 const STYLE_CATEGORY_OPTIONS: { value: WheelStyleCategory; label: string }[] = [

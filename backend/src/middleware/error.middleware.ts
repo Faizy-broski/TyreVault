@@ -6,8 +6,10 @@ export function errorMiddleware(
   res: Response,
   _next: NextFunction
 ): void {
-  console.error(err.stack)
+  const message = err?.message ?? String(err)
+  const stack   = err?.stack   ?? message
+  console.error('[error]', stack)
   res.status(500).json({
-    error: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message,
+    error: process.env.NODE_ENV === 'production' ? 'Internal server error' : message,
   })
 }

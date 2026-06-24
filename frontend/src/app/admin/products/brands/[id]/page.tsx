@@ -10,7 +10,7 @@ import { toastError } from '@/lib/toast'
 import { Pencil, Plus, ChevronRight, ImageOff } from 'lucide-react'
 import type { Brand } from '@/types/admin.types'
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 const POSITIONING_COLOURS: Record<string, string> = {
   budget:     'bg-zinc-100 text-zinc-600',

@@ -6,7 +6,7 @@ import type { OrderStats, OrderListResponse } from '@/lib/query/hooks'
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Dashboard — Admin' }
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 const EMPTY_ORDER_STATS: OrderStats   = { totalOrders: 0, totalRevenue: 0, avgOrderSize: 0, pendingPayment: 0 }
 const EMPTY_ORDERS: OrderListResponse = { data: [], total: 0 }

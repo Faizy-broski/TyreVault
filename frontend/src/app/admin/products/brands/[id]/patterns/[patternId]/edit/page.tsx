@@ -7,7 +7,7 @@ import PatternForm, { EMPTY_PATTERN_FORM, type PatternFormState } from '@/compon
 import type { Brand } from '@/types/admin.types'
 import { toastError } from '@/lib/toast'
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function patternToForm(p: any): PatternFormState {

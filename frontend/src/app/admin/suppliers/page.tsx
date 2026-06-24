@@ -6,7 +6,7 @@ import type { Supplier } from '@/types/admin.types'
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Suppliers — Admin' }
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 export default async function AdminSuppliersPage() {
   const supabase = await createClient()

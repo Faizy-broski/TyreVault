@@ -7,7 +7,7 @@ import PromotionForm, { type PromotionFormValues } from '@/components/admin/prom
 import { createClient } from '@/lib/supabase/client'
 import { toastError } from '@/lib/toast'
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 export default function EditPromotionPage() {
   const { id } = useParams<{ id: string }>()

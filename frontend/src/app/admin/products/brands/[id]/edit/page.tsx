@@ -7,7 +7,7 @@ import BrandForm, { EMPTY_BRAND_FORM, type BrandFormState } from '@/components/a
 import type { Brand } from '@/types/admin.types'
 import { toastError } from '@/lib/toast'
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 function brandToForm(b: Brand): BrandFormState {
   return {

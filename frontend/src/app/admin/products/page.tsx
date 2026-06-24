@@ -6,7 +6,7 @@ import type { ProductListResponse } from '@/lib/query/hooks'
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Products — Admin' }
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 export default async function AdminProductsPage() {
   const supabase = await createClient()

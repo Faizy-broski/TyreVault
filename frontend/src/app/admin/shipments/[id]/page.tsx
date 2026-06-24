@@ -11,7 +11,7 @@ import { toastError, toastSuccess } from '@/lib/toast'
 import { Pencil, ArrowLeft } from 'lucide-react'
 import type { Shipment, ShipmentStatus, ClearanceStatus, Warehouse } from '@/types/admin.types'
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 const STATUS_FLOW: ShipmentStatus[] = ['planned', 'shipped', 'arrived', 'received', 'cancelled']
 

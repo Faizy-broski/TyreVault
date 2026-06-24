@@ -15,7 +15,7 @@ import { Plus } from 'lucide-react'
 import { toastSuccess, toastError } from '@/lib/toast'
 import type { AdminShippingQuote, AdminShippingMethod, Warehouse } from '@/types/admin.types'
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 async function getToken() {
   const { data: { session } } = await createClient().auth.getSession()

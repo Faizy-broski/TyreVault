@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { getAdminToken } from '@/lib/admin-token'
 import { toastError } from '@/lib/toast'
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 function Field({ label, name, required, type = 'text', placeholder, step }: {
   label: string; name: string; required?: boolean

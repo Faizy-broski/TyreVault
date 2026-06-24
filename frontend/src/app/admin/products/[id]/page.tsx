@@ -11,7 +11,7 @@ import PublishToggle from '@/components/admin/products/PublishToggle'
 // import { VariantsTableActions, VariantRowMenu } from '@/components/admin/products/ProductActionsBar' // VARIANTS DISABLED
 import type { Pattern, SkuListItem } from '@/types/admin.types'
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 function Field({ label, value }: { label: string; value?: string | number | null }) {
   return (

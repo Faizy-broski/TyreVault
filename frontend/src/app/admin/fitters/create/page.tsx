@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { toastPromise } from '@/lib/toast'
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 const DEFAULT_HOURS = [
   { day: 'mon_fri',  label: 'Monday – Friday', isClosed: false, openTime: '08:00', closeTime: '17:00' },

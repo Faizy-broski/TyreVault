@@ -7,7 +7,7 @@ import EditProductForm from '@/components/admin/products/EditProductForm'
 import type { EditProductFormValues } from '@/components/admin/products/schema'
 import { toastError } from '@/lib/toast'
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 type Meta = {
   brands:      { brand_id: string; brand_name: string }[]

@@ -12,7 +12,7 @@ import { toastSuccess, toastError } from '@/lib/toast'
 import { useQueryClient } from '@tanstack/react-query'
 import { adminKeys } from '@/lib/query/keys'
 
-const API   = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API   = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 const LIMIT = 20
 
 async function getToken() {

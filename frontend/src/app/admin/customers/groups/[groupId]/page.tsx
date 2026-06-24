@@ -9,7 +9,7 @@ import { toastSuccess, toastError } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import type { CustomerGroup, CustomerListItem } from '@/types/admin.types'
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 type GroupWithMembers = CustomerGroup & { members: CustomerListItem[] }
 

@@ -316,7 +316,7 @@ const MASTER_STALE = 10 * 60_000
 export type AdminPattern = {
   pattern_id: string; brand_id: string; pattern_name: string; pattern_slug: string
   application_type: string; season_type: string | null; terrain_type: string | null
-  is_active: boolean; show_on_website: boolean; main_image: string | null; created_at: string
+  is_active: boolean; show_on_website: boolean; created_at: string
 }
 
 export type AdminCollection = {

@@ -8,7 +8,7 @@ import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { toastError } from '@/lib/toast'
 import type { Supplier } from '@/types/admin.types'
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 export default function EditSupplierPage() {
   const { id } = useParams<{ id: string }>()

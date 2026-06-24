@@ -7,7 +7,7 @@ import CustomerGroupsClient from '@/components/admin/customers/CustomerGroupsCli
 import type { CustomerGroup } from '@/types/admin.types'
 import { toastError } from '@/lib/toast'
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 export default function CustomerGroupsPage() {
   const searchParams = useSearchParams()

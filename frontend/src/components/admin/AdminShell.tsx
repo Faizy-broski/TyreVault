@@ -5,6 +5,7 @@ import AdminSidebar from './AdminSidebar'
 import AdminHeader from './AdminHeader'
 import { Toaster } from '@/components/ui/sonner'
 import { ReactQueryProvider } from '@/lib/query/client'
+import NavigationProgress from '@/components/NavigationProgress'
 
 interface Props {
   userEmail: string
@@ -50,6 +51,7 @@ export default function AdminShell({ userEmail, children }: Props) {
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
 
+      <NavigationProgress />
       <Toaster
         position="top-right"
         richColors

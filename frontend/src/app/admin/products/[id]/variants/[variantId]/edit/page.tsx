@@ -12,7 +12,7 @@ import InternalStockSection from '@/components/admin/products/InternalStockSecti
 import SupplierMappingSection from '@/components/admin/products/SupplierMappingSection'
 import type { Sku, ProductPrice } from '@/types/admin.types'
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 function Field({
   label, name, required, type = 'text', placeholder, step, defaultValue,

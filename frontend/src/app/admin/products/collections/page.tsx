@@ -13,7 +13,7 @@ import { useAdminCollections, type AdminCollection } from '@/lib/query/hooks'
 import { adminKeys } from '@/lib/query/keys'
 import { TableBodySpinner } from '@/components/ui/table-loader'
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 function slugify(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')

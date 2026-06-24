@@ -11,7 +11,7 @@ import { toastError, toastSuccess } from '@/lib/toast'
 import { Plus, Trash2 } from 'lucide-react'
 import type { Supplier, Warehouse } from '@/types/admin.types'
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 const CURRENCIES = ['AUD', 'USD', 'EUR', 'GBP', 'CNY', 'JPY']
 

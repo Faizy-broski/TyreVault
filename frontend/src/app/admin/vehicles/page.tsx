@@ -12,7 +12,7 @@ import { Plus, ChevronLeft, ChevronRight } from 'lucide-react'
 import { toastError } from '@/lib/toast'
 import type { AdminVehicle } from '@/types/admin.types'
 
-const API   = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API   = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 const LIMIT = 50
 
 

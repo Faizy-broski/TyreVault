@@ -15,7 +15,7 @@ import { useAdminBrandsAll, useAdminPatterns, type AdminPattern } from '@/lib/qu
 import { adminKeys } from '@/lib/query/keys'
 import { TableBodySpinner } from '@/components/ui/table-loader'
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 type PatternWithBrand = AdminPattern & { brand_name: string }
 
@@ -378,10 +378,6 @@ export default function PatternsPage() {
                   </td>
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-2.5">
-                      {p.main_image && (p.main_image.startsWith('http://') || p.main_image.startsWith('https://')) && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={p.main_image} alt="" className="h-8 w-8 object-contain rounded border border-zinc-200 bg-zinc-50 shrink-0" />
-                      )}
                       <div>
                         <p className="font-medium text-zinc-900">{p.pattern_name}</p>
                         <p className="text-xs text-zinc-400 font-mono">{p.pattern_slug}</p>
