@@ -42,17 +42,18 @@ export const fulfillmentWorker = new Worker<FulfillmentJobData>(
       throw new Error(`Cannot fetch order items for ${order_id}: ${error?.message}`)
     }
 
-    const plan: FulfillmentPlan[] = []
-
-    for (const item of items) {
-      const source = await routeItem(item.product_id, item.quantity)
-      plan.push({
-        order_item_id: item.order_item_id,
-        product_id: item.product_id,
-        quantity: item.quantity,
-        ...source,
+    // Route all items in parallel — was N×2 sequential queries, now 2 per item concurrently
+    const plan: FulfillmentPlan[] = await Promise.all(
+      items.map(async item => {
+        const source = await routeItem(item.product_id, item.quantity)
+        return {
+          order_item_id: item.order_item_id,
+          product_id: item.product_id,
+          quantity: item.quantity,
+          ...source,
+        }
       })
-    }
+    )
 
     // Write fulfillment plan back to order_items + reserve stock atomically
     await applyFulfillmentPlan(order_id, plan)
@@ -119,9 +120,9 @@ async function routeItem(product_id: string, quantity: number): Promise<{
 }
 
 async function applyFulfillmentPlan(order_id: string, plan: FulfillmentPlan[]): Promise<void> {
-  for (const item of plan) {
-    // Update order_item with fulfillment source
-    await supabase
+  // Update all order items in parallel instead of sequentially
+  const updatePromises = plan.map(item =>
+    supabase
       .from('order_items')
       .update({
         fulfilment_source: item.source,
@@ -130,14 +131,18 @@ async function applyFulfillmentPlan(order_id: string, plan: FulfillmentPlan[]): 
         reserved_qty: item.quantity,
       })
       .eq('order_item_id', item.order_item_id)
+  )
 
-    // Reserve stock from own warehouse
-    if (item.source === 'own_stock' && item.warehouse_id) {
-      await supabase.rpc('reserve_stock', {
+  // Reserve stock for own-warehouse items in parallel
+  const reservePromises = plan
+    .filter(item => item.source === 'own_stock' && item.warehouse_id)
+    .map(item =>
+      supabase.rpc('reserve_stock', {
         p_product_id: item.product_id,
-        p_warehouse_id: item.warehouse_id,
+        p_warehouse_id: item.warehouse_id!,
         p_quantity: item.quantity,
       })
-    }
-  }
+    )
+
+  await Promise.all([...updatePromises, ...reservePromises])
 }

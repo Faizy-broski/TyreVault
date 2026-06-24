@@ -226,9 +226,7 @@ export function useProductList(p: ProductListParams, opts?: { initialData?: Prod
       )
       return { total: raw.total, data: raw.data.map(normaliseProductRaw) }
     },
-    placeholderData: keepPreviousData,
-    initialData: opts?.initialData,
-    initialDataUpdatedAt: opts?.initialData ? Date.now() : undefined,
+    placeholderData: opts?.initialData ?? keepPreviousData,
   })
 }
 

@@ -3,11 +3,9 @@
 import { useState, useCallback } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { useQueryClient } from '@tanstack/react-query'
 import ProductsTable from '@/components/admin/products/ProductsTable'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { useProductList, useProductMeta, type ProductListResponse } from '@/lib/query/hooks'
-import { adminKeys } from '@/lib/query/keys'
 import { createClient } from '@/lib/supabase/client'
 import { toastPromise } from '@/lib/toast'
 import { BoxSpinner } from '@/components/ui/table-loader'
@@ -30,12 +28,12 @@ export default function ProductsClient({ initialProducts }: Props) {
   const searchParams = useSearchParams()
   const router       = useRouter()
   const pathname     = usePathname()
-  const queryClient  = useQueryClient()
 
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulkUpdating, setBulkUpdating] = useState(false)
 
   const search    = searchParams.get('search')    ?? ''
+
   const page      = Number(searchParams.get('page') ?? 1)
   const sortBy    = searchParams.get('sortBy')    ?? 'created_at'
   const sortOrder = (searchParams.get('sortOrder') as 'asc' | 'desc') ?? 'desc'
@@ -87,27 +85,14 @@ export default function ProductsClient({ initialProducts }: Props) {
     const { data: { session } } = await createClient().auth.getSession()
     const tok = session?.access_token ?? ''
     const ids = Array.from(selected)
-    
-    // Optimistic UI Update
-    queryClient.setQueriesData({ queryKey: ['admin', 'products', 'list'], exact: false }, (oldData: any) => {
-      if (!oldData || !oldData.data) return oldData
-      return {
-        ...oldData,
-        data: oldData.data.map((p: any) => 
-          selected.has(p.id) 
-            ? { ...p, [field === 'active' ? 'isActive' : 'showOnWebsite']: value } 
-            : p
-        )
-      }
-    })
 
-    const updatePromise = Promise.all(ids.map(pId => {
-      return fetch(`${API}/api/admin/products/${pId}/publish`, {
+    const updatePromise = Promise.all(ids.map(pId =>
+      fetch(`${API}/api/admin/products/${pId}/publish`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
         body: JSON.stringify({ [field]: value }),
       }).then(res => { if (!res.ok) throw new Error('Failed') })
-    }))
+    ))
 
     try {
       await toastPromise(updatePromise, {
@@ -115,10 +100,8 @@ export default function ProductsClient({ initialProducts }: Props) {
         success: `Updated ${ids.length} products successfully`,
         error: 'Failed to update some products'
       })
-      queryClient.invalidateQueries({ queryKey: ['admin', 'products', 'list'], exact: false })
-    } catch (err: unknown) {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'products', 'list'], exact: false })
     } finally {
+      await listQuery.refetch()
       setBulkUpdating(false)
       setSelected(new Set())
     }
@@ -279,7 +262,6 @@ export default function ProductsClient({ initialProducts }: Props) {
           <div className="overflow-x-auto">
             <ProductsTable
               products={products}
-              onPublishToggle={() => listQuery.refetch()}
               sortBy={sortBy}
               sortOrder={sortOrder}
               onSort={handleSort}

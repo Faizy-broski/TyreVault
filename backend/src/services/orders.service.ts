@@ -462,20 +462,10 @@ export async function createOrder(payload: CreateOrderPayload) {
   )
   if (itemsErr) return { data: null, error: itemsErr }
 
-  // 6. Decrement stock (read-modify-write; acceptable for MVP scale)
-  for (const item of payload.items) {
-    const { data: sku } = await db
-      .from('skus')
-      .select('total_available_stock')
-      .eq('product_id', item.product_id)
-      .maybeSingle()
-    if (sku) {
-      await db
-        .from('skus')
-        .update({ total_available_stock: Math.max(0, (sku.total_available_stock ?? 0) - item.quantity) })
-        .eq('product_id', item.product_id)
-    }
-  }
+  // 6. Decrement stock — single batch UPDATE instead of N+1 read-modify-write loop
+  await db.rpc('decrement_stock_batch', {
+    p_items: payload.items.map(i => ({ product_id: i.product_id, quantity: i.quantity })),
+  })
 
   // 7. Payment record
   await db.from('order_payments').insert({

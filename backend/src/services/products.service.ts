@@ -297,85 +297,95 @@ export async function createProduct(payload: CreateProductPayload) {
     )
   }
 
-  // 3. Create SKUs + prices in parallel batches
-  const createdSkus: string[] = []
+  // 3. Batch-insert all SKUs in one round-trip, then batch prices and stock.
+  // Was: N×3 sequential queries. Now: 3 sequential queries regardless of variant count.
+  const gstRate = 0.1
 
-  for (let i = 0; i < payload.variants.length; i++) {
-    const v = payload.variants[i]
-    const p = payload.pricing[i] ?? {}
-
-    const normalizedSize = normalizeTyreSize(v.tyreSizeDisplay)
-
-    const { data: sku, error: skuErr } = await supabase
-      .from('skus')
-      .insert({
-        brand_id: payload.brandId,
-        pattern_id: patternId,
-        sku: v.sku,
-        tyre_size_display: v.tyreSizeDisplay,
-        normalized_size_code: normalizedSize,
-        width: v.width ?? null,
-        profile: v.profile ?? null,
-        rim_size: v.rimSize,
-        special_size: v.specialSize ?? null,
-        barcode_ean: v.barcodeEan ?? null,
-        lt_sizing: v.ltSizing ?? false,
-        construction_type: v.constructionType ?? null,
-        load_index: v.loadIndex ?? null,
-        load_speed_rating: v.loadSpeedRating ?? null,
-        speed_rating: v.speedRating ?? null,
-        fuel_rating: v.fuelRating ?? null,
-        wet_grip: v.wetGrip ?? null,
-        noise_db: v.noiseDb ?? null,
-        noise_class: v.noiseClass ?? null,
-        runflat: v.runflat,
-        xl_reinforced: v.xlReinforced ?? false,
-        ply_rating: v.plyRating ?? null,
-        load_range: v.loadRange ?? null,
-        sidewall: v.sidewall ?? null,
-        tube_type: v.tubeType ?? null,
-        country_of_origin: v.countryOfOrigin,
-        manufacturer_name: v.manufacturerName ?? null,
-        factory_name: v.factoryName ?? null,
-        factory_country: v.factoryCountry ?? null,
-        section_width: v.sectionWidth ?? null,
-        tread_depth: v.treadDepth ?? null,
-        tyre_weight: v.tyreWeight ?? null,
-        overall_diameter: v.overallDiameter ?? null,
-        max_load: v.maxLoad ?? null,
-        max_pressure: v.maxPressure ?? null,
-        e_mark: v.eMark ?? null,
-        dot_code: v.dotCode ?? null,
-        utqg: v.utqg ?? null,
-        variant_images: v.variantImages ?? [],
-        status: v.status ?? 'active',
-        replacement_product_id: v.replacementProductId ?? null,
-        compare_at_price: p.compareAtPrice ?? null,
-        cost_price: p.costPrice ?? null,
-        low_stock_alert: p.lowStockAlert ?? 10,
-        total_available_stock: 0,
+  const { data: createdSkuRows, error: skuErr } = await supabase
+    .from('skus')
+    .insert(
+      payload.variants.map((v, i) => {
+        const p = payload.pricing[i] ?? {}
+        return {
+          brand_id: payload.brandId,
+          pattern_id: patternId,
+          sku: v.sku,
+          tyre_size_display: v.tyreSizeDisplay,
+          normalized_size_code: normalizeTyreSize(v.tyreSizeDisplay),
+          width: v.width ?? null,
+          profile: v.profile ?? null,
+          rim_size: v.rimSize,
+          special_size: v.specialSize ?? null,
+          barcode_ean: v.barcodeEan ?? null,
+          lt_sizing: v.ltSizing ?? false,
+          construction_type: v.constructionType ?? null,
+          load_index: v.loadIndex ?? null,
+          load_speed_rating: v.loadSpeedRating ?? null,
+          speed_rating: v.speedRating ?? null,
+          fuel_rating: v.fuelRating ?? null,
+          wet_grip: v.wetGrip ?? null,
+          noise_db: v.noiseDb ?? null,
+          noise_class: v.noiseClass ?? null,
+          runflat: v.runflat,
+          xl_reinforced: v.xlReinforced ?? false,
+          ply_rating: v.plyRating ?? null,
+          load_range: v.loadRange ?? null,
+          sidewall: v.sidewall ?? null,
+          tube_type: v.tubeType ?? null,
+          country_of_origin: v.countryOfOrigin,
+          manufacturer_name: v.manufacturerName ?? null,
+          factory_name: v.factoryName ?? null,
+          factory_country: v.factoryCountry ?? null,
+          section_width: v.sectionWidth ?? null,
+          tread_depth: v.treadDepth ?? null,
+          tyre_weight: v.tyreWeight ?? null,
+          overall_diameter: v.overallDiameter ?? null,
+          max_load: v.maxLoad ?? null,
+          max_pressure: v.maxPressure ?? null,
+          e_mark: v.eMark ?? null,
+          dot_code: v.dotCode ?? null,
+          utqg: v.utqg ?? null,
+          variant_images: v.variantImages ?? [],
+          status: v.status ?? 'active',
+          replacement_product_id: v.replacementProductId ?? null,
+          compare_at_price: p.compareAtPrice ?? null,
+          cost_price: p.costPrice ?? null,
+          low_stock_alert: p.lowStockAlert ?? 10,
+          total_available_stock: 0,
+        }
       })
-      .select('product_id')
-      .single()
+    )
+    .select('product_id')
 
-    if (skuErr) throw skuErr
-    createdSkus.push(sku.product_id)
+  if (skuErr) throw skuErr
 
-    // 4a. Create retail price record
-    if (p.priceIncGst) {
-      const gstRate = 0.1
-      await supabase.from('product_prices').insert({
+  const createdSkus = (createdSkuRows ?? []).map(r => r.product_id)
+
+  // 4a. Batch-insert all retail price rows
+  const priceRows = createdSkuRows!
+    .map((sku, i) => {
+      const p = payload.pricing[i] ?? {}
+      if (!p.priceIncGst) return null
+      return {
         product_id: sku.product_id,
-        price_type: 'retail',
+        price_type: 'retail' as const,
         price_inc_gst: p.priceIncGst,
         price_ex_gst: parseFloat((p.priceIncGst / (1 + gstRate)).toFixed(2)),
         is_active: true,
-      })
-    }
+      }
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null)
 
-    // 4b. Create initial stock row (if warehouse provided)
-    if (p.warehouseId && (p.inventory ?? 0) > 0) {
-      await supabase.from('product_stock').insert({
+  if (priceRows.length > 0) {
+    await supabase.from('product_prices').insert(priceRows)
+  }
+
+  // 4b. Batch-insert all initial stock rows
+  const stockRows = createdSkuRows!
+    .map((sku, i) => {
+      const p = payload.pricing[i] ?? {}
+      if (!p.warehouseId || (p.inventory ?? 0) <= 0) return null
+      return {
         product_id: sku.product_id,
         warehouse_id: p.warehouseId,
         available_stock: p.inventory ?? 0,
@@ -384,8 +394,12 @@ export async function createProduct(payload: CreateProductPayload) {
         in_transit_stock: 0,
         damaged_stock: 0,
         minimum_stock_level: p.lowStockAlert ?? 10,
-      })
-    }
+      }
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null)
+
+  if (stockRows.length > 0) {
+    await supabase.from('product_stock').insert(stockRows)
   }
 
   return { patternId, skuIds: createdSkus }

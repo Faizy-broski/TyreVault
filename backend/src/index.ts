@@ -9,6 +9,11 @@ import { errorMiddleware } from './middleware/error.middleware'
 const app = express()
 const PORT = process.env.PORT || 3001
 
+// EC2 is behind nginx/ALB — trust the first proxy hop so that
+// express-rate-limit reads the real client IP from X-Forwarded-For
+// instead of throwing a ValidationError and crashing the process.
+app.set('trust proxy', 1)
+
 // --- Security & compression ---
 app.use(helmet())
 app.use(compression())

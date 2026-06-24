@@ -8,6 +8,7 @@ import {
   ShoppingCart, Wrench, Lock, Tag, ChevronDown,
   Trash2, ChevronRight, Truck, ShieldCheck, RotateCcw, ImageOff
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { useCartStore } from '@/stores/cart.store'
 import FitterSelectionModal from '@/components/storefront/FitterSelectionModal'
 
@@ -50,11 +51,37 @@ export default function CartPage() {
   const [fitterModalOpen, setFitterModalOpen] = useState(false)
   const [promoOpen,       setPromoOpen]       = useState(false)
   const [promoCode,       setPromoCode]       = useState('')
+  const [isApplying,      setIsApplying]      = useState(false)
 
   const count      = itemCount()
   const tyresTotal = subtotal()
   const total      = grandTotal()
   const gst        = +(total / 11).toFixed(2)
+
+  async function handleApplyPromo() {
+    if (!promoCode.trim() || isApplying) return
+    setIsApplying(true)
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? ''
+      const res = await fetch(`${apiUrl}/api/promotions/validate-code`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: promoCode.trim() }),
+      })
+      if (!res.ok) {
+        toast.error('Invalid or expired promo code.')
+        return
+      }
+      const { discount } = await res.json()
+      toast.success(`Promo applied! You save ${fmt(discount)}.`)
+      setPromoCode('')
+      setPromoOpen(false)
+    } catch {
+      toast.error('Could not apply promo code. Please try again.')
+    } finally {
+      setIsApplying(false)
+    }
+  }
 
   if (items.length === 0) return <EmptyCart />
 
@@ -301,9 +328,11 @@ export default function CartPage() {
                       />
                       <button
                         type="button"
-                        className="rounded-lg bg-primary px-3 py-2 text-xs font-bold text-zinc-900 hover:bg-primary/90 transition-colors"
+                        onClick={handleApplyPromo}
+                        disabled={!promoCode.trim() || isApplying}
+                        className="rounded-lg bg-primary px-3 py-2 text-xs font-bold text-zinc-900 hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        Apply
+                        {isApplying ? 'Applying…' : 'Apply'}
                       </button>
                     </div>
                   )}

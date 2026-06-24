@@ -63,14 +63,14 @@ type Product = {
 
 // ── Inline bool toggle (Yes / No) ─────────────────────────────────────────
 
-function BoolToggle({ productId, initial, field, onToggled }: {
+function BoolToggle({ productId, initial, field }: {
   productId: string
   initial: boolean
   field: 'publish' | 'active'
-  onToggled: () => void
 }) {
   const [value, setValue] = useState(initial)
   const [busy, setBusy] = useState(false)
+  const queryClient = useQueryClient()
 
   async function set(next: boolean) {
     if (next === value || busy) return
@@ -84,7 +84,7 @@ function BoolToggle({ productId, initial, field, onToggled }: {
         body: JSON.stringify(field === 'publish' ? { publish: next } : { active: next }),
       })
       if (!res.ok) throw new Error('Failed')
-      onToggled()
+      queryClient.invalidateQueries({ queryKey: ['admin', 'products', 'list'] })
     } catch {
       setValue(!next)
       toastError('Update failed')
@@ -227,7 +227,6 @@ function SortHead({ col, label, currentSort, currentOrder, onSort }: {
 
 export default function ProductsTable({
   products,
-  onPublishToggle,
   sortBy,
   sortOrder,
   onSort,
@@ -235,7 +234,6 @@ export default function ProductsTable({
   onSelect,
 }: {
   products: Product[]
-  onPublishToggle: () => void
   sortBy: string
   sortOrder: 'asc' | 'desc'
   onSort: (col: string) => void
@@ -360,10 +358,10 @@ export default function ProductsTable({
               }
             </TableCell>
             <TableCell className="w-20">
-              <BoolToggle productId={p.id} initial={p.isActive} field="active" onToggled={onPublishToggle} />
+              <BoolToggle productId={p.id} initial={p.isActive} field="active" />
             </TableCell>
             <TableCell>
-              <BoolToggle productId={p.id} initial={p.showOnWebsite} field="publish" onToggled={onPublishToggle} />
+              <BoolToggle productId={p.id} initial={p.showOnWebsite} field="publish" />
             </TableCell>
             <TableCell className="text-right">
               <ProductRowMenu product={p} />
