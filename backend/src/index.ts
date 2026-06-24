@@ -17,8 +17,21 @@ app.set('trust proxy', 1)
 // --- Security & compression ---
 app.use(helmet())
 app.use(compression())
+const ALLOWED_ORIGINS = (process.env.FRONTEND_URL || 'http://localhost:3000')
+  .split(',')
+  .map(o => o.trim())
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, cb) => {
+    // Allow requests with no origin (server-to-server, curl, mobile apps)
+    if (!origin) return cb(null, true)
+    // Strip trailing slash/dot for comparison
+    const clean = origin.replace(/[./]+$/, '')
+    if (ALLOWED_ORIGINS.some(o => o.replace(/[./]+$/, '') === clean)) {
+      return cb(null, origin)  // Echo the exact origin back — avoids duplicate-header conflicts with nginx
+    }
+    cb(new Error(`CORS: origin ${origin} not allowed`))
+  },
   credentials: true,
 }))
 app.use(express.json({ limit: '10mb' }))
