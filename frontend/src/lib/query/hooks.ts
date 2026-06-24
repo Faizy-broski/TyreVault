@@ -1,6 +1,6 @@
 'use client'
 
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData, type QueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { fetchBackendJson } from '@/lib/backend-api'
 import { adminKeys } from './keys'
@@ -139,13 +139,13 @@ export function useCustomerList(p: CustomerListParams, opts?: { initialData?: Cu
 
 // ─── Products ─────────────────────────────────────────────────────────────────
 
-type Brand = { brand_id: string; brand_name: string }
+type ProductBrand = { brand_id: string; brand_name: string }
 type Pattern = { pattern_id: string; pattern_name: string; brand_id: string }
 
 export function useProductMeta() {
   return useQuery({
     queryKey: adminKeys.productMeta(),
-    queryFn: async () => fetchBackendJson<{ brands: Brand[]; patterns: Pattern[] }>('/api/admin/products/meta', await getToken()),
+    queryFn: async () => fetchBackendJson<{ brands: ProductBrand[]; patterns: Pattern[] }>('/api/admin/products/meta', await getToken()),
     staleTime: META_STALE,
   })
 }
@@ -410,5 +410,60 @@ export function useAdminSuppliers() {
       return Array.isArray(data) ? data : (data.data ?? [])
     },
     staleTime: 5 * 60_000,
+  })
+}
+
+// ─── Sidebar prefetch helpers ─────────────────────────────────────────────────
+// These mirror the queryFn logic of their respective hooks so the cache format
+// is identical — normalisation included.
+
+export async function prefetchDashboardPage(qc: QueryClient) {
+  const token = await getToken()
+  await Promise.all([
+    qc.prefetchQuery({ queryKey: adminKeys.orderStats(), staleTime: STATS_STALE, queryFn: () => fetchBackendJson<OrderStats>('/api/admin/orders/stats', token) }),
+    qc.prefetchQuery({ queryKey: adminKeys.orderList({ page: '1' }), queryFn: () => fetchBackendJson<OrderListResponse>('/api/admin/orders?page=1', token) }),
+  ])
+}
+
+export async function prefetchOrdersPage(qc: QueryClient) {
+  const token = await getToken()
+  await Promise.all([
+    qc.prefetchQuery({ queryKey: adminKeys.orderStats(), staleTime: STATS_STALE, queryFn: () => fetchBackendJson<OrderStats>('/api/admin/orders/stats', token) }),
+    qc.prefetchQuery({ queryKey: adminKeys.orderList({ page: '1' }), queryFn: () => fetchBackendJson<OrderListResponse>('/api/admin/orders?page=1', token) }),
+  ])
+}
+
+export async function prefetchCustomersPage(qc: QueryClient) {
+  const token = await getToken()
+  await Promise.all([
+    qc.prefetchQuery({ queryKey: adminKeys.customerStats(), staleTime: STATS_STALE, queryFn: () => fetchBackendJson<CustomerStats>('/api/admin/customers/stats', token) }),
+    qc.prefetchQuery({ queryKey: adminKeys.customerList({ page: '1' }), queryFn: () => fetchBackendJson<CustomerListResponse>('/api/admin/customers?page=1', token) }),
+  ])
+}
+
+export async function prefetchProductsPage(qc: QueryClient) {
+  const token = await getToken()
+  const qs = new URLSearchParams({ page: '1', sortBy: 'created_at', sortOrder: 'desc', limit: '20' })
+  await Promise.all([
+    qc.prefetchQuery({ queryKey: adminKeys.productMeta(), staleTime: META_STALE, queryFn: () => fetchBackendJson<{ brands: ProductBrand[]; patterns: Pattern[] }>('/api/admin/products/meta', token) }),
+    qc.prefetchQuery({
+      queryKey: adminKeys.productList(Object.fromEntries(qs)),
+      queryFn: async () => {
+        const raw = await fetchBackendJson<{ data: ProductRaw[]; total: number }>(`/api/admin/products?${qs}`, token)
+        return { total: raw.total, data: raw.data.map(normaliseProductRaw) }
+      },
+    }),
+  ])
+}
+
+export async function prefetchSuppliersPage(qc: QueryClient) {
+  const token = await getToken()
+  await qc.prefetchQuery({
+    queryKey: adminKeys.supplierList({}),
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const data = await fetchBackendJson<Supplier[] | { data?: Supplier[] }>('/api/admin/suppliers', token)
+      return Array.isArray(data) ? data : (data.data ?? [])
+    },
   })
 }

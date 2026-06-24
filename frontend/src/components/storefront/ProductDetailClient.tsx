@@ -3,8 +3,9 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { ShoppingCart, ChevronLeft, ImageOff } from 'lucide-react'
+import { ShoppingCart, ChevronLeft, ImageOff, Wrench } from 'lucide-react'
 import { useCartStore } from '@/stores/cart.store'
+import FitterSelectionModal from '@/components/storefront/FitterSelectionModal'
 
 interface Sibling {
   product_id:        string
@@ -107,6 +108,7 @@ function SpecRow({ label, value }: { label: string; value?: string | number | nu
 
 export default function ProductDetailClient({ product }: { product: Product }) {
   const [activeImg, setActiveImg] = useState(0)
+  const [fitterOpen, setFitterOpen] = useState(false)
   const { addItem, openCart } = useCartStore()
 
   const images = [
@@ -206,9 +208,6 @@ export default function ProductDetailClient({ product }: { product: Product }) {
               {product.pattern_name ?? product.sku}
             </h1>
             <p className="text-lg text-zinc-600 mt-0.5">{product.tyre_size_display}</p>
-            {product.pattern_short_description && (
-              <p className="text-sm text-zinc-500 mt-2 leading-relaxed" dangerouslySetInnerHTML={{ __html: product.pattern_short_description }} />
-            )}
           </div>
 
           {/* Feature pills */}
@@ -261,17 +260,38 @@ export default function ProductDetailClient({ product }: { product: Product }) {
               <ShoppingCart className="w-4 h-4" />
               {product.total_available_stock === 0 ? 'Out of Stock' : 'Add to Cart'}
             </button>
+            <button
+              type="button"
+              onClick={() => setFitterOpen(true)}
+              className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-zinc-200 py-3 text-sm font-semibold text-zinc-700 hover:border-primary hover:text-primary transition-colors"
+            >
+              <Wrench className="w-4 h-4" />
+              Choose a Fitter
+            </button>
           </div>
 
           {/* Size selector */}
           {product.siblings.length > 0 && (
-            <SizeSelector current={product} siblings={product.siblings} />
+            <div className="mt-8">
+              <SizeSelector current={product} siblings={product.siblings} />
+            </div>
           )}
         </div>
       </div>
 
+      {/* Description — full width below the image/info grid */}
+      {product.pattern_short_description && (
+        <div className="mt-10 rounded-2xl border border-zinc-200 bg-white p-6">
+          <h2 className="text-base font-semibold text-zinc-900 mb-3">About this tyre</h2>
+          <div
+            className="text-sm text-zinc-600 leading-relaxed space-y-2 [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1"
+            dangerouslySetInnerHTML={{ __html: product.pattern_short_description }}
+          />
+        </div>
+      )}
+
       {/* Specs */}
-      <div className="mt-12 rounded-2xl border border-zinc-200 bg-white p-6">
+      <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-6">
         <h2 className="text-base font-semibold text-zinc-900 mb-4">Specifications</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10">
           <SpecRow label="Width"              value={product.width ? `${product.width} mm` : null} />
@@ -286,11 +306,17 @@ export default function ProductDetailClient({ product }: { product: Product }) {
           <SpecRow label="Overall Diameter"   value={product.overall_diameter ? `${product.overall_diameter} mm` : null} />
           <SpecRow label="Tread Depth"        value={product.tread_depth ? `${product.tread_depth} mm` : null} />
           <SpecRow label="Tyre Weight"        value={product.tyre_weight ? `${product.tyre_weight} kg` : null} />
-          <SpecRow label="Country of Origin"  value={product.country_of_origin} />
+
           <SpecRow label="E-Mark"             value={product.e_mark} />
           <SpecRow label="UTQG"               value={product.utqg} />
         </div>
       </div>
+      <FitterSelectionModal
+        open={fitterOpen}
+        onClose={() => setFitterOpen(false)}
+        tyreQty={1}
+        cartSubtotal={product.retail_price ?? 0}
+      />
     </div>
   )
 }
@@ -313,7 +339,7 @@ function SizeSelector({ current, siblings }: { current: { tyre_size_display: str
 
   return (
     <div>
-      <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-2">All Sizes</p>
+      <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-3">All Sizes</p>
 
       <div className="flex flex-wrap gap-2">
         {/* Current size — always first */}
@@ -359,4 +385,3 @@ function SizeSelector({ current, siblings }: { current: { tyre_size_display: str
     </div>
   )
 }
-

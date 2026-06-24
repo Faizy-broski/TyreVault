@@ -28,10 +28,11 @@ const RichField = ({ name, label }: { name: 'tyreOverview' | 'features' | 'warra
   )
 }
 
-export default function BasicInfoTab({ autoSlug, brands, patterns = [] }: {
+export default function BasicInfoTab({ autoSlug, brands, patterns = [], onPatternApplied }: {
   autoSlug: string
   brands: { brand_id: string; brand_name: string }[]
   patterns?: { pattern_id: string; pattern_name: string; brand_id: string }[]
+  onPatternApplied?: (p: { id: string; name: string } | null) => void
 }) {
   const { register, watch, setValue, formState: { errors } } = useFormContext<CreateProductFormValues>()
   const brandId = watch('brandId')
@@ -88,7 +89,13 @@ export default function BasicInfoTab({ autoSlug, brands, patterns = [] }: {
         setValue('categoryIds', p.pattern_categories.map((c: { category_id: string }) => c.category_id))
       }
 
-      setAppliedPattern({ id: patternId, name: p.pattern_name ?? patternId })
+      if (Array.isArray(p.tags) && p.tags.length > 0)           setValue('tags', p.tags)
+      if (Array.isArray(p.faq_list) && p.faq_list.length > 0)  setValue('faqList', p.faq_list)
+      if (p.default_country_of_origin)                          setValue('defaultCountryOfOrigin', p.default_country_of_origin)
+
+      const applied = { id: patternId, name: p.pattern_name ?? patternId }
+      setAppliedPattern(applied)
+      onPatternApplied?.(applied)
     } catch (err) {
       toastError(err instanceof Error ? err.message : 'Failed to load pattern details')
       setAppliedPattern(null)
@@ -233,7 +240,7 @@ export default function BasicInfoTab({ autoSlug, brands, patterns = [] }: {
             </div>
             <button
               type="button"
-              onClick={() => setAppliedPattern(null)}
+              onClick={() => { setAppliedPattern(null); onPatternApplied?.(null) }}
               className="text-xs text-amber-600 hover:text-amber-800 underline flex-shrink-0"
             >
               Edit manually
@@ -507,8 +514,8 @@ export default function BasicInfoTab({ autoSlug, brands, patterns = [] }: {
       </section>
       )}
 
-      {/* ── FAQ List ─────────────────────────────────────────────────────── */}
-      <section>
+      {/* ── FAQ List — hidden when pattern applied (FAQs come from pattern) ── */}
+      {!appliedPattern && <section>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-semibold text-zinc-900">FAQ List</h2>
           <Button
@@ -566,7 +573,7 @@ export default function BasicInfoTab({ autoSlug, brands, patterns = [] }: {
             </div>
           ))}
         </div>
-      </section>
+      </section>}
     </div>
   )
 }

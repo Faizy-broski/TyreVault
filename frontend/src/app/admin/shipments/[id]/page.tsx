@@ -5,11 +5,10 @@ import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { toastError, toastSuccess } from '@/lib/toast'
-import { Pencil, ArrowLeft } from 'lucide-react'
-import type { Shipment, ShipmentStatus, ClearanceStatus, Warehouse } from '@/types/admin.types'
+import { ShipmentSheet } from '@/components/admin/shipments/ShipmentSheet'
+import { Pencil } from 'lucide-react'
+import type { Shipment, ShipmentStatus, ClearanceStatus } from '@/types/admin.types'
 
 const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -48,16 +47,6 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
   )
 }
 
-type EditForm = {
-  container_number:  string
-  vessel_name:       string
-  booking_reference: string
-  etd:               string
-  eta:               string
-  arrival_date:      string
-  clearance_status:  string
-  warehouse_id:      string
-}
 
 export default function ShipmentDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -67,15 +56,7 @@ export default function ShipmentDetailPage() {
   const [loading, setLoading]   = useState(true)
   const [token, setToken]       = useState('')
 
-  const [warehouses, setWarehouses] = useState<Pick<Warehouse, 'warehouse_id' | 'warehouse_name'>[]>([])
-
   const [editOpen, setEditOpen]   = useState(false)
-  const [editForm, setEditForm]   = useState<EditForm>({
-    container_number: '', vessel_name: '', booking_reference: '',
-    etd: '', eta: '', arrival_date: '', clearance_status: '', warehouse_id: '',
-  })
-  const [saving, setSaving] = useState(false)
-
   const [statusUpdating, setStatusUpdating] = useState(false)
 
   const load = useCallback(async () => {
@@ -101,64 +82,6 @@ export default function ShipmentDetailPage() {
   useEffect(() => {
     document.title = shipment ? `${shipment.container_number ?? 'Shipment'} | Tyre Vault` : 'Shipment | Tyre Vault'
   }, [shipment])
-
-  useEffect(() => {
-    async function loadMeta() {
-      const tok = await getToken()
-      const res = await fetch(`${API}/api/admin/orders/warehouses?all=true`, {
-        headers: { Authorization: `Bearer ${tok}` },
-      })
-      if (res.ok) setWarehouses(await res.json())
-    }
-    loadMeta()
-  }, [])
-
-  function openEdit() {
-    if (!shipment) return
-    setEditForm({
-      container_number:  shipment.container_number  ?? '',
-      vessel_name:       shipment.vessel_name       ?? '',
-      booking_reference: shipment.booking_reference ?? '',
-      etd:               shipment.etd?.slice(0, 10)        ?? '',
-      eta:               shipment.eta?.slice(0, 10)        ?? '',
-      arrival_date:      shipment.arrival_date?.slice(0, 10) ?? '',
-      clearance_status:  shipment.clearance_status  ?? '',
-      warehouse_id:      shipment.warehouses?.warehouse_id ?? '',
-    })
-    setEditOpen(true)
-  }
-
-  async function handleSaveEdit() {
-    if (!shipment) return
-    setSaving(true)
-    try {
-      const res = await fetch(`${API}/api/admin/shipments/${shipment.shipment_id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          container_number:  editForm.container_number  || null,
-          vessel_name:       editForm.vessel_name       || null,
-          booking_reference: editForm.booking_reference || null,
-          etd:               editForm.etd               || null,
-          eta:               editForm.eta               || null,
-          arrival_date:      editForm.arrival_date       || null,
-          clearance_status:  editForm.clearance_status  || null,
-          warehouse_id:      editForm.warehouse_id       || undefined,
-        }),
-      })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error(body.error ?? 'Update failed')
-      }
-      toastSuccess('Shipment updated')
-      setEditOpen(false)
-      load()
-    } catch (err) {
-      toastError(err instanceof Error ? err.message : 'Update failed')
-    } finally {
-      setSaving(false)
-    }
-  }
 
   async function handleStatusChange(newStatus: ShipmentStatus) {
     if (!shipment || statusUpdating) return
@@ -221,7 +144,7 @@ export default function ShipmentDetailPage() {
                   <p className="text-sm text-zinc-500 mt-0.5">{shipment.vessel_name}</p>
                 )}
               </div>
-              <Button variant="outline" size="sm" onClick={openEdit} className="flex items-center gap-1.5">
+              <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} className="flex items-center gap-1.5">
                 <Pencil className="w-3.5 h-3.5" /> Edit
               </Button>
             </div>
@@ -323,74 +246,12 @@ export default function ShipmentDetailPage() {
         </div>
       </div>
 
-      {/* Edit dialog */}
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Shipment</DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 pt-2">
-            <div>
-              <label className="block text-xs font-medium text-zinc-700 mb-1">Destination Warehouse</label>
-              <select value={editForm.warehouse_id} onChange={e => setEditForm(f => ({ ...f, warehouse_id: e.target.value }))}
-                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/30">
-                <option value="">Select warehouse…</option>
-                {warehouses.map(w => <option key={w.warehouse_id} value={w.warehouse_id}>{w.warehouse_name}</option>)}
-              </select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-zinc-700 mb-1">Container Number</label>
-                <Input value={editForm.container_number} onChange={e => setEditForm(f => ({ ...f, container_number: e.target.value }))} placeholder="ABCU1234567" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-zinc-700 mb-1">Vessel Name</label>
-                <Input value={editForm.vessel_name} onChange={e => setEditForm(f => ({ ...f, vessel_name: e.target.value }))} placeholder="MSC Daria" />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-zinc-700 mb-1">Booking Reference</label>
-              <Input value={editForm.booking_reference} onChange={e => setEditForm(f => ({ ...f, booking_reference: e.target.value }))} placeholder="Forwarder booking ref" />
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-zinc-700 mb-1">ETD</label>
-                <Input type="date" value={editForm.etd} onChange={e => setEditForm(f => ({ ...f, etd: e.target.value }))} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-zinc-700 mb-1">ETA</label>
-                <Input type="date" value={editForm.eta} onChange={e => setEditForm(f => ({ ...f, eta: e.target.value }))} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-zinc-700 mb-1">Actual Arrival</label>
-                <Input type="date" value={editForm.arrival_date} onChange={e => setEditForm(f => ({ ...f, arrival_date: e.target.value }))} />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-zinc-700 mb-1">Clearance Status</label>
-              <select value={editForm.clearance_status} onChange={e => setEditForm(f => ({ ...f, clearance_status: e.target.value }))}
-                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/30">
-                <option value="">Not set</option>
-                <option value="pending">Pending</option>
-                <option value="cleared">Cleared</option>
-                <option value="delayed">Delayed</option>
-              </select>
-            </div>
-
-            <div className="flex gap-3 justify-end pt-2">
-              <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
-              <Button type="button" disabled={saving} onClick={handleSaveEdit}>
-                {saving ? 'Saving…' : 'Save Changes'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ShipmentSheet
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        onSaved={() => { setEditOpen(false); load() }}
+        shipment={shipment}
+      />
     </div>
   )
 }

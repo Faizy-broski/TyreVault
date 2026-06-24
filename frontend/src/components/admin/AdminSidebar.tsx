@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
@@ -25,6 +26,13 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { createClient } from "@/lib/supabase/client";
+import {
+  prefetchDashboardPage,
+  prefetchOrdersPage,
+  prefetchCustomersPage,
+  prefetchProductsPage,
+  prefetchSuppliersPage,
+} from "@/lib/query/hooks";
 
 const nav = [
   { label: "Dashboard",       href: "/admin/dashboard",       icon: Gauge },
@@ -71,8 +79,29 @@ interface Props {
 }
 
 export default function AdminSidebar({ userEmail, isOpen = false, onClose }: Props) {
-  const pathname = usePathname();
-  const router   = useRouter();
+  const pathname     = usePathname();
+  const router       = useRouter();
+  const queryClient  = useQueryClient();
+  const prefetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const PREFETCH_MAP: Record<string, (qc: typeof queryClient) => Promise<void>> = {
+    '/admin/dashboard': prefetchDashboardPage,
+    '/admin/orders':    prefetchOrdersPage,
+    '/admin/customers': prefetchCustomersPage,
+    '/admin/products':  prefetchProductsPage,
+    '/admin/suppliers': prefetchSuppliersPage,
+  }
+
+  function schedulePrefetch(href: string) {
+    if (prefetchTimer.current) clearTimeout(prefetchTimer.current)
+    prefetchTimer.current = setTimeout(() => {
+      PREFETCH_MAP[href]?.(queryClient).catch(() => undefined)
+    }, 150)
+  }
+
+  function cancelPrefetch() {
+    if (prefetchTimer.current) clearTimeout(prefetchTimer.current)
+  }
 
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() => {
     const init: Record<string, boolean> = {};
@@ -164,6 +193,8 @@ export default function AdminSidebar({ userEmail, isOpen = false, onClose }: Pro
                       onClose?.();
                       if (hasChildren) setExpanded(prev => ({ ...prev, [item.href]: true }));
                     }}
+                    onMouseEnter={() => schedulePrefetch(item.href)}
+                    onMouseLeave={cancelPrefetch}
                     className="flex items-center gap-3 flex-1 px-3 py-2.5 min-w-0"
                   >
                     <Icon className={cn("w-4 h-4 shrink-0", active ? "text-primary" : "text-zinc-400 group-hover:text-white")} />

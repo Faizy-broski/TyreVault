@@ -187,71 +187,7 @@ export default function EditProductForm({
         throw new Error(patchBody.error ?? patchBody.message ?? `Failed to update product (${patchRes.status})`)
       }
 
-      // 2. POST / PATCH variants
-      for (let i = 0; i < (values.variants ?? []).length; i++) {
-        const v = values.variants[i]
-        const p = (values.pricing ?? [])[i] ?? {}
-        const variantRes = await fetch(`${API}/api/admin/products/${patternId}/variants`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            variant: {
-              sku:              v.sku,
-              tyreSizeDisplay:  v.tyreSizeDisplay,
-              width:            v.width,
-              profile:          v.profile,
-              rimSize:          v.rimSize,
-              constructionType: v.constructionType,
-              loadIndex:        v.loadIndex       || undefined,
-              loadSpeedRating:  v.loadSpeedRating || undefined,
-              speedRating:      v.speedRating     || undefined,
-              fuelRating:       v.fuelRating      || undefined,
-              wetGrip:          v.wetGrip         || undefined,
-              noiseDb:          v.noiseDb         || undefined,
-              noiseClass:       v.noiseClass      || undefined,
-              runflat:          v.runflat,
-              xlReinforced:     v.xlReinforced,
-              plyRating:        v.plyRating       || undefined,
-              loadRange:        v.loadRange       || undefined,
-              sidewall:         v.sidewall,
-              tubeType:         v.tubeType,
-              countryOfOrigin:  v.countryOfOrigin,
-              manufacturerName: v.manufacturerName || undefined,
-              factoryName:      v.factoryName     || undefined,
-              factoryCountry:   v.factoryCountry  || undefined,
-              sectionWidth:     v.sectionWidth,
-              treadDepth:       v.treadDepth,
-              tyreWeight:       v.tyreWeight,
-              overallDiameter:  v.overallDiameter,
-              maxLoad:          v.maxLoad         || undefined,
-              maxPressure:      v.maxPressure     || undefined,
-              eMark:            v.eMark           || undefined,
-              dotCode:          v.dotCode         || undefined,
-              utqg:             v.utqg            || undefined,
-              variantImages:    v.variantImages   ?? [],
-              status:           v.status,
-              replacementProductId: v.replacementProductId || undefined,
-              barcodeEan:       v.barcodeEan      || undefined,
-              specialSize:      v.specialSize     || undefined,
-              ltSizing:         v.ltSizing,
-              plyRating2:       undefined,
-              maxLoad2:         undefined,
-            },
-            pricing: {
-              priceIncGst:    p.priceIncGst,
-              compareAtPrice: p.compareAtPrice,
-              costPrice:      p.costPrice,
-              inventory:      p.inventory     ?? 0,
-              lowStockAlert:  p.lowStockAlert ?? 10,
-              warehouseId:    p.warehouseId,
-            },
-          }),
-        })
-        if (!variantRes.ok) {
-          const body = await variantRes.json().catch(() => ({}))
-          throw new Error(body.error ?? `Failed to save product specs (${v.sku || i + 1})`)
-        }
-      }
+      // Variants are updated individually inline within the form grid, no need to post them here.
 
       toastSuccess('Product saved successfully')
       router.refresh()

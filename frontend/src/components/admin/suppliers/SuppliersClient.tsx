@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import { Plus, Search, Pencil, Trash2, Upload } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle, DialogHeader } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -35,8 +36,8 @@ const ACCESS_LABEL: Record<string, string> = {
 }
 
 interface Props {
-  initialSuppliers: Supplier[]
-  accessToken:      string
+  initialSuppliers?: Supplier[]
+  accessToken?:      string
 }
 
 function SupplierRowActions({
@@ -117,12 +118,13 @@ function SupplierRowActions({
   )
 }
 
-export default function SuppliersClient({ initialSuppliers, accessToken }: Props) {
+export default function SuppliersClient({ initialSuppliers = [], accessToken: initialToken }: Props) {
   const router = useRouter()
 
   const [suppliers, setSuppliers]       = useState<Supplier[]>(initialSuppliers)
+  const [token, setToken]               = useState(initialToken ?? '')
   const [search, setSearch]             = useState('')
-  const [loading, setLoading]           = useState(false)
+  const [loading, setLoading]           = useState(!initialToken)
   const [deleteTarget, setDeleteTarget] = useState<Supplier | null>(null)
   const [deleting, setDeleting]         = useState(false)
   const [csvTarget, setCsvTarget]       = useState<Supplier | null>(null)
@@ -131,7 +133,27 @@ export default function SuppliersClient({ initialSuppliers, accessToken }: Props
   const [isDragOver, setIsDragOver]     = useState(false)
   const csvInputRef = useRef<HTMLInputElement>(null)
 
-  const headers = { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }
+  // When rendered as a pure client component (no server props), load token + suppliers ourselves
+  useEffect(() => {
+    if (initialToken) return
+    createClient().auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) return
+      setToken(session.access_token)
+      try {
+        const res = await fetch(`${API}/api/admin/suppliers`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setSuppliers(Array.isArray(data) ? data : (data.data ?? []))
+        }
+      } finally {
+        setLoading(false)
+      }
+    })
+  }, [initialToken])
+
+  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
 
   const processCsvFile = useCallback((file: File) => {
     if (!file.name.endsWith('.csv') && file.type !== 'text/csv') {
@@ -309,7 +331,7 @@ export default function SuppliersClient({ initialSuppliers, accessToken }: Props
           supplierId={csvTarget.supplier_id}
           file={csvFile}
           csvHeaders={csvHeaders}
-          accessToken={accessToken}
+          accessToken={token}
           onClose={() => { setCsvTarget(null); setCsvFile(null); setCsvHeaders([]) }}
         />
       )}

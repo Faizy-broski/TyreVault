@@ -56,6 +56,7 @@ router.patch('/categories/:id', ctrl.patchCategory)
 router.delete('/categories/:id', ctrl.removeCategory)
 
 // Products CRUD
+router.get('/skus/search',   ctrl.searchSkus)
 router.get('/',              ctrl.getProducts)
 router.post('/',             ctrl.createProduct)
 router.get('/:id',           ctrl.getProduct)

@@ -7,6 +7,7 @@ import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { BoxSpinner } from '@/components/ui/table-loader'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { PurchaseOrderSheet } from '@/components/admin/purchase-orders/PurchaseOrderSheet'
 import { toastError, toastSuccess } from '@/lib/toast'
 import { Plus, Trash2 } from 'lucide-react'
 import type { PurchaseOrderListItem } from '@/types/admin.types'
@@ -46,6 +47,8 @@ export default function PurchaseOrdersPage() {
   const [loading, setLoading] = useState(true)
   const [status, setStatus]   = useState('all')
   const [page, setPage]       = useState(1)
+
+  const [sheetOpen, setSheetOpen] = useState(false)
 
   const [deleteTarget, setDeleteTarget] = useState<PurchaseOrderListItem | null>(null)
   const [deleting, setDeleting]     = useState(false)
@@ -104,7 +107,7 @@ export default function PurchaseOrdersPage() {
           <h1 className="mt-2 text-xl font-semibold text-zinc-900">Purchase Orders</h1>
           <p className="text-sm text-zinc-500 mt-0.5">Inbound stock orders from suppliers</p>
         </div>
-        <Button onClick={() => router.push('/admin/purchase-orders/new')} className="flex items-center gap-1.5">
+        <Button onClick={() => setSheetOpen(true)} className="flex items-center gap-1.5">
           <Plus className="w-4 h-4" /> New PO
         </Button>
       </div>
@@ -192,6 +195,12 @@ export default function PurchaseOrdersPage() {
           )}
         </div>
       )}
+
+      <PurchaseOrderSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        onSaved={d => { setSheetOpen(false); if (d.po_id) router.push(`/admin/purchase-orders/${d.po_id}`) }}
+      />
 
       {/* Delete confirmation */}
       <Dialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>

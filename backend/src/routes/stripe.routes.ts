@@ -243,22 +243,24 @@ router.get('/fitment-centres', async (req, res, next) => {
 
     // No postcode — return only mobile fitters (no lat/lng) since we can't calculate distance
     if (!postcode || !GMAPS_KEY) {
-      return res.json(
-        centres
+      return res.json({
+        centres: centres
           .filter(c => c.mobile_fitting_available && !c.latitude && !c.longitude)
-          .map(c => ({ ...c, distance_km: null, duration_min: null }))
-      )
+          .map(c => ({ ...c, distance_km: null, duration_min: null })),
+        origin: null,
+      })
     }
 
     // Geocode customer postcode → lat/lng
     const origin = await geocodePostcode(postcode)
     if (!origin) {
       // Invalid or unrecognised postcode — return only mobile fitters (they service anywhere)
-      return res.json(
-        centres
+      return res.json({
+        centres: centres
           .filter(c => c.mobile_fitting_available && !c.latitude && !c.longitude)
-          .map(c => ({ ...c, distance_km: null, duration_min: null }))
-      )
+          .map(c => ({ ...c, distance_km: null, duration_min: null })),
+        origin: null,
+      })
     }
 
     // Distance Matrix for all centres with coordinates
@@ -277,8 +279,8 @@ router.get('/fitment-centres', async (req, res, next) => {
       .filter(c => {
         // Mobile fitters without coordinates always show
         if (c.mobile_fitting_available && !c.latitude && !c.longitude) return true
-        // Centres with a real distance: keep if within 100 km
-        if (c.distance_km !== null) return c.distance_km <= 100
+        // Centres with a real distance: keep if within 10 km
+        if (c.distance_km !== null) return c.distance_km <= 10
         // Centre has coordinates but distance lookup failed — exclude
         return false
       })
@@ -290,7 +292,7 @@ router.get('/fitment-centres', async (req, res, next) => {
         return a.distance_km - b.distance_km
       })
 
-    res.json(enriched)
+    res.json({ centres: enriched, origin: { lat: origin.lat, lng: origin.lng } })
   } catch (err) { next(err) }
 })
 

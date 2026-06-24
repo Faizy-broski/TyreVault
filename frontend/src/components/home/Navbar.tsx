@@ -4,12 +4,12 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Menu, Search, ShoppingCart, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useCartStore } from "@/stores/cart.store";
 import { createClient } from "@/lib/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 import TyresDropdown from "./TyresDropdown";
 import AuthModal from "@/components/storefront/account/AuthModal";
+import GlobalSearchBar from "./GlobalSearchBar";
 
 const navLinks = [
   
@@ -192,11 +192,7 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
               </button>
             </div>
             <div className="relative hidden lg:block">
-              <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
-              <Input
-                placeholder="Search tyres..."
-                className="h-10 w-64 rounded-full border-white/15 bg-white/5 pl-11 text-sm text-white placeholder:text-zinc-500 focus-visible:ring-1 focus-visible:ring-primary"
-              />
+              <GlobalSearchBar />
             </div>
             {/* Mobile cart */}
             <button

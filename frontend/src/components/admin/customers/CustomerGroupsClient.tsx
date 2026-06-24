@@ -2,14 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useRouter, useSearchParams, usePathname } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { MoreVertical, Search, SlidersHorizontal, Check, X } from 'lucide-react'
-import CreateGroupModal from './CreateGroupModal'
+import CustomerGroupSheet from './CustomerGroupSheet'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { toastSuccess, toastError } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   Table,
   TableBody,
@@ -59,7 +58,6 @@ export default function CustomerGroupsClient({
   const router      = useRouter()
   const searchParams = useSearchParams()
   const pathname    = usePathname()
-  const showCreate  = searchParams.get('modal') === 'create'
   const [localSearch, setLocalSearch] = useState(search)
 
   const [localGroups, setLocalGroups] = useState<CustomerGroup[]>(groups)
@@ -70,72 +68,26 @@ export default function CustomerGroupsClient({
   const [renaming,   setRenaming]     = useState(false)
   const [deletingId, setDeletingId]   = useState<string | null>(null)
 
-  // Full edit modal state
-  const [editModalGroup, setEditModalGroup] = useState<CustomerGroup | null>(null)
-  const [editModalSaving, setEditModalSaving] = useState(false)
-  const [editForm, setEditForm] = useState({
-    name: '', description: '', default_discount: '',
-    discount_type: '', discount_value: '', price_type: '',
-    can_view_wholesale: false, is_active: true,
-  })
+  const [sheetOpen,   setSheetOpen]   = useState(false)
+  const [sheetTarget, setSheetTarget] = useState<CustomerGroup | null>(null)
 
-  function openEditModal(group: CustomerGroup) {
-    setEditModalGroup(group)
-    setEditForm({
-      name:               group.group_name,
-      description:        group.description       ?? '',
-      default_discount:   String(group.default_discount ?? ''),
-      discount_type:      group.discount_type     ?? '',
-      discount_value:     String(group.discount_value ?? ''),
-      price_type:         group.price_type        ?? '',
-      can_view_wholesale: group.can_view_wholesale ?? false,
-      is_active:          group.is_active          ?? true,
-    })
+  function openCreate() {
+    setSheetTarget(null)
+    setSheetOpen(true)
   }
 
-  async function saveEditModal() {
-    if (!editModalGroup || !editForm.name.trim()) return
-    setEditModalSaving(true)
-    try {
-      const res = await fetch(`${API}/api/admin/customers/groups/${editModalGroup.group_id}`, {
-        method:  'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({
-          name:               editForm.name.trim(),
-          description:        editForm.description    || null,
-          default_discount:   editForm.default_discount ? Number(editForm.default_discount) : null,
-          discount_type:      editForm.discount_type  || null,
-          discount_value:     editForm.discount_value ? Number(editForm.discount_value) : null,
-          price_type:         editForm.price_type     || null,
-          can_view_wholesale: editForm.can_view_wholesale,
-          is_active:          editForm.is_active,
-        }),
-      })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error(body.error ?? 'Failed to update group')
-      }
-      setLocalGroups(prev => prev.map(g =>
-        g.group_id === editModalGroup.group_id
-          ? {
-              ...g,
-              group_name:         editForm.name.trim(),
-              description:        editForm.description || null,
-              default_discount:   editForm.default_discount ? Number(editForm.default_discount) : null,
-              discount_type:      editForm.discount_type || null,
-              discount_value:     editForm.discount_value ? Number(editForm.discount_value) : null,
-              price_type:         editForm.price_type || null,
-              can_view_wholesale: editForm.can_view_wholesale,
-              is_active:          editForm.is_active,
-              updated_at:         new Date().toISOString(),
-            }
-          : g
-      ))
-      setEditModalGroup(null)
-      toastSuccess('Group updated')
-    } catch (err: unknown) {
-      toastError(err instanceof Error ? err.message : 'Failed to update group')
-    } finally { setEditModalSaving(false) }
+  function openEditModal(group: CustomerGroup) {
+    setSheetTarget(group)
+    setSheetOpen(true)
+  }
+
+  function handleSheetSaved(saved: CustomerGroup) {
+    if (sheetTarget) {
+      setLocalGroups(prev => prev.map(g => g.group_id === saved.group_id ? { ...g, ...saved } : g))
+    } else {
+      router.refresh()
+    }
+    setSheetOpen(false)
   }
 
   async function saveRename(groupId: string) {
@@ -179,18 +131,6 @@ export default function CustomerGroupsClient({
     } finally { setDeletingId(null) }
   }
 
-  function openCreate() {
-    const p = new URLSearchParams(searchParams.toString())
-    p.set('modal', 'create')
-    router.push(`${pathname}?${p}`)
-  }
-
-  function closeModal() {
-    const p = new URLSearchParams(searchParams.toString())
-    p.delete('modal')
-    const qs = p.toString()
-    router.replace(qs ? `${pathname}?${qs}` : pathname)
-  }
   const startResult = total === 0 ? 0 : (page - 1) * 20 + 1
   const endResult = total === 0 ? 0 : (page - 1) * 20 + groups.length
 
@@ -212,100 +152,13 @@ export default function CustomerGroupsClient({
         />
       </div>
 
-      {showCreate && (
-        <CreateGroupModal
-          accessToken={accessToken}
-          onClose={closeModal}
-        />
-      )}
-
-      {/* Edit group modal */}
-      <Dialog open={!!editModalGroup} onOpenChange={open => !open && setEditModalGroup(null)}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Edit Group</DialogTitle></DialogHeader>
-          <div className="space-y-4 pt-2">
-
-            <div>
-              <label className="block text-xs font-medium text-zinc-700 mb-1">Group Name <span className="text-red-500">*</span></label>
-              <Input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-zinc-700 mb-1">Description</label>
-              <Input value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} placeholder="Optional description…" />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-zinc-700 mb-1">Default Discount (%)</label>
-              <Input type="number" step="0.01" min="0" max="100" value={editForm.default_discount} onChange={e => setEditForm(f => ({ ...f, default_discount: e.target.value }))} placeholder="e.g. 10.00" />
-              <p className="mt-1 text-xs text-zinc-400">Applied automatically to all orders from this group.</p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-zinc-700 mb-1">Discount Type</label>
-                <select value={editForm.discount_type} onChange={e => setEditForm(f => ({ ...f, discount_type: e.target.value }))}
-                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/30">
-                  <option value="">None</option>
-                  <option value="percent">Percent (%)</option>
-                  <option value="fixed_amount">Fixed Amount ($)</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-zinc-700 mb-1">Discount Value</label>
-                <Input type="number" step="0.01" min="0" value={editForm.discount_value} onChange={e => setEditForm(f => ({ ...f, discount_value: e.target.value }))} placeholder="0.00" />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-zinc-700 mb-1">Price Tier Override</label>
-              <select value={editForm.price_type} onChange={e => setEditForm(f => ({ ...f, price_type: e.target.value }))}
-                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/30">
-                <option value="">Default (retail)</option>
-                {['retail', 'wholesale', 'price_a', 'price_b', 'special', 'clearance'].map(t => (
-                  <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1).replace('_', ' ')}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Boolean toggles */}
-            <div className="space-y-2 pt-1">
-              {(
-                [
-                  { key: 'can_view_wholesale', label: 'Wholesale Portal Access', desc: 'Members can see wholesale pricing and place wholesale orders' },
-                  { key: 'is_active',          label: 'Active',                  desc: 'Group is active and assignable to customers' },
-                ] as const
-              ).map(({ key, label, desc }) => (
-                <div
-                  key={key}
-                  className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${editForm[key] ? 'border-green-200 bg-green-50/50' : 'border-zinc-200'}`}
-                  onClick={() => setEditForm(f => ({ ...f, [key]: !f[key] }))}
-                >
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={editForm[key]}
-                    className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors mt-0.5 ${editForm[key] ? 'bg-green-500' : 'bg-zinc-300'}`}
-                  >
-                    <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${editForm[key] ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </button>
-                  <div>
-                    <p className="text-sm font-medium text-zinc-800">{label}</p>
-                    <p className="text-xs text-zinc-500">{desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex gap-3 justify-end pt-2">
-              <Button type="button" variant="outline" onClick={() => setEditModalGroup(null)}>Cancel</Button>
-              <Button type="button" disabled={editModalSaving} onClick={saveEditModal}>
-                {editModalSaving ? 'Saving…' : 'Save Changes'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <CustomerGroupSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        onSaved={handleSheetSaved}
+        accessToken={accessToken}
+        group={sheetTarget}
+      />
 
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-semibold text-zinc-900">Customer Group</h1>

@@ -10,7 +10,7 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import EditCustomerModal from "./EditCustomerModal";
+import CustomerSheet from "./CustomerSheet";
 import type { CustomerListItem } from "@/types/admin.types";
 import {
   BACKEND_API_URL,
@@ -102,13 +102,13 @@ export default function CustomerRowMenu({ customer, accessToken }: Props) {
         )}
       </div>
 
-      {showEdit && (
-        <EditCustomerModal
-          accessToken={accessToken}
-          customer={customer}
-          onClose={() => setShowEdit(false)}
-        />
-      )}
+      <CustomerSheet
+        open={showEdit}
+        onClose={() => setShowEdit(false)}
+        onSaved={() => { setShowEdit(false); router.refresh() }}
+        accessToken={accessToken}
+        customer={customer}
+      />
 
       <Dialog
         open={showDel}

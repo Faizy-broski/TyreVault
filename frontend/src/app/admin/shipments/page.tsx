@@ -7,6 +7,7 @@ import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { BoxSpinner } from '@/components/ui/table-loader'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ShipmentSheet } from '@/components/admin/shipments/ShipmentSheet'
 import { toastError, toastSuccess } from '@/lib/toast'
 import { Plus, Trash2 } from 'lucide-react'
 import type { ShipmentListItem } from '@/types/admin.types'
@@ -47,6 +48,8 @@ export default function ShipmentsPage() {
   const [loading, setLoading]     = useState(true)
   const [status, setStatus]       = useState('all')
   const [page, setPage]           = useState(1)
+
+  const [sheetOpen, setSheetOpen] = useState(false)
 
   const [deleteTarget, setDeleteTarget] = useState<ShipmentListItem | null>(null)
   const [deleting, setDeleting]         = useState(false)
@@ -106,7 +109,7 @@ export default function ShipmentsPage() {
           <h1 className="mt-2 text-xl font-semibold text-zinc-900">Inbound Shipments</h1>
           <p className="text-sm text-zinc-500 mt-0.5">Container & freight tracking from suppliers</p>
         </div>
-        <Button onClick={() => router.push('/admin/shipments/new')} className="flex items-center gap-1.5">
+        <Button onClick={() => setSheetOpen(true)} className="flex items-center gap-1.5">
           <Plus className="w-4 h-4" /> New Shipment
         </Button>
       </div>
@@ -206,6 +209,12 @@ export default function ShipmentsPage() {
           )}
         </div>
       )}
+
+      <ShipmentSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        onSaved={fetchShipments}
+      />
 
       {/* Delete confirmation */}
       <Dialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>

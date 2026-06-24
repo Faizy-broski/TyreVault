@@ -216,6 +216,85 @@ export async function listProducts(filters: ProductListFilters) {
 }
 
 // ============================================================
+// SEARCH SKUs (for dropdowns / autocompletes)
+// ============================================================
+export async function searchSkus(query: string, limit = 20) {
+  if (!query.trim()) {
+    const { data } = await supabase
+      .from('skus')
+      .select('product_id, sku, tyre_size_display, status, patterns ( pattern_name, brands ( brand_name ) )')
+      .limit(limit)
+    return data ?? []
+  }
+
+  // Normalize the user's query as a tyre size code so typing "21565R1698H"
+  // matches normalized_size_code "21565R16" (which strips load/speed rating)
+  const normalizedQuery = normalizeTyreSize(query)
+  // Also try just stripping all non-alphanumeric for a raw prefix match
+  const alphaQuery = query.replace(/[^a-z0-9]/gi, '')
+
+  console.log('[searchSkus] query:', query, '| normalized:', normalizedQuery, '| alpha:', alphaQuery)
+
+  // Run three searches in parallel:
+  // 1) direct SKU / tyre_size_display text match
+  // 2) normalized_size_code match (handles tyre size typed without slashes/spaces)
+  // 3) pattern name match → fetch those SKUs
+  const queries: Promise<{ data: any[] | null; error: any }>[] = [
+    supabase
+      .from('skus')
+      .select('product_id, sku, tyre_size_display, status, patterns ( pattern_name, brands ( brand_name ) )')
+      .or(`sku.ilike.%${query}%,tyre_size_display.ilike.%${query}%`)
+      .limit(limit) as any,
+    supabase
+      .from('patterns')
+      .select('pattern_id')
+      .ilike('pattern_name', `%${query}%`)
+      .limit(20) as any,
+  ]
+
+  // Only add normalized_size_code search if the normalized result looks like a real size code (digits only)
+  const normalizedForSearch = normalizedQuery.length >= 4 ? normalizedQuery : alphaQuery
+  if (normalizedForSearch && normalizedForSearch !== query) {
+    queries.push(
+      supabase
+        .from('skus')
+        .select('product_id, sku, tyre_size_display, status, patterns ( pattern_name, brands ( brand_name ) )')
+        .ilike('normalized_size_code', `%${normalizedForSearch}%`)
+        .limit(limit) as any
+    )
+  }
+
+  const [skuTextRes, patternRes, normSizeRes] = await Promise.all(queries)
+
+  const patternIds = ((patternRes?.data ?? []) as { pattern_id: string }[]).map(p => p.pattern_id)
+
+  let patternSkus: any[] = []
+  if (patternIds.length > 0) {
+    const { data } = await supabase
+      .from('skus')
+      .select('product_id, sku, tyre_size_display, status, patterns ( pattern_name, brands ( brand_name ) )')
+      .in('pattern_id', patternIds)
+      .limit(limit)
+    patternSkus = data ?? []
+  }
+
+  // Merge + deduplicate by product_id
+  const seen = new Set<string>()
+  const merged = [
+    ...(skuTextRes?.data ?? []),
+    ...(normSizeRes?.data ?? []),
+    ...patternSkus,
+  ].filter((r: any) => {
+    if (seen.has(r.product_id)) return false
+    seen.add(r.product_id)
+    return true
+  })
+
+  console.log('[searchSkus] merged results:', merged.length)
+  return merged.slice(0, limit)
+}
+
+// ============================================================
 // GET SINGLE PRODUCT (pattern + all SKUs + prices + stock)
 // ============================================================
 export async function getProduct(patternId: string) {
@@ -315,39 +394,39 @@ export async function createProduct(payload: CreateProductPayload) {
           width: v.width ?? null,
           profile: v.profile ?? null,
           rim_size: v.rimSize,
-          special_size: v.specialSize ?? null,
-          barcode_ean: v.barcodeEan ?? null,
+          special_size: v.specialSize || null,
+          barcode_ean: v.barcodeEan || null,
           lt_sizing: v.ltSizing ?? false,
-          construction_type: v.constructionType ?? null,
-          load_index: v.loadIndex ?? null,
-          load_speed_rating: v.loadSpeedRating ?? null,
-          speed_rating: v.speedRating ?? null,
-          fuel_rating: v.fuelRating ?? null,
-          wet_grip: v.wetGrip ?? null,
-          noise_db: v.noiseDb ?? null,
-          noise_class: v.noiseClass ?? null,
+          construction_type: v.constructionType || null,
+          load_index: v.loadIndex || null,
+          load_speed_rating: v.loadSpeedRating || null,
+          speed_rating: v.speedRating || null,
+          fuel_rating: v.fuelRating || null,
+          wet_grip: v.wetGrip || null,
+          noise_db: v.noiseDb || null,
+          noise_class: v.noiseClass || null,
           runflat: v.runflat,
           xl_reinforced: v.xlReinforced ?? false,
-          ply_rating: v.plyRating ?? null,
-          load_range: v.loadRange ?? null,
-          sidewall: v.sidewall ?? null,
-          tube_type: v.tubeType ?? null,
+          ply_rating: v.plyRating || null,
+          load_range: v.loadRange || null,
+          sidewall: v.sidewall || null,
+          tube_type: v.tubeType || null,
           country_of_origin: v.countryOfOrigin,
-          manufacturer_name: v.manufacturerName ?? null,
-          factory_name: v.factoryName ?? null,
-          factory_country: v.factoryCountry ?? null,
-          section_width: v.sectionWidth ?? null,
-          tread_depth: v.treadDepth ?? null,
-          tyre_weight: v.tyreWeight ?? null,
-          overall_diameter: v.overallDiameter ?? null,
-          max_load: v.maxLoad ?? null,
-          max_pressure: v.maxPressure ?? null,
-          e_mark: v.eMark ?? null,
-          dot_code: v.dotCode ?? null,
-          utqg: v.utqg ?? null,
-          variant_images: v.variantImages ?? [],
-          status: v.status ?? 'active',
-          replacement_product_id: v.replacementProductId ?? null,
+          manufacturer_name: v.manufacturerName || null,
+          factory_name: v.factoryName || null,
+          factory_country: v.factoryCountry || null,
+          section_width: v.sectionWidth || null,
+          tread_depth: v.treadDepth || null,
+          tyre_weight: v.tyreWeight || null,
+          overall_diameter: v.overallDiameter || null,
+          max_load: v.maxLoad || null,
+          max_pressure: v.maxPressure || null,
+          e_mark: v.eMark || null,
+          dot_code: v.dotCode || null,
+          utqg: v.utqg || null,
+          variant_images: v.variantImages || [],
+          status: v.status || 'active',
+          replacement_product_id: v.replacementProductId || null,
           compare_at_price: p.compareAtPrice ?? null,
           cost_price: p.costPrice ?? null,
           low_stock_alert: p.lowStockAlert ?? 10,
@@ -357,7 +436,12 @@ export async function createProduct(payload: CreateProductPayload) {
     )
     .select('product_id')
 
-  if (skuErr) throw skuErr
+  if (skuErr) {
+    if (skuErr.code === '23505' && skuErr.message.includes('skus_sku_key')) {
+      throw new Error('One or more of the provided SKUs are already in use. SKUs must be unique.')
+    }
+    throw skuErr
+  }
 
   const createdSkus = (createdSkuRows ?? []).map(r => r.product_id)
 
@@ -502,46 +586,51 @@ export async function addVariant(patternId: string, variant: VariantPayload, pri
     width: variant.width ?? null,
     profile: variant.profile ?? null,
     rim_size: variant.rimSize,
-    special_size: variant.specialSize ?? null,
-    barcode_ean: variant.barcodeEan ?? null,
+    special_size: variant.specialSize || null,
+    barcode_ean: variant.barcodeEan || null,
     lt_sizing: variant.ltSizing ?? false,
-    construction_type: variant.constructionType ?? null,
-    load_index: variant.loadIndex ?? null,
-    load_speed_rating: variant.loadSpeedRating ?? null,
-    speed_rating: variant.speedRating ?? null,
-    fuel_rating: variant.fuelRating ?? null,
-    wet_grip: variant.wetGrip ?? null,
-    noise_db: variant.noiseDb ?? null,
-    noise_class: variant.noiseClass ?? null,
+    construction_type: variant.constructionType || null,
+    load_index: variant.loadIndex || null,
+    load_speed_rating: variant.loadSpeedRating || null,
+    speed_rating: variant.speedRating || null,
+    fuel_rating: variant.fuelRating || null,
+    wet_grip: variant.wetGrip || null,
+    noise_db: variant.noiseDb || null,
+    noise_class: variant.noiseClass || null,
     runflat: variant.runflat,
     xl_reinforced: variant.xlReinforced ?? false,
-    ply_rating: variant.plyRating ?? null,
-    load_range: variant.loadRange ?? null,
-    sidewall: variant.sidewall ?? null,
-    tube_type: variant.tubeType ?? null,
+    ply_rating: variant.plyRating || null,
+    load_range: variant.loadRange || null,
+    sidewall: variant.sidewall || null,
+    tube_type: variant.tubeType || null,
     country_of_origin: variant.countryOfOrigin,
-    manufacturer_name: variant.manufacturerName ?? null,
-    factory_name: variant.factoryName ?? null,
-    factory_country: variant.factoryCountry ?? null,
-    section_width: variant.sectionWidth ?? null,
-    tread_depth: variant.treadDepth ?? null,
-    tyre_weight: variant.tyreWeight ?? null,
-    overall_diameter: variant.overallDiameter ?? null,
-    max_load: variant.maxLoad ?? null,
-    max_pressure: variant.maxPressure ?? null,
-    e_mark: variant.eMark ?? null,
-    dot_code: variant.dotCode ?? null,
-    utqg: variant.utqg ?? null,
-    variant_images: variant.variantImages ?? [],
-    status: variant.status ?? 'active',
-    replacement_product_id: variant.replacementProductId ?? null,
+    manufacturer_name: variant.manufacturerName || null,
+    factory_name: variant.factoryName || null,
+    factory_country: variant.factoryCountry || null,
+    section_width: variant.sectionWidth || null,
+    tread_depth: variant.treadDepth || null,
+    tyre_weight: variant.tyreWeight || null,
+    overall_diameter: variant.overallDiameter || null,
+    max_load: variant.maxLoad || null,
+    max_pressure: variant.maxPressure || null,
+    e_mark: variant.eMark || null,
+    dot_code: variant.dotCode || null,
+    utqg: variant.utqg || null,
+    variant_images: variant.variantImages || [],
+    status: variant.status || 'active',
+    replacement_product_id: variant.replacementProductId || null,
     compare_at_price: pricing.compareAtPrice ?? null,
     cost_price: pricing.costPrice ?? null,
     low_stock_alert: pricing.lowStockAlert ?? 10,
     total_available_stock: 0,
   }).select('product_id').single()
 
-  if (error) throw error
+  if (error) {
+    if (error.code === '23505' && error.message.includes('skus_sku_key')) {
+      throw new Error(`The SKU "${variant.sku}" is already in use by another product.`)
+    }
+    throw error
+  }
 
   if (pricing.priceIncGst) {
     await supabase.from('product_prices').insert({
@@ -580,36 +669,36 @@ export async function patchVariant(variantId: string, variant: Partial<VariantPa
   if (variant.width !== undefined) updates.width = variant.width ?? null
   if (variant.profile !== undefined) updates.profile = variant.profile ?? null
   if (variant.rimSize !== undefined) updates.rim_size = variant.rimSize
-  if (variant.specialSize !== undefined) updates.special_size = variant.specialSize ?? null
-  if (variant.barcodeEan !== undefined) updates.barcode_ean = variant.barcodeEan ?? null
+  if (variant.specialSize !== undefined) updates.special_size = variant.specialSize || null
+  if (variant.barcodeEan !== undefined) updates.barcode_ean = variant.barcodeEan || null
   if (variant.ltSizing !== undefined) updates.lt_sizing = variant.ltSizing
-  if (variant.constructionType !== undefined) updates.construction_type = variant.constructionType ?? null
-  if (variant.loadIndex !== undefined) updates.load_index = variant.loadIndex ?? null
-  if (variant.loadSpeedRating !== undefined) updates.load_speed_rating = variant.loadSpeedRating ?? null
-  if (variant.speedRating !== undefined) updates.speed_rating = variant.speedRating ?? null
-  if (variant.fuelRating !== undefined) updates.fuel_rating = variant.fuelRating ?? null
-  if (variant.wetGrip !== undefined) updates.wet_grip = variant.wetGrip ?? null
-  if (variant.noiseDb !== undefined) updates.noise_db = variant.noiseDb ?? null
-  if (variant.noiseClass !== undefined) updates.noise_class = variant.noiseClass ?? null
+  if (variant.constructionType !== undefined) updates.construction_type = variant.constructionType || null
+  if (variant.loadIndex !== undefined) updates.load_index = variant.loadIndex || null
+  if (variant.loadSpeedRating !== undefined) updates.load_speed_rating = variant.loadSpeedRating || null
+  if (variant.speedRating !== undefined) updates.speed_rating = variant.speedRating || null
+  if (variant.fuelRating !== undefined) updates.fuel_rating = variant.fuelRating || null
+  if (variant.wetGrip !== undefined) updates.wet_grip = variant.wetGrip || null
+  if (variant.noiseDb !== undefined) updates.noise_db = variant.noiseDb || null
+  if (variant.noiseClass !== undefined) updates.noise_class = variant.noiseClass || null
   if (variant.runflat !== undefined) updates.runflat = variant.runflat
   if (variant.xlReinforced !== undefined) updates.xl_reinforced = variant.xlReinforced
-  if (variant.plyRating !== undefined) updates.ply_rating = variant.plyRating ?? null
-  if (variant.loadRange !== undefined) updates.load_range = variant.loadRange ?? null
-  if (variant.sidewall !== undefined) updates.sidewall = variant.sidewall ?? null
-  if (variant.tubeType !== undefined) updates.tube_type = variant.tubeType ?? null
+  if (variant.plyRating !== undefined) updates.ply_rating = variant.plyRating || null
+  if (variant.loadRange !== undefined) updates.load_range = variant.loadRange || null
+  if (variant.sidewall !== undefined) updates.sidewall = variant.sidewall || null
+  if (variant.tubeType !== undefined) updates.tube_type = variant.tubeType || null
   if (variant.countryOfOrigin !== undefined) updates.country_of_origin = variant.countryOfOrigin
-  if (variant.manufacturerName !== undefined) updates.manufacturer_name = variant.manufacturerName ?? null
-  if (variant.factoryName !== undefined) updates.factory_name = variant.factoryName ?? null
-  if (variant.factoryCountry !== undefined) updates.factory_country = variant.factoryCountry ?? null
-  if (variant.sectionWidth !== undefined) updates.section_width = variant.sectionWidth ?? null
-  if (variant.treadDepth !== undefined) updates.tread_depth = variant.treadDepth ?? null
-  if (variant.tyreWeight !== undefined) updates.tyre_weight = variant.tyreWeight ?? null
-  if (variant.overallDiameter !== undefined) updates.overall_diameter = variant.overallDiameter ?? null
-  if (variant.maxLoad !== undefined) updates.max_load = variant.maxLoad ?? null
-  if (variant.maxPressure !== undefined) updates.max_pressure = variant.maxPressure ?? null
-  if (variant.eMark !== undefined) updates.e_mark = variant.eMark ?? null
-  if (variant.dotCode !== undefined) updates.dot_code = variant.dotCode ?? null
-  if (variant.utqg !== undefined) updates.utqg = variant.utqg ?? null
+  if (variant.manufacturerName !== undefined) updates.manufacturer_name = variant.manufacturerName || null
+  if (variant.factoryName !== undefined) updates.factory_name = variant.factoryName || null
+  if (variant.factoryCountry !== undefined) updates.factory_country = variant.factoryCountry || null
+  if (variant.sectionWidth !== undefined) updates.section_width = variant.sectionWidth || null
+  if (variant.treadDepth !== undefined) updates.tread_depth = variant.treadDepth || null
+  if (variant.tyreWeight !== undefined) updates.tyre_weight = variant.tyreWeight || null
+  if (variant.overallDiameter !== undefined) updates.overall_diameter = variant.overallDiameter || null
+  if (variant.maxLoad !== undefined) updates.max_load = variant.maxLoad || null
+  if (variant.maxPressure !== undefined) updates.max_pressure = variant.maxPressure || null
+  if (variant.eMark !== undefined) updates.e_mark = variant.eMark || null
+  if (variant.dotCode !== undefined) updates.dot_code = variant.dotCode || null
+  if (variant.utqg !== undefined) updates.utqg = variant.utqg || null
   if (variant.status !== undefined) updates.status = variant.status
   if ((variant as { compareAtPrice?: number | null }).compareAtPrice !== undefined) updates.compare_at_price = (variant as { compareAtPrice?: number | null }).compareAtPrice ?? null
   if ((variant as { costPrice?: number | null }).costPrice !== undefined) updates.cost_price = (variant as { costPrice?: number | null }).costPrice ?? null
@@ -620,7 +709,12 @@ export async function patchVariant(variantId: string, variant: Partial<VariantPa
 
   if (Object.keys(updates).length === 0) return
   const { error } = await supabase.from('skus').update(updates).eq('product_id', variantId)
-  if (error) throw error
+  if (error) {
+    if (error.code === '23505' && error.message.includes('skus_sku_key')) {
+      throw new Error(`The SKU "${updates.sku ?? variant.sku}" is already in use.`)
+    }
+    throw error
+  }
 }
 
 // ============================================================
@@ -1127,6 +1221,15 @@ export async function updateBrand(id: string, payload: Partial<BrandPayload>) {
   await redis?.del('admin:brands')
   const { error } = await supabase.from('brands').update(payload).eq('brand_id', id)
   if (error) throw error
+
+  if (payload.is_active === false) {
+    const [pErr, sErr] = await Promise.all([
+      supabase.from('patterns').update({ is_active: false, show_on_website: false }).eq('brand_id', id).then(r => r.error),
+      supabase.from('skus').update({ status: 'inactive' }).eq('brand_id', id).then(r => r.error),
+    ])
+    if (pErr) throw pErr
+    if (sErr) throw sErr
+  }
 }
 
 export async function deleteBrand(id: string) {

@@ -156,6 +156,7 @@ function HowItWorksStep({
 function StationsStep({
   postcode,
   centres,
+  origin,
   loading,
   fetchError,
   onSelect,
@@ -164,6 +165,7 @@ function StationsStep({
 }: {
   postcode:         string
   centres:          Centre[]
+  origin:           { lat: number; lng: number } | null
   loading:          boolean
   fetchError:       string | null
   onSelect:         (c: Centre) => void
@@ -187,13 +189,24 @@ function StationsStep({
   })
 
   const firstCentreWithCoords = centres.find(c => c.latitude && c.longitude)
-  const mapCenter = firstCentreWithCoords
-    ? { lat: firstCentreWithCoords.latitude!, lng: firstCentreWithCoords.longitude! }
-    : { lat: -33.8688, lng: 151.2093 }  // Sydney fallback
+  const mapCenter = origin
+    ?? (firstCentreWithCoords
+      ? { lat: firstCentreWithCoords.latitude!, lng: firstCentreWithCoords.longitude! }
+      : { lat: -33.8688, lng: 151.2093 })  // Sydney fallback
 
   function handleMarkerClick(id: string) {
     setHighlighted(id)
     listRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }
+
+  function handleMapLoad(map: google.maps.Map) {
+    const coordCentres = centres.filter(c => c.latitude && c.longitude)
+    if (coordCentres.length > 1 || (coordCentres.length >= 1 && origin)) {
+      const bounds = new window.google.maps.LatLngBounds()
+      if (origin) bounds.extend(origin)
+      coordCentres.forEach(c => bounds.extend({ lat: c.latitude!, lng: c.longitude! }))
+      map.fitBounds(bounds, 60)
+    }
   }
 
   if (loading) {
@@ -309,7 +322,7 @@ function StationsStep({
       </div>
 
       {/* Two-panel layout */}
-      <div className="flex gap-4 flex-1 min-h-0">
+      <div className="flex gap-4 flex-1 min-h-[320px]">
         {/* List */}
         <div className="w-[48%] overflow-y-auto space-y-2 pr-1">
           {sorted.map(c => (
@@ -355,15 +368,25 @@ function StationsStep({
           ))}
         </div>
 
-        {/* Map — only mounted on step 2 */}
-        <div className="flex-1 rounded-xl overflow-hidden border border-zinc-200">
+        {/* Map */}
+        <div className="flex-1 min-h-[320px] rounded-xl overflow-hidden border border-zinc-200">
           {isLoaded ? (
             <GoogleMap
               mapContainerStyle={MAP_CONTAINER}
               center={mapCenter}
               zoom={10}
               options={MAP_OPTIONS}
+              onLoad={handleMapLoad}
             >
+              {/* Blue pin for searched postcode */}
+              {origin && (
+                <Marker
+                  position={origin}
+                  title="Your postcode"
+                  icon={{ url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png' }}
+                />
+              )}
+              {/* Red pins for each fitting centre */}
               {centres.filter(c => c.latitude && c.longitude).map(c => (
                 <Marker
                   key={c.fitment_centre_id}
@@ -598,6 +621,7 @@ export default function FitterSelectionModal({ open, onClose, tyreQty, cartSubto
   const [step,     setStep]     = useState<0 | 1 | 2 | 3>(0)
   const [postcode, setPostcode] = useState('')
   const [centres,  setCentres]  = useState<Centre[]>([])
+  const [origin,   setOrigin]   = useState<{ lat: number; lng: number } | null>(null)
   const [loading,  setLoading]  = useState(false)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [selected, setSelected] = useState<Centre | null>(null)
@@ -605,7 +629,7 @@ export default function FitterSelectionModal({ open, onClose, tyreQty, cartSubto
 
   // Reset state when modal reopens
   useEffect(() => {
-    if (open) { setStep(0); setPostcode(''); setCentres([]); setSelected(null) }
+    if (open) { setStep(0); setPostcode(''); setCentres([]); setOrigin(null); setSelected(null) }
   }, [open])
 
   // Escape key
@@ -623,10 +647,17 @@ export default function FitterSelectionModal({ open, onClose, tyreQty, cartSubto
       const res  = await fetch(`${API}/api/stripe/fitment-centres?postcode=${pc}`)
       if (!res.ok) throw new Error(`Server error ${res.status}`)
       const data = await res.json()
-      setCentres(Array.isArray(data) ? data : [])
+      if (data && typeof data === 'object' && Array.isArray(data.centres)) {
+        setCentres(data.centres)
+        setOrigin(data.origin ?? null)
+      } else {
+        setCentres(Array.isArray(data) ? data : [])
+        setOrigin(null)
+      }
     } catch (err) {
       setFetchError(err instanceof Error ? err.message : 'Failed to load fitting stations')
       setCentres([])
+      setOrigin(null)
     } finally { setLoading(false) }
   }, [])
 
@@ -694,6 +725,7 @@ export default function FitterSelectionModal({ open, onClose, tyreQty, cartSubto
               <StationsStep
                 postcode={postcode}
                 centres={centres}
+                origin={origin}
                 loading={loading}
                 fetchError={fetchError}
                 onSelect={handleSelectCentre}

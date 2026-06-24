@@ -355,6 +355,7 @@ export default function HeroSection() {
     if (!canSearch || searching) return;
 
     if (activeTab === "size") {
+      setSearching(true);
       router.push(`/tyres?width=${s.width}&profile=${s.profile}&rim_size=${s.rim}`);
       return;
     }
@@ -372,6 +373,7 @@ export default function HeroSection() {
 
       if (!res.ok) {
         toastError("Could not load fitment data", "Please try again in a moment.");
+        setSearching(false);
         return;
       }
 
@@ -379,6 +381,7 @@ export default function HeroSection() {
 
       if (!Array.isArray(data) || !data.length) {
         toastWarning("No tyre fitment found", "We don't have fitment data for this vehicle yet. Try searching by tyre size instead.");
+        setSearching(false);
         return;
       }
 
@@ -387,14 +390,15 @@ export default function HeroSection() {
       );
       if (!match) {
         toastError("Invalid fitment data", "The tyre size for this vehicle is not in a recognised format.");
+        setSearching(false);
         return;
       }
 
       const [, width, profile, rim] = match;
       router.push(`/tyres?width=${width}&profile=${profile}&rim_size=${rim}`);
+      // searching stays true — component unmounts on navigation, no flash back to "Find Tyres"
     } catch {
       toastError("Search failed", "Could not connect to the server. Please check your connection and try again.");
-    } finally {
       setSearching(false);
     }
   };

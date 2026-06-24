@@ -23,6 +23,17 @@ export async function getProducts(req: Request, res: Response, next: NextFunctio
   } catch (err) { next(err) }
 }
 
+export async function searchSkus(req: Request, res: Response, next: NextFunction) {
+  try {
+    const q = String(req.query.q ?? '')
+    const limit = Number(req.query.limit ?? 20)
+    const result = await ProductsService.searchSkus(q, limit)
+    res.json(result)
+  } catch (err) {
+    next(err)
+  }
+}
+
 export async function getProduct(req: Request, res: Response, next: NextFunction) {
   try {
     const result = await ProductsService.getProduct(String((req.params as P).id))
@@ -40,14 +51,9 @@ export async function createProduct(req: Request, res: Response, next: NextFunct
 export async function updateProduct(req: Request, res: Response, next: NextFunction) {
   try {
     const id = String((req.params as P).id)
-    console.log('[updateProduct] id:', id)
-    console.log('[updateProduct] brandId received:', req.body.brandId)
-    console.log('[updateProduct] body:', JSON.stringify(req.body, null, 2))
     await ProductsService.updateProduct(id, req.body)
-    console.log('[updateProduct] success')
     res.json({ success: true })
   } catch (err) {
-    console.error('[updateProduct] error:', err)
     next(err)
   }
 }

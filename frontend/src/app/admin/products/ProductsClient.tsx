@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import ProductsTable from '@/components/admin/products/ProductsTable'
@@ -29,6 +30,7 @@ export default function ProductsClient({ initialProducts }: Props) {
   const router       = useRouter()
   const pathname     = usePathname()
 
+  const queryClient = useQueryClient()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bulkUpdating, setBulkUpdating] = useState(false)
 
@@ -82,6 +84,22 @@ export default function ProductsClient({ initialProducts }: Props) {
   async function handleBulkUpdate(field: 'active' | 'publish', value: boolean) {
     if (selected.size === 0) return
     setBulkUpdating(true)
+
+    queryClient.setQueriesData(
+      { queryKey: ['admin', 'products', 'list'] },
+      (old: ProductListResponse | undefined) => {
+        if (!old) return old
+        return {
+          ...old,
+          data: old.data.map(p =>
+            selected.has(p.id)
+              ? { ...p, [field === 'active' ? 'isActive' : 'showOnWebsite']: value }
+              : p
+          ),
+        }
+      },
+    )
+
     const { data: { session } } = await createClient().auth.getSession()
     const tok = session?.access_token ?? ''
     const ids = Array.from(selected)

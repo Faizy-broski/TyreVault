@@ -38,6 +38,7 @@ export default function CreateProductWizard({ brands, collections, categories, w
   const [activeTab, setActiveTab] = useState<TabKey>('basic')
   const [completedTabs, setCompletedTabs] = useState<Set<TabKey>>(new Set())
   const [submitting, setSubmitting] = useState(false)
+  const [appliedPattern, setAppliedPattern] = useState<{ id: string; name: string } | null>(null)
 
   const methods = useForm<CreateProductFormValues>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -203,8 +204,8 @@ export default function CreateProductWizard({ brands, collections, categories, w
 
         {/* Tab content */}
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6">
-          {activeTab === 'basic'      && <BasicInfoTab autoSlug={autoSlug} brands={brands} patterns={patterns} />}
-          {activeTab === 'categories' && <CategoriesTab collections={collections} categories={categories} />}
+          {activeTab === 'basic'      && <BasicInfoTab autoSlug={autoSlug} brands={brands} patterns={patterns} onPatternApplied={setAppliedPattern} />}
+          {activeTab === 'categories' && <CategoriesTab collections={collections} categories={categories} appliedPattern={appliedPattern} />}
           {activeTab === 'variants'   && <ProductSpecsTab />}
           {activeTab === 'pricing'    && <PricingTab warehouses={warehouses} />}
         </div>

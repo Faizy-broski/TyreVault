@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { PurchaseOrderSheet } from '@/components/admin/purchase-orders/PurchaseOrderSheet'
+import { ProductSearchInput } from '@/components/admin/products/ProductSearchInput'
 import { toastError, toastSuccess } from '@/lib/toast'
 import { Pencil, Trash2, Plus, ChevronDown, Package } from 'lucide-react'
 import type { PurchaseOrder, PurchaseOrderItem, PoStatus, ShipmentListItem } from '@/types/admin.types'
@@ -82,8 +84,6 @@ export default function PurchaseOrderDetailPage() {
 
   // Header edit
   const [editHeaderOpen, setEditHeaderOpen] = useState(false)
-  const [headerForm, setHeaderForm]         = useState<Record<string, string>>({})
-  const [savingHeader, setSavingHeader]     = useState(false)
 
   // Status
   const [statusOpen, setStatusOpen] = useState(false)
@@ -155,48 +155,6 @@ export default function PurchaseOrderDetailPage() {
       toastError(err instanceof Error ? err.message : 'Update failed')
     } finally {
       setUpdatingStatus(false)
-    }
-  }
-
-  // ── Header edit ────────────────────────────────────────────────────────────
-  function openHeaderEdit() {
-    if (!po) return
-    setHeaderForm({
-      shipment_date:  po.shipment_date ?? '',
-      eta_date:       po.eta_date ?? '',
-      exchange_rate:  po.exchange_rate != null ? String(po.exchange_rate) : '',
-      freight_cost:   po.freight_cost  != null ? String(po.freight_cost)  : '',
-      clearance_cost: po.clearance_cost != null ? String(po.clearance_cost) : '',
-      notes:          po.notes ?? '',
-    })
-    setEditHeaderOpen(true)
-  }
-
-  async function handleSaveHeader() {
-    setSavingHeader(true)
-    try {
-      const tok = await getToken()
-      const patch: Record<string, unknown> = {
-        shipment_date:  headerForm.shipment_date  || null,
-        eta_date:       headerForm.eta_date        || null,
-        exchange_rate:  headerForm.exchange_rate   ? Number(headerForm.exchange_rate)  : null,
-        freight_cost:   headerForm.freight_cost    ? Number(headerForm.freight_cost)   : null,
-        clearance_cost: headerForm.clearance_cost  ? Number(headerForm.clearance_cost) : null,
-        notes:          headerForm.notes || null,
-      }
-      const res = await fetch(`${API}/api/admin/purchase-orders/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
-        body: JSON.stringify(patch),
-      })
-      if (!res.ok) throw new Error('Save failed')
-      toastSuccess('PO updated')
-      setEditHeaderOpen(false)
-      fetchPo()
-    } catch (err) {
-      toastError(err instanceof Error ? err.message : 'Save failed')
-    } finally {
-      setSavingHeader(false)
     }
   }
 
@@ -320,7 +278,7 @@ export default function PurchaseOrderDetailPage() {
                   {po.suppliers?.supplier_name ?? '—'} → {po.warehouses?.warehouse_name ?? '—'}
                 </p>
               </div>
-              <button type="button" onClick={openHeaderEdit} className="text-zinc-400 hover:text-zinc-700">
+              <button type="button" onClick={() => setEditHeaderOpen(true)} className="text-zinc-400 hover:text-zinc-700">
                 <Pencil className="w-4 h-4" />
               </button>
             </div>
@@ -436,7 +394,7 @@ export default function PurchaseOrderDetailPage() {
                 </h2>
               </div>
               <Link
-                href="/admin/shipments/new"
+                href="/admin/shipments"
                 className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-50 transition-colors"
               >
                 <Plus className="w-3 h-3" /> New Shipment
@@ -574,48 +532,16 @@ export default function PurchaseOrderDetailPage() {
         </div>
       </div>
 
-      {/* Edit header dialog */}
-      <Dialog open={editHeaderOpen} onOpenChange={setEditHeaderOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Edit PO Details</DialogTitle></DialogHeader>
-          <div className="space-y-4 pt-2">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-zinc-700 mb-1">Shipment Date (ETD)</label>
-                <Input type="date" value={headerForm.shipment_date ?? ''} onChange={e => setHeaderForm(f => ({ ...f, shipment_date: e.target.value }))} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-zinc-700 mb-1">ETA</label>
-                <Input type="date" value={headerForm.eta_date ?? ''} onChange={e => setHeaderForm(f => ({ ...f, eta_date: e.target.value }))} />
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-zinc-700 mb-1">Exchange Rate</label>
-                <Input type="number" step="0.0001" value={headerForm.exchange_rate ?? ''} onChange={e => setHeaderForm(f => ({ ...f, exchange_rate: e.target.value }))} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-zinc-700 mb-1">Freight Cost</label>
-                <Input type="number" step="0.01" value={headerForm.freight_cost ?? ''} onChange={e => setHeaderForm(f => ({ ...f, freight_cost: e.target.value }))} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-zinc-700 mb-1">Clearance Cost</label>
-                <Input type="number" step="0.01" value={headerForm.clearance_cost ?? ''} onChange={e => setHeaderForm(f => ({ ...f, clearance_cost: e.target.value }))} />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-zinc-700 mb-1">Notes</label>
-              <Textarea value={headerForm.notes ?? ''} onChange={e => setHeaderForm(f => ({ ...f, notes: e.target.value }))} rows={3} />
-            </div>
-            <div className="flex gap-3 justify-end">
-              <Button type="button" variant="outline" onClick={() => setEditHeaderOpen(false)}>Cancel</Button>
-              <Button type="button" disabled={savingHeader} onClick={handleSaveHeader}>
-                {savingHeader ? 'Saving…' : 'Save'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Edit header sheet */}
+      <PurchaseOrderSheet
+        open={editHeaderOpen}
+        onClose={() => setEditHeaderOpen(false)}
+        onSaved={() => {
+          setEditHeaderOpen(false)
+          fetchPo()
+        }}
+        po={po}
+      />
 
       {/* Add/edit item dialog */}
       <Dialog open={itemDialog} onOpenChange={setItemDialog}>
@@ -624,8 +550,12 @@ export default function PurchaseOrderDetailPage() {
           <div className="space-y-4 pt-2">
             {!editItem && (
               <div>
-                <label className="block text-xs font-medium text-zinc-700 mb-1">Product ID <span className="text-red-500">*</span></label>
-                <Input value={itemForm.product_id} onChange={e => setItemForm(f => ({ ...f, product_id: e.target.value }))} placeholder="paste product_id UUID…" />
+                <label className="block text-xs font-medium text-zinc-700 mb-1">Product <span className="text-red-500">*</span></label>
+                <ProductSearchInput
+                  value={itemForm.product_id}
+                  onChange={val => setItemForm(f => ({ ...f, product_id: val }))}
+                  placeholder="Search by SKU or name..."
+                />
               </div>
             )}
             {editItem && (

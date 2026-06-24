@@ -10,6 +10,7 @@ const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 type Props = {
   collections: { collection_id: string; collection_name: string }[]
   categories:  { category_id: string; category_name: string; category_type: string }[]
+  appliedPattern?: { id: string; name: string } | null
 }
 
 const APPLICATION_TYPES = [
@@ -41,7 +42,7 @@ const CATEGORY_TYPES = [
   { value: 'terrain',     label: 'Terrain' },
 ]
 
-export default function CategoriesTab({ collections, categories }: Props) {
+export default function CategoriesTab({ collections, categories, appliedPattern }: Props) {
   const { register, watch, setValue, formState: { errors } } = useFormContext<CreateProductFormValues>()
 
   const selectedTags       = watch('tags') ?? []
@@ -51,6 +52,25 @@ export default function CategoriesTab({ collections, categories }: Props) {
   const collectionId       = watch('collectionId') ?? ''
   const performanceCategory = watch('performanceCategory') ?? ''
   const seasonType         = watch('seasonType') ?? ''
+
+  if (appliedPattern) {
+    return (
+      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-4 flex items-start gap-3">
+        <svg className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <div>
+          <p className="text-sm font-medium text-amber-800">
+            Classification inherited from pattern: <span className="font-semibold">{appliedPattern.name}</span>
+          </p>
+          <p className="text-xs text-amber-600 mt-1">
+            Product type, season, performance category, categories, tags, warranty, and discountable
+            settings were copied from this pattern. Go back to <strong>Basic Info</strong> and click &quot;Edit manually&quot; to override them.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8">

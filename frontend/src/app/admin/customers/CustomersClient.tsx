@@ -8,7 +8,7 @@ import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { TableBodySpinner } from '@/components/ui/table-loader'
 import { Button } from '@/components/ui/button'
 import CustomerRowMenu from '@/components/admin/customers/CustomerRowMenu'
-import CreateCustomerModal from '@/components/admin/customers/CreateCustomerModal'
+import CustomerSheet from '@/components/admin/customers/CustomerSheet'
 import {
   useCustomerList, useCustomerStats,
   type CustomerStats, type CustomerListResponse,
@@ -97,8 +97,7 @@ export default function CustomersClient({ initialStats, initialCustomers }: Prop
   const accountType  = (searchParams.get('accountType') as 'guest' | 'registered' | undefined) ?? undefined
   const customerType = searchParams.get('customerType') ?? ''
   const statusFilter = searchParams.get('status') ?? ''
-  const modal        = searchParams.get('modal')
-
+  const [sheetOpen, setSheetOpen] = useState(false)
   const [token, setToken] = useState('')
   useEffect(() => {
     createClient().auth.getSession().then(({ data: { session } }) =>
@@ -119,12 +118,6 @@ export default function CustomersClient({ initialStats, initialCustomers }: Prop
   const customers = listQuery.data?.customers ?? []
   const count     = listQuery.data?.total     ?? 0
 
-  function closeModal() {
-    const p = new URLSearchParams(searchParams.toString())
-    p.delete('modal')
-    const qs = p.toString()
-    router.replace(qs ? `${pathname}?${qs}` : pathname)
-  }
 
   const buildHref = useCallback((extra: Record<string, string>) => {
     const p = new URLSearchParams()
@@ -143,9 +136,12 @@ export default function CustomersClient({ initialStats, initialCustomers }: Prop
 
   return (
     <div className="space-y-5 p-4 sm:p-6">
-      {modal === 'create' && (
-        <CreateCustomerModal accessToken={token} onClose={closeModal} />
-      )}
+      <CustomerSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        onSaved={() => { setSheetOpen(false); listQuery.refetch() }}
+        accessToken={token}
+      />
 
       <AdminBreadcrumb crumbs={[{ label: 'Customers' }]} />
 
@@ -170,7 +166,7 @@ export default function CustomersClient({ initialStats, initialCustomers }: Prop
           <Button
             type="button"
             size="sm"
-            onClick={() => router.push(buildHref({ modal: 'create' }))}
+            onClick={() => setSheetOpen(true)}
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />

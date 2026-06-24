@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useQueryClient } from '@tanstack/react-query'
 import { Plus, Trash2, Package, ChevronUp, ChevronDown, ChevronsUpDown, Pencil } from 'lucide-react'
@@ -71,6 +71,8 @@ function BoolToggle({ productId, initial, field }: {
   const [value, setValue] = useState(initial)
   const [busy, setBusy] = useState(false)
   const queryClient = useQueryClient()
+
+  useEffect(() => { setValue(initial) }, [initial])
 
   async function set(next: boolean) {
     if (next === value || busy) return
