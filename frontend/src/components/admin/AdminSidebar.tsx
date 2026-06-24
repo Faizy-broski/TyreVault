@@ -95,7 +95,8 @@ export default function AdminSidebar({ userEmail, isOpen = false, onClose }: Pro
   function schedulePrefetch(href: string) {
     if (prefetchTimer.current) clearTimeout(prefetchTimer.current)
     prefetchTimer.current = setTimeout(() => {
-      PREFETCH_MAP[href]?.(queryClient).catch(() => undefined)
+      router.prefetch(href)                                    // warm RSC payload cache
+      PREFETCH_MAP[href]?.(queryClient).catch(() => undefined) // warm React Query data cache
     }, 150)
   }
 

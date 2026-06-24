@@ -2,6 +2,12 @@ import type { NextConfig } from 'next'
 import path from 'path'
 
 const nextConfig: NextConfig = {
+  experimental: {
+    staleTimes: {
+      dynamic: 300, // 5 min — default is 30s; prevents RSC refetch on every admin navigation
+      static:  300,
+    },
+  },
   turbopack: {
     root: path.resolve(__dirname),
   },
