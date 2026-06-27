@@ -453,9 +453,9 @@ function StationDetailStep({
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col min-h-0">
       {/* Header */}
-      <button type="button" onClick={onBack} className="flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-800 mb-4 self-start">
+      <button type="button" onClick={onBack} className="flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-800 mb-4 self-start shrink-0">
         <ChevronLeft className="w-4 h-4" /> Show all
       </button>
 
@@ -560,7 +560,7 @@ function StationDetailStep({
       <button
         type="button"
         onClick={handleSave}
-        className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-zinc-900 hover:bg-primary/90 transition-colors mt-auto"
+        className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-zinc-900 hover:bg-primary/90 transition-colors shrink-0"
       >
         Save station &amp; Continue
       </button>
@@ -717,7 +717,7 @@ export default function FitterSelectionModal({ open, onClose, tyreQty, cartSubto
           </div>
 
           {/* Body */}
-          <div className="flex-1 min-h-0 overflow-hidden px-6 py-5 flex flex-col">
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 flex flex-col">
             {step === 0 && (
               <HowItWorksStep onContinue={handlePostcodeContinue} />
             )}

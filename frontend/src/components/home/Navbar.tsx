@@ -2,7 +2,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, Menu, Search, ShoppingCart, User } from "lucide-react";
+import { ChevronDown, Search, ShoppingCart, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCartStore } from "@/stores/cart.store";
 import { createClient } from "@/lib/supabase/client";
@@ -69,14 +69,6 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
       <div className="border-b border-white/10 bg-black/30 backdrop-blur-md">
         <div className="mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-10">
           <div className="flex items-center gap-5 lg:gap-10">
-            <Button
-              size="icon"
-              variant="outline"
-              aria-label="Open menu"
-              className="h-10 w-10 rounded-full border-white/20 bg-transparent text-white hover:border-primary hover:bg-primary/10 hover:text-primary"
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
             <nav className="hidden items-center gap-8 lg:flex">
               {/* Shop Tyres — mega dropdown */}
               <div ref={tyresRef} className="relative">

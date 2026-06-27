@@ -399,12 +399,28 @@ export async function createOrder(payload: CreateOrderPayload) {
     customerId = newCust.customer_id
   }
 
-  // 2. Generate order number TVT-YYYYMMDD-XXXX
+  // 2. Validate all product_ids exist in skus (catches stale carts after SKU deletion)
+  const requestedIds = payload.items.map(i => i.product_id)
+  const { data: foundSkus } = await db
+    .from('skus')
+    .select('product_id')
+    .in('product_id', requestedIds)
+
+  const foundIds = new Set((foundSkus ?? []).map((s: { product_id: string }) => s.product_id))
+  const missing  = requestedIds.filter(id => !foundIds.has(id))
+  if (missing.length > 0) {
+    return {
+      data:  null,
+      error: Object.assign(new Error('One or more products in your cart are no longer available. Please refresh and try again.'), { code: 'PRODUCT_NOT_FOUND', missing }),
+    }
+  }
+
+  // 3. Generate order number TVT-YYYYMMDD-XXXX
   const datePart  = new Date().toISOString().slice(0, 10).replace(/-/g, '')
   const rand      = String(Math.floor(Math.random() * 9000) + 1000)
   const orderNumber = `TVT-${datePart}-${rand}`
 
-  // 3. Server-side fitting cost calculation
+  // 4. Server-side fitting cost calculation
   let fittingCost = 0
   if (payload.fitment_centre_id) {
     const { data: centre } = await db

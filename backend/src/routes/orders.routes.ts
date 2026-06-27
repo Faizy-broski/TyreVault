@@ -30,7 +30,12 @@ router.post('/', async (req, res, next) => {
       total_amount,
     })
 
-    if (error) return next(error)
+    if (error) {
+      if ((error as any).code === 'PRODUCT_NOT_FOUND') {
+        return res.status(422).json({ error: error.message })
+      }
+      return next(error)
+    }
     res.status(201).json(data)
   } catch (err) { next(err) }
 })
