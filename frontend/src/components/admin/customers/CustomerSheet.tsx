@@ -28,13 +28,14 @@ export default function CustomerSheet({ open, onClose, onSaved, accessToken, cus
   const [saving, setSaving]           = useState(false)
 
   useEffect(() => {
+    if (!open) return
     fetch(`${BACKEND_API_URL}/api/admin/customers/groups/list?page=1`, {
       headers: createBackendHeaders(accessToken),
     })
       .then(r => r.json())
       .then(d => setGroups(d.groups ?? []))
       .catch(() => {})
-  }, [accessToken])
+  }, [open, accessToken])
 
   useEffect(() => {
     setCustomerType(customer?.customer_type ?? 'retail')

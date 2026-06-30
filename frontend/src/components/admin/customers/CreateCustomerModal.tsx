@@ -31,7 +31,8 @@ export default function CreateCustomerModal({ accessToken, onClose }: Props) {
       .then(r => r.json())
       .then(d => setGroups(d.groups ?? []))
       .catch(() => {})
-  }, [accessToken])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const showCreditFields = ['wholesale', 'fleet', 'trade'].includes(customerType)
 
