@@ -10,8 +10,7 @@ const VALID_METHOD_TYPES = ['own_fleet', 'courier_api', '3pl', 'supplier_direct'
 export async function getShippingMethods(req: Request, res: Response, next: NextFunction) {
   try {
     const includeInactive = req.query.all === 'true'
-    const { data, error } = await ShippingService.listShippingMethods(includeInactive)
-    if (error) return next(error)
+    const data = await ShippingService.listShippingMethods(includeInactive)
     res.json(data ?? [])
   } catch (err) { next(err) }
 }
@@ -48,12 +47,11 @@ export async function removeShippingMethod(req: Request, res: Response, next: Ne
 
 export async function getShippingQuotes(req: Request, res: Response, next: NextFunction) {
   try {
-    const { data, error, count } = await ShippingService.listShippingQuotes({
+    const { data, count } = await ShippingService.listShippingQuotes({
       orderId:     req.query.orderId     ? String(req.query.orderId)     : undefined,
       warehouseId: req.query.warehouseId ? String(req.query.warehouseId) : undefined,
       page:        req.query.page        ? Number(req.query.page)        : 1,
     })
-    if (error) return next(error)
     res.json({ data: data ?? [], total: count ?? 0 })
   } catch (err) { next(err) }
 }

@@ -824,10 +824,10 @@ export async function updateVariantPrices(
   // Batch all DB writes — N sequential round-trips → at most 2 parallel
   const ops: Promise<{ error: unknown }>[] = []
   if (toUpdate.length > 0) {
-    ops.push(supabase.from('product_prices').upsert(toUpdate, { onConflict: 'price_id' }) as Promise<{ error: unknown }>)
+    ops.push(supabase.from('product_prices').upsert(toUpdate, { onConflict: 'price_id' }) as unknown as Promise<{ error: unknown }>)
   }
   if (toInsert.length > 0) {
-    ops.push(supabase.from('product_prices').insert(toInsert) as Promise<{ error: unknown }>)
+    ops.push(supabase.from('product_prices').insert(toInsert) as unknown as Promise<{ error: unknown }>)
   }
   if (ops.length > 0) {
     const results = await Promise.all(ops)
@@ -1202,10 +1202,12 @@ export async function createBrand(payload: BrandPayload) {
   return data
 }
 
-export async function listBrandsFull(params: { page: number; limit: number; search?: string }) {
+type BrandsFullResult = { data: Record<string, unknown>[]; total: number; page: number; limit: number; totalPages: number }
+
+export async function listBrandsFull(params: { page: number; limit: number; search?: string }): Promise<BrandsFullResult> {
   const { page, limit, search } = params
   const cacheKey = `admin:brands-full:${page}:${limit}:${search ?? ''}`
-  const localCached = getMetaCache<ReturnType<typeof listBrandsFull>>(cacheKey)
+  const localCached = getMetaCache<BrandsFullResult>(cacheKey)
   if (localCached) return localCached
 
   const cols = 'brand_id, brand_name, brand_slug, brand_logo, brand_banner_image, brand_description, brand_short_description, country_of_brand, manufacturer_name, brand_positioning, warranty_info, seo_title, seo_description, is_active, show_on_website, channel_wholesale, channel_retail, channel_marketplaces, created_at, updated_at'
