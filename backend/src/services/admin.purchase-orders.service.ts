@@ -153,8 +153,10 @@ export async function updatePurchaseOrder(id: string, patch: {
 
   // Recompute total_cost if costs changed
   if (patch.freight_cost !== undefined || patch.clearance_cost !== undefined) {
-    const { data: po } = await supabase.from('purchase_orders').select('freight_cost, clearance_cost').eq('po_id', id).single()
-    const { data: items } = await supabase.from('purchase_order_items').select('unit_cost, quantity_ordered').eq('po_id', id)
+    const [{ data: po }, { data: items }] = await Promise.all([
+      supabase.from('purchase_orders').select('freight_cost, clearance_cost').eq('po_id', id).single(),
+      supabase.from('purchase_order_items').select('unit_cost, quantity_ordered').eq('po_id', id),
+    ])
     const itemsTotal = (items ?? []).reduce((s, r) => s + r.unit_cost * r.quantity_ordered, 0)
     const freight   = patch.freight_cost   ?? po?.freight_cost   ?? 0
     const clearance = patch.clearance_cost ?? po?.clearance_cost ?? 0

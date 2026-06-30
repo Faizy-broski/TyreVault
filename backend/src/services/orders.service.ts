@@ -1,5 +1,8 @@
 import { supabase as db } from './supabase.service'
+import { redis, TTL } from './redis.service'
 import { notificationQueue } from '../queues'
+
+const _statsCache = { entry: null as { data: Record<string, number>; exp: number } | null }
 import { calcFittingCost } from '../routes/stripe.routes'
 import { insertNotifications, getAdminUserIds } from './notifications.service'
 
@@ -8,15 +11,25 @@ const PAGE_SIZE = 20
 // ── Stats ───────────────────────────────────────────────────────────────────
 
 export async function getOrderStats() {
+  const cacheKey = 'admin:order-stats'
+
+  // Redis first, then process-local fallback (TTL.ADMIN_KPI = 300s)
+  const redisCached = await redis?.get<Record<string, number>>(cacheKey)
+  if (redisCached) return redisCached
+  if (_statsCache.entry && _statsCache.entry.exp > Date.now()) return _statsCache.entry.data
+
   const { data, error } = await db.rpc('get_order_stats')
   if (error) throw error
   const d = data as any
-  return {
+  const stats = {
     totalOrders:    Number(d?.totalOrders   ?? 0),
     totalRevenue:   Number(d?.totalRevenue  ?? 0),
     avgOrderSize:   Number(d?.avgOrderSize  ?? 0),
     pendingPayment: Number(d?.pendingPayment ?? 0),
   }
+  await redis?.set(cacheKey, stats, { ex: TTL.ADMIN_KPI })
+  _statsCache.entry = { data: stats, exp: Date.now() + TTL.ADMIN_KPI * 1000 }
+  return stats
 }
 
 // ── List ────────────────────────────────────────────────────────────────────

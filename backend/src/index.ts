@@ -34,12 +34,36 @@ app.use(cors({
   },
   credentials: true,
 }))
-app.use(express.json({ limit: '10mb' }))
+app.use(express.json({ limit: '100kb' }))
 app.use(express.urlencoded({ extended: true }))
 
 // --- Rate limiting ---
 const importLimiter = rateLimit({ windowMs: 60_000, max: 5,  standardHeaders: true, legacyHeaders: false })
 const checkoutLimiter = rateLimit({ windowMs: 60_000, max: 20, standardHeaders: true, legacyHeaders: false })
+
+// --- Performance audit middleware (remove after profiling confirms fixes) ---
+app.use((req, res, next) => {
+  const start = process.hrtime.bigint()
+  const originalJson = res.json.bind(res)
+  let payloadBytes = 0
+
+  res.json = (body: unknown) => {
+    const serialized = JSON.stringify(body)
+    payloadBytes = Buffer.byteLength(serialized, 'utf8')
+    return originalJson(body)
+  }
+
+  res.on('finish', () => {
+    const ms = Number(process.hrtime.bigint() - start) / 1_000_000
+    if (ms > 200) {
+      console.warn(
+        `[SLOW] ${req.method} ${req.originalUrl} → ${res.statusCode} | ${ms.toFixed(1)}ms | ${(payloadBytes / 1024).toFixed(1)}KB`
+      )
+    }
+  })
+
+  next()
+})
 
 // --- Health check ---
 app.get('/health', (_req, res) => {

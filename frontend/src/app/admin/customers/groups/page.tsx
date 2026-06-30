@@ -1,70 +1,42 @@
-'use client'
-
-import { useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/server'
 import CustomerGroupsClient from '@/components/admin/customers/CustomerGroupsClient'
 import type { CustomerGroup } from '@/types/admin.types'
-import { toastError } from '@/lib/toast'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = { title: 'Customer Groups — Admin' }
 
 const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
-export default function CustomerGroupsPage() {
-  const searchParams = useSearchParams()
-  const search = searchParams.get('search') ?? ''
-  const page   = Number(searchParams.get('page') ?? 1)
-  const limit  = 20
+export default async function CustomerGroupsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ search?: string; page?: string }>
+}) {
+  const { search = '', page: pageStr = '1' } = await searchParams
+  const page  = Math.max(1, Number(pageStr) || 1)
+  const limit = 20
 
-  const [groups, setGroups]   = useState<CustomerGroup[]>([])
-  const [total, setTotal]     = useState(0)
-  const [token, setToken]     = useState('')
-  const [loading, setLoading] = useState(true)
+  const supabase = await createClient()
+  const { data: { session } } = await supabase.auth.getSession()
+  const token = session?.access_token ?? ''
 
-  useEffect(() => { document.title = 'Customer Groups | Tyre Vault' }, [])
+  let groups: CustomerGroup[] = []
+  let total = 0
 
-  useEffect(() => {
-    let cancelled = false
-    async function load() {
-      setLoading(true)
-      try {
-        const { data: { session } } = await createClient().auth.getSession()
-        const tok = session?.access_token ?? ''
-        if (!cancelled) setToken(tok)
-
-        const qs = new URLSearchParams({ page: String(page) })
-        if (search) qs.set('search', search)
-
-        const res = await fetch(`${API}/api/admin/customers/groups/list?${qs}`, {
-          headers: { Authorization: `Bearer ${tok}` },
-        })
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}))
-          throw new Error(body.error ?? `API returned ${res.status}`)
-        }
+  if (token) {
+    const qs = new URLSearchParams({ page: String(page) })
+    if (search) qs.set('search', search)
+    try {
+      const res = await fetch(`${API}/api/admin/customers/groups/list?${qs}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      })
+      if (res.ok) {
         const json = await res.json()
-        if (!cancelled) {
-          setGroups(json.groups ?? [])
-          setTotal(json.total ?? 0)
-        }
-      } catch (err) {
-        if (!cancelled) toastError(err instanceof Error ? err.message : 'Failed to load groups')
-      } finally {
-        if (!cancelled) setLoading(false)
+        groups = json.groups ?? []
+        total  = json.total  ?? 0
       }
-    }
-    load()
-    return () => { cancelled = true }
-  }, [search, page])
-
-  if (loading) {
-    return (
-      <div className="p-4 sm:p-6">
-        <div className="h-8 w-48 bg-zinc-100 rounded animate-pulse mb-6" />
-        <div className="space-y-3">
-          {[1,2,3].map(i => <div key={i} className="h-14 bg-zinc-100 rounded-xl animate-pulse" />)}
-        </div>
-      </div>
-    )
+    } catch { /* render empty state gracefully */ }
   }
 
   const totalPages = Math.max(1, Math.ceil(total / limit))
@@ -80,4 +52,3 @@ export default function CustomerGroupsPage() {
     />
   )
 }
-

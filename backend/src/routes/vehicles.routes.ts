@@ -4,16 +4,20 @@ import { redis } from '../services/redis.service'
 
 const router = Router()
 
+// Process-local cache for vehicle dropdowns — makes/models are near-static (1h TTL)
+const vehicleCache = new Map<string, { data: unknown; exp: number }>()
+
 // GET /api/vehicles/makes
 router.get('/makes', async (_req, res, next) => {
   try {
-    const { data, error } = await db
-      .from('vehicles')
-      .select('make')
-      .order('make')
+    const cacheKey = 'makes'
+    const hit = vehicleCache.get(cacheKey)
+    if (hit && hit.exp > Date.now()) return res.json(hit.data)
 
+    const { data, error } = await db.from('vehicles').select('make').order('make')
     if (error) return next(error)
     const makes = [...new Set((data ?? []).map((r: any) => r.make))].sort()
+    vehicleCache.set(cacheKey, { data: makes, exp: Date.now() + 3_600_000 })
     res.json(makes)
   } catch (err) { next(err) }
 })
@@ -24,14 +28,14 @@ router.get('/models', async (req, res, next) => {
     const { make } = req.query
     if (!make) return res.status(400).json({ error: 'make is required' })
 
-    const { data, error } = await db
-      .from('vehicles')
-      .select('model')
-      .eq('make', make as string)
-      .order('model')
+    const cacheKey = `models:${make}`
+    const hit = vehicleCache.get(cacheKey)
+    if (hit && hit.exp > Date.now()) return res.json(hit.data)
 
+    const { data, error } = await db.from('vehicles').select('model').eq('make', make as string).order('model')
     if (error) return next(error)
     const models = [...new Set((data ?? []).map((r: any) => r.model))].sort()
+    vehicleCache.set(cacheKey, { data: models, exp: Date.now() + 3_600_000 })
     res.json(models)
   } catch (err) { next(err) }
 })

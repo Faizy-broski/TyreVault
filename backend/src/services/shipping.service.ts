@@ -33,7 +33,9 @@ export async function listShippingMethods(includeInactive = false) {
     .select('shipping_method_id, method_name, method_type, api_provider, is_active, created_at')
     .order('method_name')
   if (!includeInactive) q = q.eq('is_active', true)
-  return q
+  const { data, error } = await q
+  if (error) throw error
+  return data
 }
 
 export async function createShippingMethod(payload: CreateShippingMethodPayload) {
@@ -101,7 +103,9 @@ export async function listShippingQuotes(filters: {
   if (filters.orderId)     q = q.eq('order_id',     filters.orderId)
   if (filters.warehouseId) q = q.eq('warehouse_id', filters.warehouseId)
 
-  return q
+  const { data, error, count } = await q
+  if (error) throw error
+  return { data, count }
 }
 
 export async function createShippingQuote(payload: CreateShippingQuotePayload) {

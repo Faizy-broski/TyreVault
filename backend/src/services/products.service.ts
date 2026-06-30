@@ -2,6 +2,17 @@ import { supabase } from './supabase.service'
 import { redis, TTL } from './redis.service'
 import { normalizeTyreSize } from '../utils/size-normalizer'
 
+// Process-local cache for catalog meta data (brands, collections, categories).
+// Works even when Redis is not configured. TTL in ms.
+const metaCache = new Map<string, { data: unknown; exp: number }>()
+function getMetaCache<T>(key: string): T | null {
+  const hit = metaCache.get(key)
+  return hit && hit.exp > Date.now() ? (hit.data as T) : null
+}
+function setMetaCache(key: string, data: unknown, ttlMs = 3_600_000) {
+  metaCache.set(key, { data, exp: Date.now() + ttlMs })
+}
+
 // ============================================================
 // Types
 // ============================================================
@@ -793,8 +804,10 @@ export async function updateVariantPrices(
 
   const gstRate = 0.1
 
+  const toUpdate: { price_id: string; price_inc_gst: number; price_ex_gst: number }[] = []
+  const toInsert: { product_id: string; price_type: string; price_inc_gst: number; price_ex_gst: number; is_active: boolean }[] = []
+
   for (const [groupName, priceIncGst] of Object.entries(prices)) {
-    // Find matching existing row (null customer_group_id = Retail)
     const row = (existing ?? []).find(p =>
       groupName === 'Retail' ? p.customer_group_id === null : false
     ) ?? (existing ?? [])[0]
@@ -802,18 +815,24 @@ export async function updateVariantPrices(
     const priceExGst = parseFloat((priceIncGst / (1 + gstRate)).toFixed(2))
 
     if (row?.price_id) {
-      await supabase
-        .from('product_prices')
-        .update({ price_inc_gst: priceIncGst, price_ex_gst: priceExGst })
-        .eq('price_id', row.price_id)
+      toUpdate.push({ price_id: row.price_id, price_inc_gst: priceIncGst, price_ex_gst: priceExGst })
     } else {
-      await supabase.from('product_prices').insert({
-        product_id: productId,
-        price_type: 'retail',
-        price_inc_gst: priceIncGst,
-        price_ex_gst: priceExGst,
-        is_active: true,
-      })
+      toInsert.push({ product_id: productId, price_type: 'retail', price_inc_gst: priceIncGst, price_ex_gst: priceExGst, is_active: true })
+    }
+  }
+
+  // Batch all DB writes — N sequential round-trips → at most 2 parallel
+  const ops: Promise<{ error: unknown }>[] = []
+  if (toUpdate.length > 0) {
+    ops.push(supabase.from('product_prices').upsert(toUpdate, { onConflict: 'price_id' }) as Promise<{ error: unknown }>)
+  }
+  if (toInsert.length > 0) {
+    ops.push(supabase.from('product_prices').insert(toInsert) as Promise<{ error: unknown }>)
+  }
+  if (ops.length > 0) {
+    const results = await Promise.all(ops)
+    for (const { error } of results) {
+      if (error) throw error
     }
   }
 
@@ -972,25 +991,27 @@ export async function updateProductStock(
     minimum_stock_level?: number
   }[]
 ) {
-  for (const alloc of allocations) {
+  const now = new Date().toISOString()
+  const patches = allocations.map(alloc => {
     const patch: Record<string, unknown> = {
       product_id: productId,
       warehouse_id: alloc.warehouse_id,
       available_stock: alloc.available,
-      last_stock_update: new Date().toISOString(),
+      last_stock_update: now,
     }
     if (alloc.reserved !== undefined) patch.reserved_stock = alloc.reserved
     if (alloc.incoming !== undefined) patch.incoming_stock = alloc.incoming
     if (alloc.in_transit !== undefined) patch.in_transit_stock = alloc.in_transit
     if (alloc.damaged !== undefined) patch.damaged_stock = alloc.damaged
     if (alloc.minimum_stock_level !== undefined) patch.minimum_stock_level = alloc.minimum_stock_level
+    return patch
+  })
 
-    const { error } = await supabase.from('product_stock').upsert(
-      patch,
-      { onConflict: 'product_id,warehouse_id' }
-    )
-    if (error) throw error
-  }
+  // Single batch upsert — was N sequential round-trips
+  const { error } = await supabase
+    .from('product_stock')
+    .upsert(patches, { onConflict: 'product_id,warehouse_id' })
+  if (error) throw error
 
   // Recompute total_available_stock on the SKU
   const { data: stockRows } = await supabase
@@ -1183,6 +1204,10 @@ export async function createBrand(payload: BrandPayload) {
 
 export async function listBrandsFull(params: { page: number; limit: number; search?: string }) {
   const { page, limit, search } = params
+  const cacheKey = `admin:brands-full:${page}:${limit}:${search ?? ''}`
+  const localCached = getMetaCache<ReturnType<typeof listBrandsFull>>(cacheKey)
+  if (localCached) return localCached
+
   const cols = 'brand_id, brand_name, brand_slug, brand_logo, brand_banner_image, brand_description, brand_short_description, country_of_brand, manufacturer_name, brand_positioning, warranty_info, seo_title, seo_description, is_active, show_on_website, channel_wholesale, channel_retail, channel_marketplaces, created_at, updated_at'
   let q = supabase
     .from('brands')
@@ -1193,7 +1218,9 @@ export async function listBrandsFull(params: { page: number; limit: number; sear
   const { data, count, error } = await q
   if (error) throw error
   const total = count ?? 0
-  return { data: data ?? [], total, page, limit, totalPages: Math.ceil(total / limit) }
+  const result = { data: data ?? [], total, page, limit, totalPages: Math.ceil(total / limit) }
+  setMetaCache(cacheKey, result, 300_000) // 5 min TTL
+  return result
 }
 
 export async function listBrandsAll() {
@@ -1217,8 +1244,15 @@ export async function listBrands() {
   return data ?? []
 }
 
+function bustBrandsFullCache() {
+  for (const key of metaCache.keys()) {
+    if (key.startsWith('admin:brands-full:')) metaCache.delete(key)
+  }
+}
+
 export async function updateBrand(id: string, payload: Partial<BrandPayload>) {
   await redis?.del('admin:brands')
+  bustBrandsFullCache()
   const { error } = await supabase.from('brands').update(payload).eq('brand_id', id)
   if (error) throw error
 
@@ -1234,6 +1268,7 @@ export async function updateBrand(id: string, payload: Partial<BrandPayload>) {
 
 export async function deleteBrand(id: string) {
   await redis?.del('admin:brands')
+  bustBrandsFullCache()
   const { error } = await supabase.from('brands').delete().eq('brand_id', id)
   if (error) throw error
 }
@@ -1335,9 +1370,15 @@ export async function deletePattern(patternId: string) {
 }
 
 export async function listCollections() {
+  const cached = await redis?.get<unknown[]>('admin:collections') ?? getMetaCache<unknown[]>('admin:collections')
+  if (cached) return cached
+
   const { data } = await supabase
     .from('collections').select('collection_id, collection_name, collection_slug, description, is_active, created_at').order('created_at', { ascending: false }).limit(200)
-  return data ?? []
+  const result = data ?? []
+  await redis?.set('admin:collections', result, { ex: TTL.SUPPLIER_MAP })
+  setMetaCache('admin:collections', result)
+  return result
 }
 
 export async function createCollection(payload: { collection_name: string; collection_slug: string; description?: string }) {
@@ -1357,12 +1398,19 @@ export async function deleteCollection(id: string) {
 }
 
 export async function listCategories() {
+  const cached = await redis?.get<unknown[]>('admin:categories') ?? getMetaCache<unknown[]>('admin:categories')
+  if (cached) return cached
+
   const { data } = await supabase
     .from('categories')
     .select('category_id, category_name, category_slug, category_type, parent_category_id, description, image, is_active, hidden_from_website, sort_order, created_at')
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: false })
-  return data ?? []
+    .limit(500)
+  const result = data ?? []
+  await redis?.set('admin:categories', result, { ex: TTL.SUPPLIER_MAP })
+  setMetaCache('admin:categories', result)
+  return result
 }
 
 export type CategoryType = 'season' | 'application' | 'performance' | 'position' | 'terrain'

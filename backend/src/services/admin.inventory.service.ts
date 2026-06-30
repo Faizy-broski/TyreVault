@@ -2,6 +2,8 @@ import { supabase } from './supabase.service'
 import { catalogueSyncQueue } from '../queues'
 import type { CatalogueSyncJobData } from '../workers/catalogue-sync.worker'
 
+const inventoryCache = new Map<string, { data: unknown; exp: number }>()
+
 export type InventoryStatusFilter = 'all' | 'mapped' | 'unmapped' | 'pending'
 
 export type SupplierMappingEntry = {
@@ -50,6 +52,10 @@ function buildSizeVariants(raw: string): string[] {
   return [...variants].filter(Boolean)
 }
 
+function bustInventoryCache() {
+  inventoryCache.clear()
+}
+
 export async function getInventoryMappings({
   page       = 1,
   limit      = 20,
@@ -57,6 +63,10 @@ export async function getInventoryMappings({
   status     = 'all' as InventoryStatusFilter,
   q          = '',
 }) {
+  const cacheKey = `inv:${page}:${limit}:${supplierId}:${status}:${q}`
+  const hit = inventoryCache.get(cacheKey)
+  if (hit && hit.exp > Date.now()) return hit.data as { data: InventoryProductRow[]; total: number }
+
   const offset = (page - 1) * limit
   const search = q.trim()
 
@@ -237,11 +247,14 @@ export async function getInventoryMappings({
     }
   })
 
-  return { data: rows, total: count ?? 0 }
+  const result = { data: rows, total: count ?? 0 }
+  inventoryCache.set(cacheKey, { data: result, exp: Date.now() + 60_000 })
+  return result
 }
 
 // Approve a mapping and enqueue stock sync
 export async function approveInventoryMapping(mapId: string) {
+  bustInventoryCache()
   const { data, error } = await supabase
     .from('supplier_product_map')
     .update({ is_verified: true })
@@ -266,6 +279,7 @@ export async function approveInventoryMapping(mapId: string) {
 
 // Remove a mapping (also removes synced stock row)
 export async function removeInventoryMapping(mapId: string) {
+  bustInventoryCache()
   const { data: row } = await supabase
     .from('supplier_product_map')
     .select('supplier_id, product_id')

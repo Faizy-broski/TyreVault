@@ -112,14 +112,7 @@ export async function deletePromotion(id: string) {
 export async function evaluateCartPromotions(
   items: Array<{ product_id: string; quantity: number; unit_price: number }>
 ): Promise<Map<string, number>> {
-  const { data: promos } = await db
-    .from('promotions')
-    .select('*')
-    .eq('is_active', true)
-    // Let Postgres evaluate the date in PKT via a raw filter
-    .filter('start_date', 'lte', db.rpc as unknown as string)
-
-  // Fallback: fetch all active promos and filter server-side using PKT date
+  // Fetch active promos and filter server-side using PKT date (UTC+5)
   const { data: allPromos } = await db
     .from('promotions')
     .select('*')

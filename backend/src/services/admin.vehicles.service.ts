@@ -211,12 +211,28 @@ export async function deleteWheelFitment(fitmentId: string, vehicleId: string) {
 // Helpers for dropdowns
 // ============================================================
 
+// Vehicle makes/models are near-static — cache them in process memory for 1 hour
+// so we never full-scan the 5 500+ row vehicles table on every dropdown render.
+const vehicleDropdownCache = new Map<string, { data: string[]; exp: number }>()
+
 export async function listVehicleMakes() {
+  const key = 'makes'
+  const hit = vehicleDropdownCache.get(key)
+  if (hit && hit.exp > Date.now()) return hit.data
+
   const { data } = await supabase.from('vehicles').select('make').order('make')
-  return [...new Set((data ?? []).map(r => r.make))].sort()
+  const makes = [...new Set((data ?? []).map(r => r.make))].sort()
+  vehicleDropdownCache.set(key, { data: makes, exp: Date.now() + 3_600_000 })
+  return makes
 }
 
 export async function listVehicleModels(make: string) {
+  const key = `models:${make}`
+  const hit = vehicleDropdownCache.get(key)
+  if (hit && hit.exp > Date.now()) return hit.data
+
   const { data } = await supabase.from('vehicles').select('model').eq('make', make).order('model')
-  return [...new Set((data ?? []).map(r => r.model))].sort()
+  const models = [...new Set((data ?? []).map(r => r.model))].sort()
+  vehicleDropdownCache.set(key, { data: models, exp: Date.now() + 3_600_000 })
+  return models
 }
