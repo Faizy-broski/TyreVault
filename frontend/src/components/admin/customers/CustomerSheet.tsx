@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import { Sheet } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -29,13 +30,17 @@ export default function CustomerSheet({ open, onClose, onSaved, accessToken, cus
 
   useEffect(() => {
     if (!open) return
-    fetch(`${BACKEND_API_URL}/api/admin/customers/groups/list?page=1`, {
-      headers: createBackendHeaders(accessToken),
+    createClient().auth.getSession().then(({ data: { session } }) => {
+      const token = session?.access_token
+      if (!token) return
+      fetch(`${BACKEND_API_URL}/api/admin/customers/groups/list?page=1`, {
+        headers: createBackendHeaders(token),
+      })
+        .then(r => r.json())
+        .then(d => setGroups(d.groups ?? []))
+        .catch(() => {})
     })
-      .then(r => r.json())
-      .then(d => setGroups(d.groups ?? []))
-      .catch(() => {})
-  }, [open, accessToken])
+  }, [open])
 
   useEffect(() => {
     setCustomerType(customer?.customer_type ?? 'retail')

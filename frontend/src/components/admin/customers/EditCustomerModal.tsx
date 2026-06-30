@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 import { Dialog, DialogContent, DialogTitle, DialogClose } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -27,13 +28,16 @@ export default function EditCustomerModal({ accessToken, customer, onClose, onSu
   const [customerType, setCustomerType] = useState<CustomerType>(customer.customer_type ?? 'retail')
 
   useEffect(() => {
-    fetch(`${BACKEND_API_URL}/api/admin/customers/groups/list?page=1`, {
-      headers: createBackendHeaders(accessToken),
+    createClient().auth.getSession().then(({ data: { session } }) => {
+      const token = session?.access_token
+      if (!token) return
+      fetch(`${BACKEND_API_URL}/api/admin/customers/groups/list?page=1`, {
+        headers: createBackendHeaders(token),
+      })
+        .then(r => r.json())
+        .then(d => setGroups(d.groups ?? []))
+        .catch(() => {})
     })
-      .then(r => r.json())
-      .then(d => setGroups(d.groups ?? []))
-      .catch(() => {})
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const showCreditFields = ['wholesale', 'fleet', 'trade'].includes(customerType)
