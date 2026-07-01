@@ -9,6 +9,7 @@ import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { useProductList, useProductMeta, type ProductListResponse } from '@/lib/query/hooks'
 import { createClient } from '@/lib/supabase/client'
 import { toastPromise } from '@/lib/toast'
+import { BoxSpinner } from '@/components/ui/table-loader'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -273,17 +274,20 @@ export default function ProductsClient({ initialProducts }: Props) {
           </div>
         )}
 
-        <div className="overflow-x-auto">
-          <ProductsTable
-            products={products}
-            sortBy={sortBy}
-            sortOrder={sortOrder}
-            onSort={handleSort}
-            selected={selected}
-            onSelect={setSelected}
-            loading={loading}
-          />
-        </div>
+        {loading ? (
+          <BoxSpinner minHeight={320} />
+        ) : (
+          <div className="overflow-x-auto">
+            <ProductsTable
+              products={products}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSort={handleSort}
+              selected={selected}
+              onSelect={setSelected}
+            />
+          </div>
+        )}
 
         <div className="flex flex-col gap-2 px-4 py-3 border-t border-zinc-200 text-sm text-zinc-500 sm:flex-row sm:items-center sm:justify-between">
           {loading

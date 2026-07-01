@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button'
 import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
 } from '@/components/ui/table'
-import { TableBodySpinner } from '@/components/ui/table-loader'
 import { createClient } from '@/lib/supabase/client'
 import { toastSuccess, toastError } from '@/lib/toast'
 
@@ -235,7 +234,6 @@ export default function ProductsTable({
   onSort,
   selected,
   onSelect,
-  loading = false,
 }: {
   products: Product[]
   sortBy: string
@@ -243,7 +241,6 @@ export default function ProductsTable({
   onSort: (col: string) => void
   selected?: Set<string>
   onSelect?: (s: Set<string>) => void
-  loading?: boolean
 }) {
   const displayed = (() => {
     // if (sortBy === 'variant_count') { ... } // VARIANTS DISABLED
@@ -254,6 +251,24 @@ export default function ProductsTable({
     }
     return products
   })()
+  if (products.length === 0) {
+    return (
+      <div className="py-20 text-center">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-zinc-100">
+          <Package className="h-7 w-7 text-zinc-300" />
+        </div>
+        <p className="text-sm font-medium text-zinc-500">No products yet</p>
+        <p className="mt-1 text-xs text-zinc-400">Get started by creating your first product.</p>
+        <Link
+          href="/admin/products/new"
+          className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-zinc-900 hover:bg-primary/90 transition-colors"
+        >
+          <Plus className="h-4 w-4" />
+          Create product
+        </Link>
+      </div>
+    )
+  }
 
   return (
     <Table className="w-full text-sm">
@@ -285,28 +300,7 @@ export default function ProductsTable({
         </TableRow>
       </TableHeader>
       <TableBody className="divide-y divide-zinc-200">
-        {loading ? (
-          <TableBodySpinner colSpan={10} />
-        ) : displayed.length === 0 ? (
-          <TableRow>
-            <TableCell colSpan={10}>
-              <div className="py-20 text-center">
-                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-zinc-100">
-                  <Package className="h-7 w-7 text-zinc-300" />
-                </div>
-                <p className="text-sm font-medium text-zinc-500">No products yet</p>
-                <p className="mt-1 text-xs text-zinc-400">Get started by creating your first product.</p>
-                <Link
-                  href="/admin/products/new"
-                  className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-zinc-900 hover:bg-primary/90 transition-colors"
-                >
-                  <Plus className="h-4 w-4" />
-                  Create product
-                </Link>
-              </div>
-            </TableCell>
-          </TableRow>
-        ) : displayed.map((p, i) => (
+        {displayed.map((p, i) => (
           <TableRow key={p.id} className={selected?.has(p.id) ? '!bg-amber-50/30' : ''}>
             <TableCell className="px-5 py-3">
               {selected && onSelect && (

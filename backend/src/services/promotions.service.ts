@@ -35,7 +35,7 @@ export async function listPromotions(page = 1) {
 
   const { data, count, error } = await db
     .from('promotions')
-    .select('*', { count: 'estimated' })
+    .select('*', { count: 'exact' })
     .order('display_order', { ascending: true })
     .order('created_at',    { ascending: false })
     .range(from, to)

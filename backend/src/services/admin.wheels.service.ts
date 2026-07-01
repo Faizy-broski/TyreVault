@@ -1,7 +1,4 @@
 import { supabase } from './supabase.service'
-import { redis, TTL } from './redis.service'
-
-const WHEEL_BRANDS_CACHE_KEY = 'admin:wheel-brands'
 
 // ============================================================
 // Types
@@ -54,18 +51,12 @@ export type WheelListFilters = {
 // ============================================================
 
 export async function listWheelBrands() {
-  const cached = await redis?.get<unknown[]>(WHEEL_BRANDS_CACHE_KEY)
-  if (cached) return cached
-
   const { data, error } = await supabase
     .from('wheel_brands')
     .select('wheel_brand_id, brand_name, logo, description, is_active, created_at')
     .order('brand_name')
   if (error) throw error
-
-  const brands = data ?? []
-  await redis?.set(WHEEL_BRANDS_CACHE_KEY, brands, { ex: TTL.WHEEL_BRANDS })
-  return brands
+  return data ?? []
 }
 
 export async function createWheelBrand(payload: WheelBrandPayload) {
@@ -80,7 +71,6 @@ export async function createWheelBrand(payload: WheelBrandPayload) {
     .select('wheel_brand_id, brand_name, logo, description, is_active, created_at')
     .single()
   if (error) throw error
-  await redis?.del(WHEEL_BRANDS_CACHE_KEY)
   return data
 }
 
@@ -92,13 +82,11 @@ export async function updateWheelBrand(id: string, payload: Partial<WheelBrandPa
   if (payload.is_active   !== undefined) allowed.is_active   = payload.is_active
   const { error } = await supabase.from('wheel_brands').update(allowed).eq('wheel_brand_id', id)
   if (error) throw error
-  await redis?.del(WHEEL_BRANDS_CACHE_KEY)
 }
 
 export async function deleteWheelBrand(id: string) {
   const { error } = await supabase.from('wheel_brands').delete().eq('wheel_brand_id', id)
   if (error) throw error
-  await redis?.del(WHEEL_BRANDS_CACHE_KEY)
 }
 
 // ============================================================
@@ -128,7 +116,7 @@ export async function listWheels(filters: WheelListFilters = {}) {
       updated_at,
       wheel_brands ( brand_name ),
       wheel_variants ( wheel_variant_id )
-    `, { count: 'estimated' })
+    `, { count: 'exact' })
     .order('model_name')
     .range(from, to)
 

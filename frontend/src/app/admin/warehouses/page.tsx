@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Pencil, Trash2, Plus } from 'lucide-react'
 import { toastSuccess, toastError } from '@/lib/toast'
 import type { Warehouse } from '@/types/admin.types'
-import { TableBodySpinner } from '@/components/ui/table-loader'
+import { BoxSpinner } from '@/components/ui/table-loader'
 
 const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -88,7 +88,10 @@ export default function WarehousesPage() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
+      {loading ? (
+        <BoxSpinner />
+      ) : (
+        <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-zinc-200 bg-zinc-50">
@@ -102,11 +105,10 @@ export default function WarehousesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200">
-              {loading ? (
-                <TableBodySpinner colSpan={7} />
-              ) : warehouses.length === 0 ? (
+              {warehouses.length === 0 && (
                 <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-400">No warehouses yet</td></tr>
-              ) : warehouses.map(w => (
+              )}
+              {warehouses.map(w => (
                 <tr key={w.warehouse_id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
                   <td className="px-4 py-3 font-medium text-zinc-900">{w.warehouse_name}</td>
                   <td className="px-4 py-3">
@@ -163,6 +165,7 @@ export default function WarehousesPage() {
             </tbody>
           </table>
         </div>
+      )}
 
       {/* Delete confirmation */}
       <Dialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>
