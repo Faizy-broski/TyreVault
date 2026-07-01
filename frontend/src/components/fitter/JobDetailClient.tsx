@@ -2,18 +2,27 @@
 
 import { useState, useEffect, useRef, useTransition } from 'react'
 import { Phone, Calendar, Clock, Car, Package, Check, X, Play, FileText, ShieldAlert, ChevronDown, Mail, MapPin } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { Button }  from '@/components/ui/button'
 import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
-import type { FitmentJobItem } from '@/types/fitter.types'
+import type { FitmentJob, FitmentJobItem } from '@/types/fitter.types'
 import { FitterBreadcrumb } from '@/components/fitter/FitterBreadcrumb'
 import { fmt12h, fmtDate }  from '@/lib/fitter-format'
-import { useFitterJobDetail, useUpdateFitterJob } from '@/lib/query/fitter-hooks'
+import { useFitterJobDetail } from '@/lib/query/fitter-hooks'
+import { fitterKeys } from '@/lib/query/keys'
+import { BACKEND_API_URL, createBackendHeaders } from '@/lib/backend-api'
+import { createClient } from '@/lib/supabase/client'
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
 import { MobileTimePicker } from '@mui/x-date-pickers/MobileTimePicker'
 import dayjs from 'dayjs'
+
+async function getToken(): Promise<string> {
+  const { data: { session } } = await createClient().auth.getSession()
+  return session?.access_token ?? ''
+}
 
 function fmtCurrency(n: number) {
   return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(n)
@@ -62,6 +71,7 @@ function LoadingSkeleton() {
 
 export default function JobDetailClient({ jobId }: { jobId: string }) {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [isPending, startTransition] = useTransition()
   const [error,         setError]         = useState('')
   const [fitterNotes,   setFitterNotes]   = useState('')
@@ -72,7 +82,6 @@ export default function JobDetailClient({ jobId }: { jobId: string }) {
   const seededJobId = useRef<string | null>(null)
 
   const { data: job, isPending: loading } = useFitterJobDetail(jobId)
-  const updateJob = useUpdateFitterJob(jobId)
 
   useEffect(() => {
     if (job && job.job_id !== seededJobId.current) {
@@ -83,45 +92,59 @@ export default function JobDetailClient({ jobId }: { jobId: string }) {
     }
   }, [job])
 
+  async function patchJob(body: Record<string, unknown>) {
+    const token = await getToken()
+    return fetch(`${BACKEND_API_URL}/api/fitter/portal/jobs/${jobId}`, {
+      method:  'PATCH',
+      headers: createBackendHeaders(token, { 'Content-Type': 'application/json' }),
+      body:    JSON.stringify(body),
+    })
+  }
+
   async function updateStatus(status: 'pending' | 'assigned' | 'accepted' | 'rejected' | 'in_progress' | 'completed' | 'cancelled') {
     setError('')
-    try {
-      await updateJob.mutateAsync({ status })
-      if (status === 'accepted') {
-        toast.success('Job confirmed successfully!')
-        router.push('/fitter/jobs')
-      }
-    } catch {
-      setError('Failed to update job status.')
+    const res = await patchJob({ status })
+    if (!res.ok) { setError('Failed to update job status.'); return }
+    queryClient.setQueryData<FitmentJob>(fitterKeys.jobDetail(jobId), prev =>
+      prev ? { ...prev, job_status: status } : prev
+    )
+    queryClient.setQueryData<FitmentJob[]>(fitterKeys.jobs(), prev =>
+      prev?.map(j => j.job_id === jobId ? { ...j, job_status: status } : j)
+    )
+    queryClient.invalidateQueries({ queryKey: fitterKeys.kpis() })
+
+    if (status === 'accepted') {
+      toast.success('Job confirmed successfully!')
+      router.push('/fitter/jobs')
     }
   }
 
   async function saveNotes() {
     if (!job) return
     setError('')
-    try {
-      await updateJob.mutateAsync({ status: job.job_status, fitter_notes: fitterNotes })
-      setNotesSaved(true)
-      setTimeout(() => setNotesSaved(false), 2000)
-    } catch {
-      setError('Failed to save notes.')
-    }
+    const res = await patchJob({ status: job.job_status, fitter_notes: fitterNotes })
+    if (!res.ok) { setError('Failed to save notes.'); return }
+    queryClient.setQueryData<FitmentJob>(fitterKeys.jobDetail(jobId), prev =>
+      prev ? { ...prev, fitter_notes: fitterNotes } : prev
+    )
+    setNotesSaved(true)
+    setTimeout(() => setNotesSaved(false), 2000)
   }
 
   async function saveSchedule() {
     if (!job) return
     setError('')
-    try {
-      await updateJob.mutateAsync({
-        status:         job.job_status,
-        scheduled_date: scheduledDate || null,
-        scheduled_time: scheduledTime || null,
-      })
-      setSchedSaved(true)
-      setTimeout(() => setSchedSaved(false), 2000)
-    } catch {
-      setError('Failed to save appointment.')
-    }
+    const res = await patchJob({
+      status:         job.job_status,
+      scheduled_date: scheduledDate || null,
+      scheduled_time: scheduledTime || null,
+    })
+    if (!res.ok) { setError('Failed to save appointment.'); return }
+    queryClient.setQueryData<FitmentJob>(fitterKeys.jobDetail(jobId), prev =>
+      prev ? { ...prev, scheduled_date: scheduledDate || null, scheduled_time: scheduledTime || null } : prev
+    )
+    setSchedSaved(true)
+    setTimeout(() => setSchedSaved(false), 2000)
   }
 
   if (loading) return <LoadingSkeleton />

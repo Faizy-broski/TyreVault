@@ -137,13 +137,6 @@ export const useCartStore = create<CartStore>()(
         return get().subtotal() + (fittingSelection?.totalFittingCost ?? 0)
       },
     }),
-    {
-      name: 'tyrevault-cart-v2',
-      partialize: (state) => ({
-        items:            state.items,
-        qty:              state.qty,
-        fittingSelection: state.fittingSelection,
-      }),
-    }
+    { name: 'tyrevault-cart-v2' }
   )
 )

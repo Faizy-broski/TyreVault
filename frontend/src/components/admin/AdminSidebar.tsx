@@ -64,8 +64,9 @@ const nav = [
   { label: "Vehicles",        href: "/admin/vehicles",         icon: Car },
   { label: "Shipping Methods",href: "/admin/shipping-methods", icon: Ship },
   {
-    label: "Fitment Center", href: "/admin/fitters", icon: Wrench,
+    label: "Fitment Center", href: "/admin/fitters", icon: Wrench, noNav: true,
     children: [
+      { label: "Applications",       href: "/admin/fitters/applications" },
       { label: "Registered Centres", href: "/admin/fitters/centres" },
     ],
   },

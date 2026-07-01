@@ -1,5 +1,4 @@
 import { supabase as db } from './supabase.service'
-import { invalidateRoleCache } from '../middleware/auth.middleware'
 
 export interface WorkingHoursEntry {
   day:        string
@@ -157,7 +156,6 @@ export async function reviewApplication(
     .from('profiles')
     .update({ role: 'fitter' })
     .eq('id', userId)
-  await invalidateRoleCache(userId)
 
   // ── 3. Build services_offered array from booleans ────────────────────────
   const services: string[] = []

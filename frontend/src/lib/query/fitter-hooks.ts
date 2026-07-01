@@ -1,10 +1,10 @@
 'use client'
 
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
 import { fetchBackendJson } from '@/lib/backend-api'
 import { fitterKeys } from './keys'
-import type { FitmentJob, JobStatus, FitterKPIs, FitterEarning, FitterProfile, FitterServices, FitterPricingRow } from '@/types/fitter.types'
+import type { FitmentJob, FitterKPIs, FitterEarning, FitterProfile, FitterServices, FitterPricingRow } from '@/types/fitter.types'
 
 async function getToken(): Promise<string> {
   const { data: { session } } = await createClient().auth.getSession()
@@ -46,49 +46,6 @@ export function useFitterJobDetail(jobId: string) {
     queryFn:   async () => fetchBackendJson<FitmentJob>(`/api/fitter/portal/jobs/${jobId}`, await getToken()),
     staleTime: SETTINGS_STALE,
     enabled:   !!jobId,
-  })
-}
-
-export type FitterJobPatch = {
-  status?:         JobStatus
-  fitter_notes?:   string
-  scheduled_date?: string | null
-  scheduled_time?: string | null
-}
-
-// Optimistically patches the job (detail + list caches), rolling back on failure.
-export function useUpdateFitterJob(jobId: string) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async (patch: FitterJobPatch) => {
-      await fetchBackendJson(
-        `/api/fitter/portal/jobs/${jobId}`,
-        await getToken(),
-        { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) },
-      )
-      return patch
-    },
-    onMutate: async (patch) => {
-      await queryClient.cancelQueries({ queryKey: fitterKeys.jobDetail(jobId) })
-      const previousDetail = queryClient.getQueryData<FitmentJob>(fitterKeys.jobDetail(jobId))
-      const previousList   = queryClient.getQueryData<FitmentJob[]>(fitterKeys.jobs())
-
-      queryClient.setQueryData<FitmentJob>(fitterKeys.jobDetail(jobId), prev =>
-        prev ? { ...prev, ...patch } : prev,
-      )
-      queryClient.setQueryData<FitmentJob[]>(fitterKeys.jobs(), prev =>
-        prev?.map(j => (j.job_id === jobId ? { ...j, ...patch } : j)),
-      )
-
-      return { previousDetail, previousList }
-    },
-    onError: (_err, _patch, context) => {
-      if (context?.previousDetail) queryClient.setQueryData(fitterKeys.jobDetail(jobId), context.previousDetail)
-      if (context?.previousList)   queryClient.setQueryData(fitterKeys.jobs(), context.previousList)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: fitterKeys.kpis() })
-    },
   })
 }
 

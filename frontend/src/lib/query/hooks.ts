@@ -4,8 +4,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData, type QueryClie
 import { createClient } from '@/lib/supabase/client'
 import { fetchBackendJson } from '@/lib/backend-api'
 import { adminKeys } from './keys'
-import { normaliseProductRaw, type ProductRaw, type ProductListResponse } from './product-normalize'
-import type { OrderListItem, CustomerListItem, CustomerDetail, Brand, Supplier, AdminFitmentCentreSummary, Category, Warehouse } from '@/types/admin.types'
+import type { OrderListItem, CustomerListItem, Brand, Supplier, AdminFitmentCentreSummary, Category, Warehouse } from '@/types/admin.types'
 
 // Supabase caches the session in memory — calling this is essentially free after first auth.
 async function getToken(): Promise<string> {
@@ -55,10 +54,8 @@ export function useDeleteOrder() {
         { method: 'DELETE' },
       )
     },
-    onSuccess: (_data, orderId) => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'orders', 'list'] })
-      queryClient.invalidateQueries({ queryKey: ['admin', 'orders', 'stats'] })
-      queryClient.removeQueries({ queryKey: adminKeys.orderDetail(orderId) })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] })
     },
   })
 }
@@ -74,10 +71,8 @@ export function useUpdateOrderStatus() {
         { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fulfillmentStatus, paymentStatus }) },
       )
     },
-    onSuccess: (_data, { orderId }) => {
-      queryClient.invalidateQueries({ queryKey: ['admin', 'orders', 'list'] })
-      queryClient.invalidateQueries({ queryKey: ['admin', 'orders', 'stats'] })
-      queryClient.invalidateQueries({ queryKey: adminKeys.orderDetail(orderId) })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'orders'] })
     },
   })
 }
@@ -142,39 +137,16 @@ export function useCustomerList(p: CustomerListParams, opts?: { initialData?: Cu
   })
 }
 
-export function useCustomerDetail(customerId: string) {
-  return useQuery({
-    queryKey: adminKeys.customerDetail(customerId),
-    queryFn: async () => fetchBackendJson<{ customer: CustomerDetail }>(`/api/admin/customers/${customerId}`, await getToken()),
-    enabled: !!customerId,
-  })
-}
-
 // ─── Products ─────────────────────────────────────────────────────────────────
 
 type ProductBrand = { brand_id: string; brand_name: string }
 type Pattern = { pattern_id: string; pattern_name: string; brand_id: string }
 
-export type ProductMetaResponse = {
-  brands: ProductBrand[]
-  patterns: Pattern[]
-  collections: { collection_id: string; collection_name: string }[]
-  categories: { category_id: string; category_name: string; category_type: string }[]
-}
-
 export function useProductMeta() {
   return useQuery({
     queryKey: adminKeys.productMeta(),
-    queryFn: async () => fetchBackendJson<ProductMetaResponse>('/api/admin/products/meta', await getToken()),
+    queryFn: async () => fetchBackendJson<{ brands: ProductBrand[]; patterns: Pattern[] }>('/api/admin/products/meta', await getToken()),
     staleTime: META_STALE,
-  })
-}
-
-export function useProductDetail(id: string) {
-  return useQuery({
-    queryKey: adminKeys.productDetail(id),
-    queryFn: async () => fetchBackendJson<{ pattern: Record<string, any>; skus: Record<string, any>[] }>(`/api/admin/products/${id}`, await getToken()),
-    enabled: !!id,
   })
 }
 
@@ -190,7 +162,51 @@ export type ProductListParams = {
   stock: string
 }
 
-export type { ProductRaw, NormalisedProduct, ProductListResponse } from './product-normalize'
+type ProductRaw = {
+  id: string; name: string; image: string | null
+  brand: { brand_id: string; brand_name: string } | null
+  collection: { collection_name: string } | null
+  variantCount: number
+  activeVariantCount: number
+  totalStock: number
+  loadIndexes: string[]
+  firstSku: string | null
+  isActive: boolean
+  showOnWebsite: boolean
+  updatedAt: string
+  createdAt: string
+}
+
+function normaliseProductRaw(item: ProductRaw): NormalisedProduct {
+  return {
+    id: item.id,
+    name: item.name,
+    image: item.image ?? null,
+    brand: item.brand?.brand_name ?? '—',
+    brandId: item.brand?.brand_id ?? '',
+    collection: item.collection?.collection_name ?? null,
+    variantCount: item.variantCount,
+    activeVariants: item.activeVariantCount,
+    totalStock: item.totalStock ?? 0,
+    loadIndexes: item.loadIndexes ?? [],
+    firstSku: item.firstSku ?? null,
+    isActive: item.isActive,
+    showOnWebsite: item.showOnWebsite,
+    updatedAt: item.updatedAt,
+    createdAt: item.createdAt,
+  }
+}
+
+export type NormalisedProduct = {
+  id: string; name: string; image: string | null; brand: string; brandId: string
+  collection: string | null; variantCount: number; activeVariants: number
+  totalStock: number
+  loadIndexes: string[]
+  firstSku: string | null
+  isActive: boolean; showOnWebsite: boolean; updatedAt: string; createdAt: string
+}
+
+export type ProductListResponse = { data: NormalisedProduct[]; total: number }
 
 export function useProductList(p: ProductListParams, opts?: { initialData?: ProductListResponse }) {
   const qs = new URLSearchParams({ page: String(p.page), sortBy: p.sortBy, sortOrder: p.sortOrder })
