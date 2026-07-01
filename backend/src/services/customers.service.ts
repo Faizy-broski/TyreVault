@@ -1,19 +1,32 @@
 import { supabase as supabaseAdmin } from './supabase.service'
+import { redis, TTL } from './redis.service'
 
 const PAGE_SIZE = 20
 
 // ── Customers ──────────────────────────────────────────────────────────────
 
+const _statsCache = { entry: null as { data: Record<string, number>; exp: number } | null }
+
 export async function getCustomerStats() {
+  const cacheKey = 'admin:customer-stats'
+
+  // Redis first, then process-local fallback (TTL.ADMIN_KPI = 300s)
+  const redisCached = await redis?.get<Record<string, number>>(cacheKey)
+  if (redisCached) return redisCached
+  if (_statsCache.entry && _statsCache.entry.exp > Date.now()) return _statsCache.entry.data
+
   const { data, error } = await supabaseAdmin.rpc('get_customer_stats')
   if (error) throw error
   const d = data as any
-  return {
+  const stats = {
     totalCustomers: Number(d?.totalCustomers ?? 0),
     totalOrders:    Number(d?.totalOrders    ?? 0),
     avgOrderSize:   Number(d?.avgOrderSize   ?? 0),
     totalRevenue:   Number(d?.totalRevenue   ?? 0),
   }
+  await redis?.set(cacheKey, stats, { ex: TTL.ADMIN_KPI })
+  _statsCache.entry = { data: stats, exp: Date.now() + TTL.ADMIN_KPI * 1000 }
+  return stats
 }
 
 export async function listCustomers(opts: {
@@ -29,7 +42,7 @@ export async function listCustomers(opts: {
 
   let query = supabaseAdmin
     .from('customers')
-    .select('customer_id, email, first_name, last_name, business_name, phone, created_at, profile_id, customer_type, account_status', { count: 'exact' })
+    .select('customer_id, email, first_name, last_name, business_name, phone, created_at, profile_id, customer_type, account_status', { count: 'estimated' })
     .order('created_at', { ascending: false })
     .range(from, to)
 
@@ -294,7 +307,7 @@ export async function listCustomerGroups(opts: { search?: string; page?: number 
 
   let query = supabaseAdmin
     .from('customer_groups')
-    .select('group_id, group_name, description, discount_type, discount_value, price_type, customer_count, created_at, updated_at', { count: 'exact' })
+    .select('group_id, group_name, description, discount_type, discount_value, price_type, customer_count, created_at, updated_at', { count: 'estimated' })
     .order('customer_count', { ascending: false })
     .range(from, to)
 
