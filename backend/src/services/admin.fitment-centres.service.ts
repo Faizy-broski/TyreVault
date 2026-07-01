@@ -1,4 +1,5 @@
 import { supabase } from './supabase.service'
+import { invalidateRoleCache } from '../middleware/auth.middleware'
 
 const PAGE_LIMIT = 20
 
@@ -110,6 +111,7 @@ export async function createFitmentCentre(body: {
     .from('profiles')
     .upsert({ id: userId, role: 'fitter' }, { onConflict: 'id' })
   if (profileError) throw profileError
+  await invalidateRoleCache(userId)
 
   // 3. Build services_offered array from fitting type flags
   const services: string[] = []

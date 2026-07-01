@@ -1,19 +1,19 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useQueryClient } from '@tanstack/react-query'
+import { useCustomerDetail } from '@/lib/query/hooks'
+import { adminKeys } from '@/lib/query/keys'
 import CustomerDetailClient from '@/components/admin/customers/CustomerDetailClient'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { toastError } from '@/lib/toast'
 import type {
   Address,
-  CustomerDetail,
   CustomerGroup,
   CustomerListItem,
 } from '@/types/admin.types'
-
-const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 export type CustomerOrder = {
   order_id: string
@@ -46,92 +46,78 @@ type PageState = {
 
 export default function CustomerDetailPage() {
   const { customerId } = useParams<{ customerId: string }>()
+  const queryClient = useQueryClient()
 
-  const [state, setState]     = useState<PageState | null>(null)
-  const [token, setToken]     = useState('')
-  const [loading, setLoading] = useState(true)
-  const [refreshKey, setRefreshKey] = useState(0)
+  const [token, setToken] = useState('')
+  const { data, isPending: loading, isError, error } = useCustomerDetail(customerId)
+
+  useEffect(() => {
+    createClient().auth.getSession().then(({ data: { session } }) =>
+      setToken(session?.access_token ?? ''),
+    )
+  }, [])
+
+  useEffect(() => {
+    if (isError) toastError(error instanceof Error ? error.message : 'Failed to load customer')
+  }, [isError, error])
+
+  const state = useMemo<PageState | null>(() => {
+    const detail = data?.customer
+    if (!detail) return null
+
+    const customer: CustomerListItem = {
+      customer_id:        detail.customer_id,
+      email:              detail.email,
+      first_name:         detail.first_name,
+      last_name:          detail.last_name,
+      business_name:      detail.business_name,
+      phone:              detail.phone,
+      created_at:         detail.created_at,
+      profile_id:         detail.profile_id,
+      customer_type:      detail.customer_type     ?? null,
+      account_status:     detail.account_status    ?? null,
+      credit_limit:       detail.credit_limit      ?? null,
+      payment_terms:      detail.payment_terms     ?? null,
+      billing_address_id: detail.billing_address_id ?? null,
+      customer_group_id:  (detail as any).customer_group_id ?? null,
+    }
+
+    const orders: CustomerOrder[] = detail.orders.map(order => ({
+      order_id: order.order_id,
+      order_number: order.order_number,
+      created_at: order.created_at,
+      payment_status: order.payment_status,
+      order_status: order.order_status,
+      total_amount: Number(order.total_amount ?? 0),
+      item_count: order.item_count ?? 0,
+      order_type: order.order_type ?? null,
+    }))
+
+    const totalValue = orders.reduce((sum, o) => sum + o.total_amount, 0)
+    const orderStats: OrderStats = {
+      totalValue,
+      count: orders.length,
+      avgOrderValue: orders.length > 0 ? totalValue / orders.length : 0,
+      lastOrderDate: orders[0]?.created_at ?? null,
+    }
+
+    const addresses = detail.addresses as Address[]
+
+    return {
+      customer,
+      orders,
+      orderStats,
+      groups: detail.groups as CustomerGroup[],
+      addresses,
+      primaryAddress: addresses[0] ?? null,
+    }
+  }, [data])
 
   useEffect(() => {
     const c = state?.customer
     const name = c ? ([c.first_name, c.last_name].filter(Boolean).join(' ') || c.email) : null
     document.title = name ? `${name} | Tyre Vault` : 'Customer | Tyre Vault'
   }, [state])
-
-  useEffect(() => {
-    if (!customerId) return
-    let cancelled = false
-    async function load() {
-      try {
-        const { data: { session } } = await createClient().auth.getSession()
-        const tok = session?.access_token ?? ''
-        if (!cancelled) setToken(tok)
-
-        const res = await fetch(`${API}/api/admin/customers/${customerId}`, {
-          headers: { Authorization: `Bearer ${tok}` },
-        })
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}))
-          throw new Error(body.error ?? `API returned ${res.status}`)
-        }
-        const json = await res.json()
-        const detail: CustomerDetail = json.customer
-
-        const customer: CustomerListItem = {
-          customer_id:        detail.customer_id,
-          email:              detail.email,
-          first_name:         detail.first_name,
-          last_name:          detail.last_name,
-          business_name:      detail.business_name,
-          phone:              detail.phone,
-          created_at:         detail.created_at,
-          profile_id:         detail.profile_id,
-          customer_type:      detail.customer_type     ?? null,
-          account_status:     detail.account_status    ?? null,
-          credit_limit:       detail.credit_limit      ?? null,
-          payment_terms:      detail.payment_terms     ?? null,
-          billing_address_id: detail.billing_address_id ?? null,
-          customer_group_id:  (detail as any).customer_group_id ?? null,
-        }
-
-        const orders: CustomerOrder[] = detail.orders.map(order => ({
-          order_id: order.order_id,
-          order_number: order.order_number,
-          created_at: order.created_at,
-          payment_status: order.payment_status,
-          order_status: order.order_status,
-          total_amount: Number(order.total_amount ?? 0),
-          item_count: order.item_count ?? 0,
-          order_type: order.order_type ?? null,
-        }))
-
-        const totalValue = orders.reduce((sum, o) => sum + o.total_amount, 0)
-        const orderStats: OrderStats = {
-          totalValue,
-          count: orders.length,
-          avgOrderValue: orders.length > 0 ? totalValue / orders.length : 0,
-          lastOrderDate: orders[0]?.created_at ?? null,
-        }
-
-        const addresses = detail.addresses as Address[]
-
-        if (!cancelled) setState({
-          customer,
-          orders,
-          orderStats,
-          groups: detail.groups as CustomerGroup[],
-          addresses,
-          primaryAddress: addresses[0] ?? null,
-        })
-      } catch (err) {
-        if (!cancelled) toastError(err instanceof Error ? err.message : 'Failed to load customer')
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-    load()
-    return () => { cancelled = true }
-  }, [customerId, refreshKey])
 
   if (loading) {
     return (
@@ -173,7 +159,7 @@ export default function CustomerDetailPage() {
         groups={state.groups}
         addresses={state.addresses}
         primaryAddress={state.primaryAddress}
-        onRefresh={() => setRefreshKey(k => k + 1)}
+        onRefresh={() => queryClient.invalidateQueries({ queryKey: adminKeys.customerDetail(customerId) })}
       />
     </div>
   )

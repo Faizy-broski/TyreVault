@@ -13,18 +13,15 @@ export default async function FitterLayout({ children }: { children: React.React
 
   if (!user) redirect('/login')
 
-  // Check role
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
+  // Profile role check and session lookup are independent — run concurrently
+  const [{ data: profile }, { data: { session } }] = await Promise.all([
+    supabase.from('profiles').select('role').eq('id', user.id).single(),
+    supabase.auth.getSession(),
+  ])
 
   const role = (profile as any)?.role
   if (role !== 'fitter' && role !== 'super_admin') redirect('/fitter/onboarding')
 
-  // Get session token to call backend
-  const { data: { session } } = await supabase.auth.getSession()
   const token = session?.access_token ?? ''
 
   let centre: FitmentCentre | null = null

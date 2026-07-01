@@ -15,15 +15,19 @@ export interface AuthenticatedRequest extends Request {
 // jose fetches the key set once and caches it locally — subsequent verifications
 // are pure local crypto (~1ms). Works with both the current ECC (P-256 / ES256)
 // key and any future key rotations automatically.
-const JWKS = process.env.SUPABASE_URL
-  ? createRemoteJWKSet(new URL(`${process.env.SUPABASE_URL}/auth/v1/.well-known/jwks.json`))
+const SUPABASE_URL = process.env.SUPABASE_URL?.replace(/\/$/, '')
+const JWKS = SUPABASE_URL
+  ? createRemoteJWKSet(new URL(`${SUPABASE_URL}/auth/v1/.well-known/jwks.json`))
   : null
-console.log('[auth] JWKS:', JWKS ? `${process.env.SUPABASE_URL}/auth/v1/.well-known/jwks.json` : 'NULL — falling back to network call')
+console.log('[auth] JWKS:', JWKS ? `${SUPABASE_URL}/auth/v1/.well-known/jwks.json` : 'NULL — falling back to network call')
 
 async function verifyJWT(token: string): Promise<{ sub: string; email?: string } | null> {
-  if (!JWKS) return null
+  if (!JWKS || !SUPABASE_URL) return null
   try {
-    const { payload } = await jwtVerify(token, JWKS)
+    const { payload } = await jwtVerify(token, JWKS, {
+      issuer:   `${SUPABASE_URL}/auth/v1`,
+      audience: 'authenticated',
+    })
     return payload as { sub: string; email?: string }
   } catch {
     return null
@@ -38,10 +42,15 @@ const localRoleCache = new Map<string, { role: string; exp: number }>()
 async function getRoleForUser(userId: string): Promise<string> {
   const cacheKey = `profile:role:${userId}`
 
-  // 1. Try Redis (shared across all PM2 forks, 300s TTL)
+  // 1. Try Redis (shared across all PM2 forks, 300s TTL) — never let a Redis
+  //    outage fail the request; fall through to the DB lookup below.
   if (redis) {
-    const cached = await redis.get<string>(cacheKey)
-    if (cached) return cached
+    try {
+      const cached = await redis.get<string>(cacheKey)
+      if (cached) return cached
+    } catch (err) {
+      console.warn('[auth] Redis get failed, falling back to DB lookup:', err)
+    }
   } else {
     // 2. Fall back to process-local Map (60s TTL)
     const entry = localRoleCache.get(userId)
@@ -58,7 +67,11 @@ async function getRoleForUser(userId: string): Promise<string> {
   const role = profile?.role ?? 'customer'
 
   if (redis) {
-    await redis.set(cacheKey, role, { ex: 300 })
+    try {
+      await redis.set(cacheKey, role, { ex: 300 })
+    } catch (err) {
+      console.warn('[auth] Redis set failed:', err)
+    }
   } else {
     localRoleCache.set(userId, { role, exp: Date.now() + 60_000 })
   }
@@ -84,12 +97,13 @@ export async function authMiddleware(
   let email: string
 
   // Fast path: local JWT verification (~1ms, no network call).
-  // Falls back to supabase.auth.getUser() if SUPABASE_JWT_SECRET is not set.
+  // Falls back to supabase.auth.getUser() if SUPABASE_URL is unset or JWKS/signature verification fails.
   const payload = await verifyJWT(token)
   if (payload) {
     userId = payload.sub
     email  = payload.email ?? ''
   } else {
+    console.warn('[auth] JWKS miss — falling back to supabase.auth.getUser() network call')
     const { data: { user }, error } = await supabase.auth.getUser(token)
     if (error || !user) {
       res.status(401).json({ error: 'Invalid or expired token' })

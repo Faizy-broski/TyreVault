@@ -117,7 +117,7 @@ export default function TyreCard({ item }: { item: BestSellerSku }) {
           </button>
           <Link
             href={href}
-            className="w-full flex items-center justify-center rounded-lg border-2 border-primary py-2 text-sm font-bold text-zinc-900 hover:bg-primary/10 transition-colors"
+            className="w-full flex items-center justify-center rounded-lg border-2 border-primary py-2 text-sm font-bold text-zinc-900 hover:bg-primary/10 active:scale-95 transition-all duration-150"
           >
             View details
           </Link>
