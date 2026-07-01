@@ -1,2 +1,5 @@
-import { PageSkeleton } from '@/components/admin/PageSkeleton'
-export default function Loading() { return <PageSkeleton /> }
+import AdminListSkeleton from '@/components/admin/AdminListSkeleton'
+
+export default function Loading() {
+  return <AdminListSkeleton />
+}

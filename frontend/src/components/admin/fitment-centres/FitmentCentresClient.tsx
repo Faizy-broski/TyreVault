@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import type { AdminFitmentCentreSummary } from "@/types/admin.types";
@@ -18,16 +18,11 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { TableBodySpinner } from "@/components/ui/table-loader";
+import { createClient } from "@/lib/supabase/client";
 import { toastError } from "@/lib/toast";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 const PAGE_LIMIT = 20;
-
-interface Props {
-  initialCentres: AdminFitmentCentreSummary[];
-  initialTotal: number;
-  accessToken: string;
-}
 
 function StatusBadge({ active }: { active: boolean }) {
   return (
@@ -44,21 +39,28 @@ function StatusBadge({ active }: { active: boolean }) {
   );
 }
 
-export default function FitmentCentresClient({
-  initialCentres,
-  initialTotal,
-  accessToken,
-}: Props) {
-  const [centres, setCentres] =
-    useState<AdminFitmentCentreSummary[]>(initialCentres);
-  const [total, setTotal] = useState(initialTotal);
+export default function FitmentCentresClient() {
+  const [accessToken, setAccessToken] = useState("");
+  const [centres, setCentres] = useState<AdminFitmentCentreSummary[]>([]);
+  const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const totalPages = Math.ceil(total / PAGE_LIMIT);
   const headers = { Authorization: `Bearer ${accessToken}` };
+
+  useEffect(() => {
+    createClient()
+      .auth.getSession()
+      .then(({ data: { session } }) => setAccessToken(session?.access_token ?? ""));
+  }, []);
+
+  useEffect(() => {
+    if (accessToken) fetchCentres({});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken]);
 
   async function fetchCentres(opts: {
     search?: string;
